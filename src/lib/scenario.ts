@@ -1,0 +1,147 @@
+import type { BoatClass, BoatObject, MarkObject, Scenario, ScenarioObject } from '../types/scenario'
+import { boatColorForClass } from './boatColors'
+
+export const createId = () => {
+  const runtimeCrypto = globalThis.crypto
+
+  if (typeof runtimeCrypto?.randomUUID === 'function') {
+    return runtimeCrypto.randomUUID()
+  }
+
+  const bytes = new Uint8Array(16)
+  if (typeof runtimeCrypto?.getRandomValues === 'function') {
+    runtimeCrypto.getRandomValues(bytes)
+  } else {
+    for (let index = 0; index < bytes.length; index += 1) {
+      bytes[index] = Math.floor(Math.random() * 256)
+    }
+  }
+
+  bytes[6] = (bytes[6] & 0x0f) | 0x40
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0'))
+  return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10).join('')}`
+}
+export const normalizeHeading = (value: number) => ((value % 360) + 360) % 360
+export const normalizeSignedAngle = (value: number) => {
+  const normalized = normalizeHeading(value)
+  return normalized > 180 ? normalized - 360 : normalized
+}
+export const now = () => new Date().toISOString()
+
+const baseObject = (type: ScenarioObject['type'], x: number, y: number, zIndex: number) => ({
+  id: createId(),
+  type,
+  x,
+  y,
+  rotation: 0,
+  scaleX: 1,
+  scaleY: 1,
+  visible: true,
+  locked: false,
+  zIndex,
+  opacity: 1,
+})
+
+export function createBoat(
+  x: number,
+  y: number,
+  zIndex = 1,
+  boatClass: BoatClass = 'ILCA / Laser',
+): BoatObject {
+  return {
+    ...baseObject('boat', x, y, zIndex),
+    type: 'boat',
+    boatClass,
+    name: '',
+    sailNumber: '',
+    label: '',
+    color: boatColorForClass(boatClass, '#2563EB'),
+    heading: 0,
+    tack: 'starboard',
+    mainsailVisible: true,
+    jibVisible: false,
+    genoaVisible: false,
+    spinnakerVisible: false,
+    gennakerVisible: false,
+    mainsailTrim: 0,
+    jibTrim: 0,
+    spinnakerTrim: 0,
+    gennakerTrim: 0,
+    sailMode: 'automatic',
+    sailAngle: 32,
+    sequenceId: createId(),
+    positionNumber: 1,
+    stateMarker: 'none',
+  }
+}
+
+export function createMark(x: number, y: number, zIndex = 1): MarkObject {
+  return {
+    ...baseObject('mark', x, y, zIndex),
+    type: 'mark',
+    markType: 'racing',
+    shape: 'round',
+    color: '#FFAA00',
+    label: '',
+    markNumber: 1,
+    downwind: false,
+    zoneVisible: true,
+    zoneRadius: 3,
+    zoneRadiusUnit: 'boat-lengths',
+  }
+}
+
+export function createEmptyScenario(title = 'Untitled scenario'): Scenario {
+  const timestamp = now()
+  return {
+    format: 'sailing-scenario',
+    version: 1,
+    metadata: {
+      id: createId(),
+      title,
+      description: '',
+      ruleReferences: [],
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    },
+    canvas: {
+      width: 1920,
+      height: 1080,
+      background: '#f8fbfc',
+      boatNumbersVisible: true,
+      grid: { visible: true, size: 40, snap: false, opacity: 1 },
+      view: { x: 0, y: 0, scale: 1 },
+    },
+    environment: {
+      windDirection: 0,
+      windStrength: null,
+      windVisible: true,
+      laylineAngle: 45,
+      laylinesVisible: true,
+      zonesVisible: true,
+      zoneRadiusBoatLengths: 3,
+    },
+    objects: [],
+  }
+}
+
+export function duplicateObject<T extends ScenarioObject>(object: T, offset = 24): T {
+  return {
+    ...structuredClone(object),
+    id: createId(),
+    x: object.x + offset,
+    y: object.y + offset,
+    zIndex: object.zIndex + 1,
+  }
+}
+
+export function sanitizeFilename(value: string): string {
+  const cleaned = value
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return cleaned || 'sailing-scenario'
+}

@@ -1,0 +1,24 @@
+# Heisel Project Tools
+/Heisel_ProjectTools/
+/AGENTS.md
+.DS_Store
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.secrets/
+credentials.*
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+.vite/
+*.tsbuildinfo
