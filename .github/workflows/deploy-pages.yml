@@ -12,7 +12,9 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  # Pages only accepts one production deployment at a time. Let that deployment finish so a
+  # cancelled workflow cannot leave its Pages deployment blocking the next run.
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -23,6 +25,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - uses: actions/configure-pages@v5
       - run: npm ci
       - run: npm test
       - run: npm run build
@@ -38,4 +41,4 @@ jobs:
     steps:
       - name: Deploy
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
