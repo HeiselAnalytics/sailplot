@@ -1,40 +1,48 @@
 import { ChevronDown } from 'lucide-react'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { namespacedStorageKey } from '../../config/storage'
 import { BOAT_COLOR_PALETTE, type ColorPalette } from '../../lib/boatColors'
 import { useI18n } from '../../i18n'
+import { useSailPlotConfig } from '../../providers/SailPlotConfigProvider'
 import { mergeRecentColors } from './recentColors'
 
-const STORAGE_KEY = 'sailing-scenario-editor:recent-colors'
+const LEGACY_STORAGE_KEY = 'sailing-scenario-editor:recent-colors'
 const EMPTY_COLORS: string[] = []
 
-let cachedColors: string[] | undefined
-const listeners = new Set<() => void>()
+const cachedColors = new Map<string, string[]>()
+const listeners = new Map<string, Set<() => void>>()
 
-const loadColors = () => {
-  if (cachedColors) return cachedColors
+const loadColors = (storageKey: string) => {
+  const cached = cachedColors.get(storageKey)
+  if (cached) return cached
   if (typeof window === 'undefined') return EMPTY_COLORS
   try {
-    const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? '[]')
-    cachedColors = mergeRecentColors([], Array.isArray(stored) ? stored : [])
+    const stored = JSON.parse(window.localStorage.getItem(storageKey) ?? '[]')
+    const colors = mergeRecentColors([], Array.isArray(stored) ? stored : [])
+    cachedColors.set(storageKey, colors)
+    return colors
   } catch {
-    cachedColors = []
+    cachedColors.set(storageKey, EMPTY_COLORS)
+    return EMPTY_COLORS
   }
-  return cachedColors
 }
 
-const subscribe = (listener: () => void) => {
-  listeners.add(listener)
-  return () => listeners.delete(listener)
+const subscribe = (storageKey: string, listener: () => void) => {
+  const keyListeners = listeners.get(storageKey) ?? new Set<() => void>()
+  keyListeners.add(listener)
+  listeners.set(storageKey, keyListeners)
+  return () => keyListeners.delete(listener)
 }
 
-const rememberColors = (...colors: string[]) => {
-  cachedColors = mergeRecentColors(colors, loadColors())
+const rememberColors = (storageKey: string, ...colors: string[]) => {
+  const nextColors = mergeRecentColors(colors, loadColors(storageKey))
+  cachedColors.set(storageKey, nextColors)
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedColors))
+    window.localStorage.setItem(storageKey, JSON.stringify(nextColors))
   } catch {
     // The picker still works when storage is unavailable (for example, in private browsing).
   }
-  listeners.forEach((listener) => listener())
+  listeners.get(storageKey)?.forEach((listener) => listener())
 }
 
 interface RecentColorPickerProps {
@@ -87,8 +95,15 @@ export function RecentColorPicker({
   allowTransparent = false,
 }: RecentColorPickerProps) {
   const { t } = useI18n()
+  const { storageNamespace } = useSailPlotConfig()
+  const storageKey = namespacedStorageKey(storageNamespace, LEGACY_STORAGE_KEY)
+  const subscribeToColors = useCallback(
+    (listener: () => void) => subscribe(storageKey, listener),
+    [storageKey],
+  )
+  const getColors = useCallback(() => loadColors(storageKey), [storageKey])
   const isTransparent = value.toLowerCase() === 'transparent'
-  const recentColors = useSyncExternalStore(subscribe, loadColors, () => EMPTY_COLORS)
+  const recentColors = useSyncExternalStore(subscribeToColors, getColors, () => EMPTY_COLORS)
   const displayedColors = mergeRecentColors([value], recentColors)
   const [open, setOpen] = useState(false)
   const pickerRef = useRef<HTMLDivElement>(null)
@@ -110,7 +125,7 @@ export function RecentColorPicker({
   }, [open])
 
   const chooseColor = (color: string) => {
-    rememberColors(color, value)
+    rememberColors(storageKey, color, value)
     onChange(color.toLowerCase())
     setOpen(false)
   }

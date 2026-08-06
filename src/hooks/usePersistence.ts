@@ -6,8 +6,10 @@ import {
   saveProject,
 } from '../services/database'
 import { useEditorStore } from '../stores/editorStore'
+import { useSailPlotConfig } from '../providers/SailPlotConfigProvider'
 
 export function usePersistence() {
+  const { storageNamespace } = useSailPlotConfig()
   const scenario = useEditorStore((state) => state.scenario)
   const layoutPreference = useEditorStore((state) => state.layoutPreference)
   const hydrated = useEditorStore((state) => state.hydrated)
@@ -19,7 +21,7 @@ export function usePersistence() {
   const initialScenarioId = useRef(scenario.metadata.id)
 
   useEffect(() => {
-    Promise.all([loadLastProject(), loadLayoutPreference()])
+    Promise.all([loadLastProject(storageNamespace), loadLayoutPreference(storageNamespace)])
       .then(([stored, preference]) => {
         if (
           stored &&
@@ -32,12 +34,19 @@ export function usePersistence() {
       })
       .catch(() => setStatus('Local storage is unavailable; work remains in this tab.'))
       .finally(() => setHydrated(true))
-  }, [setDocumentStatus, setHydrated, setLayoutPreference, setScenario, setStatus])
+  }, [
+    setDocumentStatus,
+    setHydrated,
+    setLayoutPreference,
+    setScenario,
+    setStatus,
+    storageNamespace,
+  ])
 
   useEffect(() => {
     if (!hydrated) return
     const timer = window.setTimeout(() => {
-      saveProject(scenario)
+      saveProject(scenario, storageNamespace)
         .then(() => {
           const state = useEditorStore.getState()
           if (state.scenario === scenario && state.documentStatus !== 'downloaded') {
@@ -51,10 +60,10 @@ export function usePersistence() {
         })
     }, 3000)
     return () => window.clearTimeout(timer)
-  }, [hydrated, scenario, setDocumentStatus, setStatus])
+  }, [hydrated, scenario, setDocumentStatus, setStatus, storageNamespace])
 
   useEffect(() => {
     if (!hydrated) return
-    void saveLayoutPreference(layoutPreference)
-  }, [hydrated, layoutPreference])
+    void saveLayoutPreference(layoutPreference, storageNamespace)
+  }, [hydrated, layoutPreference, storageNamespace])
 }

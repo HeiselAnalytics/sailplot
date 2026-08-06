@@ -15,7 +15,7 @@ export const BOAT_COLOR_PALETTE = [
   { name: 'Midnight navy', value: '#18324A' },
   { name: 'Alpine blue', value: '#2F5D78' },
   { name: 'Deep teal', value: '#1F6D68' },
-  { name: 'Forest green', value: '#4F6B52'},
+  { name: 'Forest green', value: '#4F6B52' },
   { name: 'Burgundy', value: '#884454' },
   { name: 'Copper', value: '#B46632' },
   { name: 'Slate', value: '#5B6572' },

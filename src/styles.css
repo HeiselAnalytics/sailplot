@@ -36,6 +36,7 @@
   --success: #22c55e;
   --button: #171717;
   --button-text: #fafafa;
+  --radius: 7px;
   font-family: var(--font-body);
   font-synthesis: none;
 }
@@ -286,7 +287,7 @@ h3 {
   gap: 8px;
   padding: 0 10px;
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: transparent;
   font-size: 13px;
   font-weight: 500;
@@ -746,6 +747,126 @@ h3 {
   background: rgb(46 46 46 / 82%);
   color: #fff;
   font-family: var(--font-body);
+}
+
+.brand-credit-powered-by {
+  padding-left: 8px;
+  border-left: 1px solid rgb(255 255 255 / 28%);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.configured-help-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.sailplot-navigation {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sailplot-navigation a,
+.sailplot-navigation button {
+  min-height: 32px;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.sailplot-navigation a:hover,
+.sailplot-navigation button:hover {
+  background: color-mix(in srgb, var(--highlight), transparent 86%);
+}
+
+.sailplot-navigation--editor {
+  margin-left: 4px;
+}
+
+.extension-page-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.extension-page-header {
+  display: flex;
+  min-height: 68px;
+  align-items: center;
+  gap: 20px;
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.extension-shell-logo {
+  display: block;
+  width: 164px;
+  height: 48px;
+  flex: 0 0 auto;
+}
+
+.extension-shell-logo img {
+  display: none;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: left center;
+}
+
+:root[data-theme='light'] .extension-shell-logo .app-logo--on-light,
+:root[data-theme='dark'] .extension-shell-logo .app-logo--on-dark {
+  display: block;
+}
+
+.extension-page-header .sailplot-navigation {
+  margin-left: auto;
+}
+
+.extension-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.extension-page-content {
+  width: min(100% - 32px, 1040px);
+  margin: 0 auto;
+  padding: 48px 0;
+}
+
+.extension-page-footer {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
+}
+
+.sailplot-welcome {
+  max-width: 680px;
+  margin: 10vh auto 0;
+  text-align: center;
+}
+
+.sailplot-welcome h1 {
+  font-size: clamp(2rem, 5vw, 4rem);
 }
 
 .brand-credit .brand-logo {

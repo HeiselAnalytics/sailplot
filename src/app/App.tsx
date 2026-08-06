@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ArrowLeftRight,
   Check,
@@ -28,6 +28,8 @@ import {
   ZoomIn,
 } from 'lucide-react'
 import { IconButton } from '../components/ui/IconButton'
+import { namespacedStorageKey } from '../config/storage'
+import { sailPlotThemeVariables } from '../config/theme'
 import { ScenarioCanvas, type CanvasHandle } from '../editor/canvas/ScenarioCanvas'
 import { EditorToolbar } from '../editor/objects/EditorToolbar'
 import { PropertiesPanel } from '../editor/objects/PropertiesPanel'
@@ -66,13 +68,10 @@ import { createShareUrl, scenarioFromHash } from '../services/scenarioCodec'
 import { parseScenarioJson, serializeScenario } from '../services/scenarioFiles'
 import { useEditorStore } from '../stores/editorStore'
 import { SAILING_BOAT_CLASSES, type BoatClass } from '../types/scenario'
+import type { SailPlotExtensionContext, SailPlotExtensions } from '../extensions/types'
+import { useSailPlotConfig } from '../providers/SailPlotConfigProvider'
 
 type Dialog = 'projects' | 'scenario' | 'settings' | 'help' | 'export' | null
-
-const HEISEL_ANALYTICS_WEBSITE = 'https://heiselanalytics.one/'
-const EXPORT_WATERMARK_URL = `${import.meta.env.BASE_URL}assets/heiselanalytics-website-qr.svg`
-const EXPORT_WATERMARK_LOGO_URL = `${import.meta.env.BASE_URL}assets/heisel-analytics-logo-on-light.png`
-const EXPORT_PRODUCT_LOGO_URL = `${import.meta.env.BASE_URL}icons/sailplot-logo-on-light.svg`
 
 const triggerDownload = (url: string, filename: string) => {
   const anchor = document.createElement('a')
@@ -476,31 +475,64 @@ function MobileProperties({ hasSelection }: { hasSelection: boolean }) {
   )
 }
 
-function BrandCredit({ onInfo }: { onInfo: () => void }) {
+function BrandCredit({
+  onInfo,
+  extensions,
+  extensionContext,
+}: {
+  onInfo: () => void
+  extensions: SailPlotExtensions
+  extensionContext: SailPlotExtensionContext
+}) {
   const { t } = useI18n()
+  const config = useSailPlotConfig()
+  const Footer = extensions.footer
+  if (!config.ui.footer) return null
   return (
-    <aside className="brand-credit" aria-label={t('Powered by Heisel Analytics')}>
-      <img
-        className="brand-logo"
-        src={`${import.meta.env.BASE_URL}assets/heisel-analytics-logo-on-dark.png`}
-        alt="Heisel Analytics"
-      />
-      <div className="brand-credit-copy">
-        <div className="brand-credit-title">{t('Powered by Heisel Analytics')}</div>
-        <nav aria-label={t('Heisel Analytics links')}>
-          <button type="button" onClick={onInfo}>
-            {t('Info')}
-          </button>
-          <span aria-hidden="true">|</span>
-          <a href="https://heiselanalytics.one/" target="_blank" rel="noopener noreferrer">
-            {t('Website')}
-          </a>
-          <span aria-hidden="true">|</span>
-          <a href="https://heiselanalytics.one/impressum" target="_blank" rel="noopener noreferrer">
-            {t('Imprint')}
-          </a>
-        </nav>
-      </div>
+    <aside className="brand-credit" aria-label={config.texts.footerText}>
+      {Footer ? (
+        <Footer {...extensionContext} />
+      ) : (
+        <>
+          {config.branding.partnerLogo && (
+            <img
+              className="brand-logo"
+              src={config.branding.partnerLogo}
+              alt={config.branding.partnerName}
+            />
+          )}
+          <div className="brand-credit-copy">
+            <div className="brand-credit-title">{config.texts.footerText}</div>
+            <nav aria-label={`${config.branding.partnerName} links`}>
+              {config.ui.help && (
+                <button type="button" onClick={onInfo}>
+                  {t('Info')}
+                </button>
+              )}
+              {config.ui.help && config.links.website && <span aria-hidden="true">|</span>}
+              {config.links.website && (
+                <a href={config.links.website} target="_blank" rel="noopener noreferrer">
+                  {t('Website')}
+                </a>
+              )}
+              {(config.ui.help || config.links.website) && config.links.imprint && (
+                <span aria-hidden="true">|</span>
+              )}
+              {config.links.imprint && (
+                <a href={config.links.imprint} target="_blank" rel="noopener noreferrer">
+                  {t('Imprint')}
+                </a>
+              )}
+            </nav>
+          </div>
+        </>
+      )}
+      {extensions.footerExtensions?.map((FooterExtension, index) => (
+        <FooterExtension key={index} {...extensionContext} />
+      ))}
+      {config.ui.poweredBySailPlot && (
+        <span className="brand-credit-powered-by">{config.texts.poweredByText}</span>
+      )}
     </aside>
   )
 }
@@ -553,14 +585,18 @@ function Modal({
 
 function ProjectsDialog({ onClose, onImport }: { onClose: () => void; onImport: () => void }) {
   const { t, locale, language } = useI18n()
+  const { storageNamespace } = useSailPlotConfig()
   const [projects, setProjects] = useState<StoredProject[]>([])
   const setScenario = useEditorStore((state) => state.setScenario)
   const scenario = useEditorStore((state) => state.scenario)
   const setDocumentStatus = useEditorStore((state) => state.setDocumentStatus)
-  const refresh = () => listProjects().then(setProjects)
+  const refresh = useCallback(
+    () => listProjects(storageNamespace).then(setProjects),
+    [storageNamespace],
+  )
   useEffect(() => {
     void refresh()
-  }, [])
+  }, [refresh])
   const open = (project: StoredProject) => {
     setScenario(project.scenario)
     setDocumentStatus('browser')
@@ -576,17 +612,18 @@ function ProjectsDialog({ onClose, onImport }: { onClose: () => void; onImport: 
       createdAt: timestamp,
       updatedAt: timestamp,
     }
-    await saveProject(copy)
+    await saveProject(copy, storageNamespace)
     await refresh()
   }
   const deleteAll = async () => {
-    await deleteAllProjects()
+    await deleteAllProjects(storageNamespace)
     setProjects([])
   }
   const create = async (
     kind: 'empty' | 'windward' | 'start' | 'port-starboard' | 'windward-leeward' | 'ahead-astern',
   ) => {
-    const storedProjects = kind === 'empty' ? await listProjects().catch(() => projects) : projects
+    const storedProjects =
+      kind === 'empty' ? await listProjects(storageNamespace).catch(() => projects) : projects
     const created = (() => {
       switch (kind) {
         case 'windward':
@@ -712,7 +749,7 @@ function ProjectsDialog({ onClose, onImport }: { onClose: () => void; onImport: 
                       t('Delete “{title}” from this browser?', { title: project.title }),
                     )
                   )
-                    void deleteProject(project.id).then(refresh)
+                    void deleteProject(project.id, storageNamespace).then(refresh)
                 }}
               >
                 {t('Delete')}
@@ -1010,8 +1047,18 @@ function ScenarioDialog({ onClose }: { onClose: () => void }) {
   )
 }
 
-function HelpDialog({ onClose }: { onClose: () => void }) {
+function HelpDialog({
+  onClose,
+  extensions,
+  extensionContext,
+}: {
+  onClose: () => void
+  extensions: SailPlotExtensions
+  extensionContext: SailPlotExtensionContext
+}) {
   const { t } = useI18n()
+  const config = useSailPlotConfig()
+  const HelpContent = extensions.helpContent
   const [page, setPage] = useState<'help' | 'privacy' | 'about' | 'license'>('help')
   const tabLabels = {
     help: 'Help',
@@ -1022,7 +1069,9 @@ function HelpDialog({ onClose }: { onClose: () => void }) {
   return (
     <Modal title={t('Help & information')} onClose={onClose} wide>
       <div className="tabs" role="tablist">
-        {(['help', 'privacy', 'about', 'license'] as const).map((id) => (
+        {(
+          ['help', 'privacy', ...(config.ui.about ? (['about'] as const) : []), 'license'] as const
+        ).map((id) => (
           <button
             key={id}
             type="button"
@@ -1038,16 +1087,27 @@ function HelpDialog({ onClose }: { onClose: () => void }) {
       {page === 'help' && (
         <div className="readable">
           <h3>{t('Build a static sailing explanation')}</h3>
-          <p>
-            {t(
-              'Add boats, marks, lines and notes from the tool panel. Select an object to edit its properties. This editor deliberately has no playback or sailing simulation.',
-            )}
-          </p>
+          <p>{t(config.texts.helpText)}</p>
           <p>
             {t(
               'The Boat tool stays active: each tap adds the next numbered position to the current boat chain. To continue an existing chain, select one of its boats and then choose Boat. Choose Select or another tool when the chain is complete.',
             )}
           </p>
+          {HelpContent && <HelpContent {...extensionContext} />}
+          {(config.links.support || config.links.documentation) && (
+            <p className="configured-help-links">
+              {config.links.support && (
+                <a href={config.links.support} target="_blank" rel="noopener noreferrer">
+                  {t('Support')}
+                </a>
+              )}
+              {config.links.documentation && (
+                <a href={config.links.documentation} target="_blank" rel="noopener noreferrer">
+                  {t('Documentation')}
+                </a>
+              )}
+            </p>
+          )}
           <h3>{t('Mouse and keyboard')}</h3>
           <p>
             {t(
@@ -1081,17 +1141,20 @@ function HelpDialog({ onClose }: { onClose: () => void }) {
               'A share link contains the project data itself. Anyone who receives that link can access the plot embedded in it.',
             )}
           </p>
+          {config.links.privacy && (
+            <p>
+              <a href={config.links.privacy} target="_blank" rel="noopener noreferrer">
+                {t('Privacy')}
+              </a>
+            </p>
+          )}
         </div>
       )}
       {page === 'about' && (
         <div className="readable">
-          <h3>{t('Sailing Plot Editor')}</h3>
-          <p>
-            {t(
-              'A new web-based implementation for creating static sailing and racing-rule diagrams. It is inspired by the historical BOATS application but is implemented from scratch and does not use the old application as a runtime dependency.',
-            )}
-          </p>
-          <p>{t('Powered by Heisel Analytics.')}</p>
+          <h3>{t(config.branding.appName)}</h3>
+          <p>{t(config.texts.aboutText)}</p>
+          <p>{t(`${config.texts.footerText}.`)}</p>
         </div>
       )}
       {page === 'license' && (
@@ -1122,6 +1185,7 @@ function ExportDialog({
   onPdf: () => Promise<void>
 }) {
   const { t, locale } = useI18n()
+  const config = useSailPlotConfig()
   const scenario = useEditorStore((state) => state.scenario)
   const shareLength = createShareUrl(scenario).length
   const [copied, setCopied] = useState(false)
@@ -1188,9 +1252,7 @@ function ExportDialog({
             <div className="export-option-title">
               <strong>{t('PNG image')}</strong>
               <ExportInfo label={t('About PNG image')}>
-                {t(
-                  'Exports the complete plot with the Heisel Analytics logo and QR code. Choose 2× for screens and everyday use, or 4× for sharper print and detailed output.',
-                )}
+                {t(config.texts.exportPngDescription)}
               </ExportInfo>
             </div>
             <small>{t('Static image without editor handles')}</small>
@@ -1218,9 +1280,7 @@ function ExportDialog({
             <div className="export-option-title">
               <strong>{t('Transparent PNG')}</strong>
               <ExportInfo label={t('About Transparent PNG')}>
-                {t(
-                  'Exports without the plot background while keeping the logo and QR code. Choose 2× for screens and everyday use, or 4× for sharper print and detailed output.',
-                )}
+                {t(config.texts.exportTransparentPngDescription)}
               </ExportInfo>
             </div>
             <small>{t('Canvas objects without a background')}</small>
@@ -1266,15 +1326,27 @@ function ExportDialog({
   )
 }
 
-export default function App() {
+interface EditorAppProps {
+  extensions: SailPlotExtensions
+  extensionContext: SailPlotExtensionContext
+}
+
+export default function App({ extensions, extensionContext }: EditorAppProps) {
   usePersistence()
+  const config = useSailPlotConfig()
   const { language, setLanguage, t, status: localizeStatus } = useI18n()
   const canvasRef = useRef<CanvasHandle>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dialog, setDialog] = useState<Dialog>(null)
-  const [theme, setTheme] = useState<'light' | 'dark'>(() =>
-    localStorage.getItem('sailing-theme') === 'light' ? 'light' : 'dark',
-  )
+  const themeStorageKey = namespacedStorageKey(config.storageNamespace, 'sailing-theme')
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (config.theme.mode === 'system') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    }
+    const stored = localStorage.getItem(themeStorageKey)
+    if (stored === 'light' || stored === 'dark') return stored
+    return config.theme.mode
+  })
   const scenario = useEditorStore((state) => state.scenario)
   const selectedIds = useEditorStore((state) => state.selectedIds)
   const hasVisibleBoatLegend = scenario.objects.some(
@@ -1306,8 +1378,22 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
-    localStorage.setItem('sailing-theme', theme)
-  }, [theme])
+    localStorage.setItem(themeStorageKey, theme)
+  }, [theme, themeStorageKey])
+
+  useEffect(() => {
+    if (config.theme.mode !== 'system') return
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const update = () => setTheme(media.matches ? 'dark' : 'light')
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [config.theme.mode])
+
+  useEffect(() => {
+    extensions.onEvent?.({ type: 'editor-ready', path: extensionContext.currentPath })
+    // The ready event belongs to this editor mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     try {
@@ -1381,9 +1467,9 @@ export default function App() {
     try {
       const data = await addExportWatermark(
         plotData,
-        EXPORT_WATERMARK_URL,
-        EXPORT_WATERMARK_LOGO_URL,
-        EXPORT_PRODUCT_LOGO_URL,
+        config.branding.exportWatermarkQr,
+        config.branding.exportWatermarkLogo,
+        config.branding.exportProductLogo,
       )
       const anchor = document.createElement('a')
       anchor.href = data
@@ -1412,10 +1498,10 @@ export default function App() {
     try {
       const pdf = await createA4PlotPdf(
         data,
-        EXPORT_WATERMARK_URL,
-        EXPORT_WATERMARK_LOGO_URL,
-        EXPORT_PRODUCT_LOGO_URL,
-        HEISEL_ANALYTICS_WEBSITE,
+        config.branding.exportWatermarkQr,
+        config.branding.exportWatermarkLogo,
+        config.branding.exportProductLogo,
+        config.links.website ?? '',
         scenario.metadata.title,
         pdfWatermarkBottomMm,
       )
@@ -1440,7 +1526,7 @@ export default function App() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
   const createCleanPlot = async () => {
-    const projects = await listProjects().catch(() => [])
+    const projects = await listProjects(config.storageNamespace).catch(() => [])
     const currentTitle = useEditorStore.getState().scenario.metadata.title
     const title = nextUntitledPlotTitle(t('Untitled plot'), [
       currentTitle,
@@ -1471,30 +1557,36 @@ export default function App() {
   )
 
   return (
-    <div className="app-shell" data-layout={layoutPreference}>
+    <div
+      className="app-shell"
+      data-layout={layoutPreference}
+      style={sailPlotThemeVariables(config.theme[theme], config)}
+    >
       <header className="topbar">
-        <div className="app-title" role="img" aria-label="SailPlot">
-          <span className="app-symbol">
-            <img
-              className="app-logo app-logo--on-light"
-              src={`${import.meta.env.BASE_URL}icons/sailplot-logo-on-light.svg`}
-              alt=""
-              aria-hidden="true"
-            />
-            <img
-              className="app-logo app-logo--on-dark"
-              src={`${import.meta.env.BASE_URL}icons/sailplot-logo-on-dark.svg`}
-              alt=""
-              aria-hidden="true"
-            />
-            <img
-              className="app-logo app-logo--compact"
-              src={`${import.meta.env.BASE_URL}icons/sailplot-icon.svg`}
-              alt=""
-              aria-hidden="true"
-            />
-          </span>
-        </div>
+        {config.ui.headerLogo && (
+          <div className="app-title" role="img" aria-label={config.branding.logoAlt}>
+            <span className="app-symbol">
+              <img
+                className="app-logo app-logo--on-light"
+                src={config.branding.logo}
+                alt=""
+                aria-hidden="true"
+              />
+              <img
+                className="app-logo app-logo--on-dark"
+                src={config.branding.logoDark}
+                alt=""
+                aria-hidden="true"
+              />
+              <img
+                className="app-logo app-logo--compact"
+                src={config.branding.compactLogo}
+                alt=""
+                aria-hidden="true"
+              />
+            </span>
+          </div>
+        )}
         <div className="topbar-document">
           <h1 className="topbar-document-title">
             <button
@@ -1532,22 +1624,28 @@ export default function App() {
           </span>
         </div>
         <div className="topbar-actions topbar-actions--file">
-          <IconButton
-            className="new-plot-button"
-            icon={<Plus />}
-            label={t('New')}
-            onClick={() => void createCleanPlot()}
-          />
-          <IconButton
-            icon={<FolderOpen />}
-            label={t('Open projects & templates')}
-            onClick={() => setDialog('projects')}
-          />
-          <IconButton
-            icon={<Download />}
-            label={t('Export / Share')}
-            onClick={() => setDialog('export')}
-          />
+          {config.ui.newPlot && (
+            <IconButton
+              className="new-plot-button"
+              icon={<Plus />}
+              label={t('New')}
+              onClick={() => void createCleanPlot()}
+            />
+          )}
+          {config.ui.openProjects && (
+            <IconButton
+              icon={<FolderOpen />}
+              label={t('Open projects & templates')}
+              onClick={() => setDialog('projects')}
+            />
+          )}
+          {config.ui.export && (
+            <IconButton
+              icon={<Download />}
+              label={t('Export / Share')}
+              onClick={() => setDialog('export')}
+            />
+          )}
         </div>
         <div className="topbar-actions">
           <IconButton
@@ -1570,12 +1668,14 @@ export default function App() {
             label={t('Fit canvas')}
             onClick={() => canvasRef.current?.fitToScreen()}
           />
-          <IconButton
-            compact
-            icon={<HelpCircle />}
-            label={t('Help')}
-            onClick={() => setDialog('help')}
-          />
+          {config.ui.help && (
+            <IconButton
+              compact
+              icon={<HelpCircle />}
+              label={t('Help')}
+              onClick={() => setDialog('help')}
+            />
+          )}
           <IconButton
             compact
             icon={theme === 'dark' ? <Sun /> : <Moon />}
@@ -1606,6 +1706,36 @@ export default function App() {
               </button>
             ))}
           </div>
+          {extensions.navigationItems && extensions.navigationItems.length > 0 && (
+            <nav
+              className="sailplot-navigation sailplot-navigation--editor"
+              aria-label="Navigation"
+            >
+              {extensions.navigationItems.map((item) =>
+                item.href ? (
+                  <a
+                    key={item.id}
+                    href={item.href}
+                    target={item.external ? '_blank' : undefined}
+                    rel={item.external ? 'noopener noreferrer' : undefined}
+                  >
+                    {item.label}
+                  </a>
+                ) : (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => extensionContext.navigate(item.path ?? '/')}
+                  >
+                    {item.label}
+                  </button>
+                ),
+              )}
+            </nav>
+          )}
+          {extensions.headerActions?.map((HeaderAction, index) => (
+            <HeaderAction key={index} {...extensionContext} />
+          ))}
         </div>
         <input
           ref={fileInputRef}
@@ -1636,7 +1766,11 @@ export default function App() {
       </aside>
       <main className="canvas-area">
         <ScenarioCanvas ref={canvasRef} />
-        <BrandCredit onInfo={() => setDialog('help')} />
+        <BrandCredit
+          onInfo={() => setDialog('help')}
+          extensions={extensions}
+          extensionContext={extensionContext}
+        />
       </main>
       <aside className="properties-panel">
         <PropertiesPanel />
@@ -1716,7 +1850,13 @@ export default function App() {
           <SceneSettings embedded />
         </Modal>
       )}
-      {dialog === 'help' && <HelpDialog onClose={() => setDialog(null)} />}
+      {dialog === 'help' && config.ui.help && (
+        <HelpDialog
+          onClose={() => setDialog(null)}
+          extensions={extensions}
+          extensionContext={extensionContext}
+        />
+      )}
       {dialog === 'export' && (
         <ExportDialog
           onClose={() => setDialog(null)}

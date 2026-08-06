@@ -1,5 +1,9 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { defaultSailPlotConfig } from './config/defaultConfig'
+import { namespacedStorageKey } from './config/storage'
+import type { SailPlotConfig } from './config/types'
+import { useSailPlotConfig } from './providers/SailPlotConfigProvider'
 
 export type Language = 'en' | 'de'
 type Variables = Record<string, string | number>
@@ -464,22 +468,34 @@ interface I18nValue {
 }
 
 const I18nContext = createContext<I18nValue | null>(null)
-const STORAGE_KEY = 'sailing-language'
+const LEGACY_STORAGE_KEY = 'sailing-language'
 
-const initialLanguage = (): Language => {
-  const stored = window.localStorage.getItem(STORAGE_KEY)
+const initialLanguage = (config: SailPlotConfig): Language => {
+  const stored = window.localStorage.getItem(
+    namespacedStorageKey(config.storageNamespace, LEGACY_STORAGE_KEY),
+  )
   if (stored === 'de' || stored === 'en') return stored
+  if (config.defaults.language === 'de' || config.defaults.language === 'en') {
+    return config.defaults.language
+  }
   return window.navigator.language.toLowerCase().startsWith('de') ? 'de' : 'en'
 }
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguage] = useState<Language>(initialLanguage)
+  const config = useSailPlotConfig()
+  const [language, setLanguage] = useState<Language>(() => initialLanguage(config))
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, language)
+    window.localStorage.setItem(
+      namespacedStorageKey(config.storageNamespace, LEGACY_STORAGE_KEY),
+      language,
+    )
     document.documentElement.lang = language
-    document.title = translate(language, 'Sailing Plot Editor')
-  }, [language])
+    document.title =
+      config.pageTitle === defaultSailPlotConfig.pageTitle
+        ? translate(language, config.pageTitle)
+        : config.pageTitle
+  }, [config.pageTitle, config.storageNamespace, language])
 
   const value = useMemo<I18nValue>(
     () => ({
@@ -487,9 +503,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       setLanguage,
       t: (key, variables) => translate(language, key, variables),
       status: (message) => translateStatus(language, message),
-      locale: language === 'de' ? 'de-CH' : 'en-GB',
+      locale: config.localization.locales[language],
     }),
-    [language],
+    [config.localization.locales, language],
   )
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>

@@ -1,6 +1,5 @@
 # Heisel Project Tools
 /Heisel_ProjectTools/
-/AGENTS.md
 .DS_Store
 .env
 .env.*
@@ -17,8 +16,10 @@ venv/
 .ruff_cache/
 node_modules/
 dist/
+dist-package/
 coverage/
 playwright-report/
 test-results/
 .vite/
 *.tsbuildinfo
+*.tgz

@@ -1,11 +1,33 @@
 {
-  "name": "sailplot-editor",
-  "private": true,
+  "name": "@heiselanalytics/sailplot",
   "version": "0.1.0",
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist-package/sailplot.js",
+  "module": "./dist-package/sailplot.js",
+  "types": "./dist-package/types/package-entry.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist-package/types/package-entry.d.ts",
+      "import": "./dist-package/sailplot.js"
+    },
+    "./styles.css": "./dist-package/sailplot.css",
+    "./assets/*": "./dist-package/assets/*",
+    "./icons/*": "./dist-package/icons/*"
+  },
+  "sideEffects": [
+    "./dist-package/sailplot.css"
+  ],
+  "files": [
+    "dist-package"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:package": "vite build --config vite.package.config.ts && tsc -p tsconfig.package.json",
+    "typecheck": "tsc -b",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -22,8 +44,6 @@
     "konva": "^9.3.18",
     "lucide-react": "^0.468.0",
     "pako": "^2.1.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
     "react-konva": "^18.2.10",
     "zod": "^3.24.1",
     "zustand": "^5.0.2"
@@ -36,6 +56,8 @@
     "@types/pako": "^2.0.3",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "eslint": "^9.17.0",
     "eslint-plugin-react-hooks": "^5.1.0",
@@ -49,5 +71,9 @@
     "vite": "^6.0.5",
     "vite-plugin-pwa": "^0.21.1",
     "vitest": "^3.2.7"
+  },
+  "peerDependencies": {
+    "react": ">=18 <20",
+    "react-dom": ">=18 <20"
   }
 }
