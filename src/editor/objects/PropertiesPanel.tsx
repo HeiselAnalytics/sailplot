@@ -1,30 +1,41 @@
-import { ArrowDown, ArrowUp, Copy, Eye, EyeOff, Lock, Plus, Trash2, Unlock } from 'lucide-react'
+import { ArrowDown, ArrowUp, Copy, Lock, Trash2, Unlock } from 'lucide-react'
 import { IconButton } from '../../components/ui/IconButton'
 import {
   BOAT_CLASSES,
   type BoatObject,
+  type CourseEndpointType,
+  type FinishLineObject,
+  type GateObject,
   type MarkObject,
   type ScenarioObject,
+  type StartLineObject,
 } from '../../types/scenario'
 import { normalizeHeading } from '../../lib/scenario'
-import { VSR_COACHBOAT_BLUE } from '../../lib/boatColors'
+import {
+  boatColorPaletteForBackground,
+  COACHBOAT_BLUE,
+  JURY_BOAT_GREY,
+  type ColorPalette,
+} from '../../lib/boatColors'
+import { SAILING_FLAG_COLOR_PALETTE } from '../../lib/flagColors'
+import { isDarkPlotBackground } from '../../lib/plotTheme'
 import { useI18n } from '../../i18n'
 import { useEditorStore } from '../../stores/editorStore'
 import {
   automaticGennakerAngle,
-  automaticJibAngle,
-  automaticSailAngle,
+  automaticBoatHeadsailAngle,
+  automaticBoatMainsailAngle,
   automaticSpinnakerAngle,
   BOAT_SHAPES,
   constrainSailAngle,
   isGennakerStalled,
-  isCloseHauled,
   isSailStalled,
-  longestBoatLengthBasis,
+  measurementBoatLengthBasis,
   sailAngleLimits,
   tackForHeading,
 } from './boatShapes'
 import { RecentColorPicker } from './RecentColorPicker'
+import { lineMetrics } from './lineMetrics'
 
 function Field({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -39,16 +50,123 @@ function ColorField({
   label,
   value,
   onChange,
+  palette,
+  paletteLabel,
+  allowTransparent,
 }: {
   label: string
   value: string
   onChange: (color: string) => void
+  palette?: ColorPalette
+  paletteLabel?: string
+  allowTransparent?: boolean
 }) {
   return (
     <div className="field">
       <span>{label}</span>
-      <RecentColorPicker label={label} value={value} onChange={onChange} />
+      <RecentColorPicker
+        label={label}
+        value={value}
+        onChange={onChange}
+        palette={palette}
+        paletteLabel={paletteLabel}
+        allowTransparent={allowTransparent}
+      />
     </div>
+  )
+}
+
+function BooleanSegmentField({
+  label,
+  checked,
+  checkedLabel,
+  uncheckedLabel,
+  onChange,
+}: {
+  label: string
+  checked: boolean
+  checkedLabel: string
+  uncheckedLabel: string
+  onChange: (checked: boolean) => void
+}) {
+  return (
+    <div className="field">
+      <span>{label}</span>
+      <div className="property-segmented-control" role="group" aria-label={label}>
+        <button
+          type="button"
+          className={checked ? 'is-active' : ''}
+          aria-pressed={checked}
+          onClick={() => onChange(true)}
+        >
+          {checkedLabel}
+        </button>
+        <button
+          type="button"
+          className={!checked ? 'is-active' : ''}
+          aria-pressed={!checked}
+          onClick={() => onChange(false)}
+        >
+          {uncheckedLabel}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function BoatOverlapField({
+  value,
+  onChange,
+}: {
+  value: BoatObject['overlapIndicator']
+  onChange: (value: BoatObject['overlapIndicator']) => void
+}) {
+  const { t } = useI18n()
+  const options: Array<{ value: BoatObject['overlapIndicator']; label: string }> = [
+    { value: 'port', label: 'Port' },
+    { value: 'none', label: 'None' },
+    { value: 'starboard', label: 'Starboard' },
+  ]
+  return (
+    <div className="field">
+      <span>{t('Overlap line')}</span>
+      <div
+        className="property-segmented-control property-segmented-control--three"
+        role="group"
+        aria-label={t('Overlap line')}
+      >
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            className={value === option.value ? 'is-active' : ''}
+            aria-pressed={value === option.value}
+            onClick={() => onChange(option.value)}
+          >
+            {t(option.label)}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function LayerOrderActions({
+  onForward,
+  onBackward,
+}: {
+  onForward: () => void
+  onBackward: () => void
+}) {
+  const { t } = useI18n()
+  return (
+    <>
+      <h3 className="action-grid__heading">{t('Layer order')}</h3>
+      <div className="action-grid__layer">
+        <IconButton icon={<ArrowUp />} label={t('Forward')} onClick={onForward} />
+        <IconButton icon={<ArrowDown />} label={t('Backward')} onClick={onBackward} />
+      </div>
+    </>
   )
 }
 
@@ -117,6 +235,8 @@ function BoatFields({
 }) {
   const { t } = useI18n()
   const environment = useEditorStore((state) => state.scenario.environment)
+  const plotBackground = useEditorStore((state) => state.scenario.canvas.background)
+  const hullPalette = boatColorPaletteForBackground(plotBackground)
   const profile = BOAT_SHAPES[object.boatClass]
   const hasMainsail = Boolean(profile.mast && profile.mainsailSize)
   const hasJib = Boolean(profile.jibTack && profile.jibSize)
@@ -124,47 +244,56 @@ function BoatFields({
   const hasSpinnaker = Boolean(profile.mast && profile.spinnakerSize)
   const hasGennaker = Boolean(profile.gennakerTack && profile.gennakerSize)
   const downwindSailVisible = object.spinnakerVisible || object.gennakerVisible
-  const angleLimits = sailAngleLimits(object.heading, environment.windDirection)
-  const lacustreCloseHauled =
-    object.boatClass === 'Lacustre' &&
-    isCloseHauled(object.heading, environment.windDirection, environment.laylineAngle)
-  const automaticMain = lacustreCloseHauled
-    ? 0
-    : automaticSailAngle(
-        object.heading,
-        environment.windDirection,
-        environment.laylineAngle,
-        downwindSailVisible ? profile.mainsailSpinMaxAngle : profile.mainsailMaxAngle,
-      )
-  const automaticJib = lacustreCloseHauled
-    ? 0
-    : automaticJibAngle(
-        object.heading,
-        environment.windDirection,
-        environment.laylineAngle,
-        downwindSailVisible ? profile.jibSpinMaxAngle : profile.jibMaxAngle,
-      )
-  const automaticSpinnaker = automaticSpinnakerAngle(object.heading, environment.windDirection)
-  const automaticGennaker = automaticGennakerAngle(object.heading, environment.windDirection)
+  const angleLimits = sailAngleLimits(object.heading, environment.windDirection, object.tack)
+  const automaticMain = automaticBoatMainsailAngle(
+    object.boatClass,
+    object.heading,
+    environment.windDirection,
+    environment.laylineAngle,
+    downwindSailVisible ? profile.mainsailSpinMaxAngle : profile.mainsailMaxAngle,
+    object.tack,
+  )
+  const automaticJib = automaticBoatHeadsailAngle(
+    object.boatClass,
+    object.heading,
+    environment.windDirection,
+    environment.laylineAngle,
+    downwindSailVisible ? profile.jibSpinMaxAngle : profile.jibMaxAngle,
+    object.tack,
+  )
+  const automaticSpinnaker = automaticSpinnakerAngle(
+    object.heading,
+    environment.windDirection,
+    object.tack,
+  )
+  const automaticGennaker = automaticGennakerAngle(
+    object.heading,
+    environment.windDirection,
+    object.tack,
+  )
   const mainsailAngle = constrainSailAngle(
     object.sailMode === 'automatic' ? automaticMain + object.mainsailTrim : object.sailAngle,
     object.heading,
     environment.windDirection,
+    object.tack,
   )
   const jibAngle = constrainSailAngle(
     automaticJib + object.jibTrim,
     object.heading,
     environment.windDirection,
+    object.tack,
   )
   const spinnakerAngle = constrainSailAngle(
     automaticSpinnaker + object.spinnakerTrim,
     object.heading,
     environment.windDirection,
+    object.tack,
   )
   const gennakerAngle = constrainSailAngle(
     automaticGennaker + object.gennakerTrim,
     object.heading,
     environment.windDirection,
+    object.tack,
   )
 
   return (
@@ -175,7 +304,9 @@ function BoatFields({
           onChange={(event) => update({ boatClass: event.target.value as BoatObject['boatClass'] })}
         >
           {BOAT_CLASSES.map((boatClass) => (
-            <option key={boatClass}>{t(boatClass)}</option>
+            <option key={boatClass} value={boatClass}>
+              {t(boatClass)}
+            </option>
           ))}
         </select>
       </Field>
@@ -200,24 +331,46 @@ function BoatFields({
           aria-label={t('Heading slider')}
           onChange={(event) => {
             const heading = normalizeHeading(numeric(event.target.value))
-            update({ heading, rotation: heading })
+            update({
+              heading,
+              rotation: heading,
+              tack: tackForHeading(heading, environment.windDirection, object.tack),
+            })
           }}
         />
       </Field>
-      {object.boatClass === 'VSR Coachboat' ? (
+      <BoatOverlapField
+        value={object.overlapIndicator}
+        onChange={(overlapIndicator) => update({ overlapIndicator })}
+      />
+      {object.boatClass === 'Coachboat' || object.boatClass === 'Jury boat' ? (
         <div className="field">
           <span>{t('Hull color')}</span>
-          <div className="fixed-color-display" aria-label={t('Fixed VSR Coachboat hull color')}>
+          <div className="fixed-color-display" aria-label={t('Fixed support boat hull color')}>
             <span
               className="color-picker-preview"
-              style={{ backgroundColor: VSR_COACHBOAT_BLUE }}
+              style={{
+                backgroundColor: object.boatClass === 'Jury boat' ? JURY_BOAT_GREY : COACHBOAT_BLUE,
+              }}
             />
-            <span className="color-picker-value">{VSR_COACHBOAT_BLUE}</span>
+            <span className="color-picker-value">
+              {object.boatClass === 'Jury boat' ? JURY_BOAT_GREY : COACHBOAT_BLUE}
+            </span>
             <span className="fixed-color-note">{t('Fixed')}</span>
           </div>
         </div>
       ) : (
-        <ColorField label={t('Hull color')} value={object.color} onChange={(color) => update({ color })} />
+        <ColorField
+          label={t('Hull color')}
+          value={object.color}
+          onChange={(color) => update({ color })}
+          palette={hullPalette}
+          paletteLabel={
+            isDarkPlotBackground(plotBackground)
+              ? 'Heisel dark sailing palette'
+              : 'Heisel sailing palette'
+          }
+        />
       )}
       <section className="property-section" aria-labelledby={`sails-${object.id}`}>
         <h3 id={`sails-${object.id}`} className="property-section-title">
@@ -312,7 +465,7 @@ function BoatFields({
               }}
             >
               <option value="automatic">{t('Automatic with trim')}</option>
-              <option value="manual">{t('Manual mainsail angle')}</option>
+              <option value="manual">{t('Manual primary sail angle')}</option>
             </select>
           </Field>
         )}
@@ -390,31 +543,42 @@ function MarkFields({
   update: (patch: Partial<MarkObject>) => void
 }) {
   const { t } = useI18n()
-  const objects = useEditorStore((state) => state.scenario.objects)
-  const zoneBasis = longestBoatLengthBasis(objects)
+  const scenario = useEditorStore((state) => state.scenario)
+  const zoneBasis = measurementBoatLengthBasis(
+    scenario.objects,
+    scenario.environment.measurementBoatClass,
+  )
 
   return (
     <>
+      <BooleanSegmentField
+        label={t('Mark orientation')}
+        checked={object.downwind}
+        checkedLabel={t('Leeward mark')}
+        uncheckedLabel={t('Windward mark')}
+        onChange={(downwind) => update({ downwind })}
+      />
+      <BooleanSegmentField
+        label={t('Zone')}
+        checked={object.zoneVisible}
+        checkedLabel={t('Show zone')}
+        uncheckedLabel={t('Hide zone')}
+        onChange={(zoneVisible) => update({ zoneVisible })}
+      />
       <Field label={t('Mark number')}>
         <input
-          type="number"
-          min="1"
-          step="1"
+          type="text"
+          inputMode="text"
+          autoCapitalize="none"
+          autoCorrect="off"
+          maxLength={6}
+          pattern="[1-9][0-9]*[A-Za-z]?"
           value={object.markNumber}
-          onChange={(event) =>
-            update({ markNumber: Math.max(1, Math.round(numeric(event.target.value, 1))) })
-          }
+          onChange={(event) => {
+            const markNumber = event.target.value.trim().toLowerCase()
+            if (/^[1-9]\d*[a-z]?$/.test(markNumber)) update({ markNumber })
+          }}
         />
-      </Field>
-      <Field label={t('Mark type')}>
-        <select
-          value={object.markType}
-          onChange={(event) => update({ markType: event.target.value as MarkObject['markType'] })}
-        >
-          <option value="racing">{t('Racing mark')}</option>
-          <option value="starting">{t('Starting mark')}</option>
-          <option value="finish">{t('Finish mark')}</option>
-        </select>
       </Field>
       <Field label={t('Shape')}>
         <select
@@ -426,15 +590,9 @@ function MarkFields({
           <option value="inflatable">{t('Inflatable buoy')}</option>
           <option value="flag">{t('Flag buoy')}</option>
           <option value="gate">{t('Gate mark')}</option>
-          <option value="pin">{t('Pin-end mark')}</option>
         </select>
       </Field>
       <div className="field-row">
-        <ColorField
-          label={t('Mark color')}
-          value={object.color}
-          onChange={(color) => update({ color })}
-        />
         <Field label={t('Zone radius')}>
           <div className="input-with-unit">
             <input
@@ -454,28 +612,158 @@ function MarkFields({
             <span aria-hidden="true">BL</span>
           </div>
         </Field>
+        <ColorField
+          label={t('Mark color')}
+          value={object.color}
+          onChange={(color) => update({ color })}
+        />
       </div>
       <p className="field-help">
-        {t(zoneBasis.usesDefault ? 'Default basis' : 'Longest class')}: {t(zoneBasis.boatClass)} (
-        {zoneBasis.length / 10} m).
+        {t(
+          scenario.environment.measurementBoatClass
+            ? 'Selected basis'
+            : zoneBasis.usesDefault
+              ? 'Default basis'
+              : 'Longest class',
+        )}
+        : {t(zoneBasis.boatClass)} ({zoneBasis.length / 10} m).
       </p>
-      <label className="check-row">
-        <input
-          type="checkbox"
-          checked={object.zoneVisible}
-          onChange={(event) => update({ zoneVisible: event.target.checked })}
-        />{' '}
-        {t('Show zone')}
-      </label>
-      <label className="check-row">
-        <input
-          type="checkbox"
-          role="switch"
-          checked={object.downwind}
-          onChange={(event) => update({ downwind: event.target.checked })}
-        />{' '}
-        {t('Downwind mark')}
-      </label>
+    </>
+  )
+}
+
+const courseEndpointOptions: Array<{ value: CourseEndpointType; label: string }> = [
+  { value: 'committee-boat', label: 'Committee boat' },
+  { value: 'buoy', label: 'Buoy' },
+  { value: 'flag', label: 'Flag' },
+  { value: 'coach-boat', label: 'Coachboat' },
+  { value: 'coach-boat-reversed', label: 'Coachboat (reversed)' },
+]
+
+function GateFields({
+  object,
+  update,
+}: {
+  object: GateObject
+  update: (patch: Partial<GateObject>) => void
+}) {
+  const { t } = useI18n()
+  return (
+    <>
+      <div className="field-row">
+        <Field label={t('Zone radius')}>
+          <div className="input-with-unit">
+            <input
+              aria-label={t('Zone radius in boat lengths')}
+              type="number"
+              min="0.5"
+              max="20"
+              step="0.5"
+              value={object.zoneRadius}
+              onChange={(event) =>
+                update({
+                  zoneRadius: numeric(event.target.value, 3),
+                  zoneRadiusUnit: 'boat-lengths',
+                })
+              }
+            />
+            <span aria-hidden="true">BL</span>
+          </div>
+        </Field>
+        <ColorField
+          label={t('Mark color')}
+          value={object.color}
+          onChange={(color) => update({ color })}
+        />
+      </div>
+      <BooleanSegmentField
+        label={t('Zone')}
+        checked={object.zoneVisible}
+        checkedLabel={t('Show zone')}
+        uncheckedLabel={t('Hide zone')}
+        onChange={(zoneVisible) => update({ zoneVisible })}
+      />
+    </>
+  )
+}
+
+function CourseLineFields({
+  object,
+  update,
+}: {
+  object: StartLineObject | FinishLineObject
+  update: (patch: Partial<StartLineObject | FinishLineObject>) => void
+}) {
+  const { t } = useI18n()
+  const isFinishLine = object.type === 'finish-line'
+  const endpointSelect = (
+    label: string,
+    value: CourseEndpointType,
+    field: 'startEndType' | 'pinEndType',
+    flagColor: string,
+    colorField: 'startEndFlagColor' | 'pinEndFlagColor',
+  ) => (
+    <>
+      <Field label={t(label)}>
+        <select
+          value={value}
+          onChange={(event) => update({ [field]: event.target.value as CourseEndpointType })}
+        >
+          {courseEndpointOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {t(option.label)}
+            </option>
+          ))}
+        </select>
+      </Field>
+      {value === 'flag' && (
+        <ColorField
+          label={t('{label} flag color', { label: t(label) })}
+          value={flagColor}
+          onChange={(color) => update({ [colorField]: color })}
+          palette={SAILING_FLAG_COLOR_PALETTE}
+          paletteLabel="Sailing signal flag palette"
+        />
+      )}
+    </>
+  )
+  return (
+    <>
+      <BooleanSegmentField
+        label={t('Laylines')}
+        checked={object.laylinesVisible}
+        checkedLabel={t('On')}
+        uncheckedLabel={t('Off')}
+        onChange={(laylinesVisible) => update({ laylinesVisible })}
+      />
+      <BooleanSegmentField
+        label={t('Layline area')}
+        checked={object.laylineAreaVisible}
+        checkedLabel={t('On')}
+        uncheckedLabel={t('Off')}
+        onChange={(laylineAreaVisible) => update({ laylineAreaVisible })}
+      />
+      {object.laylineAreaVisible && (
+        <ColorField
+          label={t('Layline area color')}
+          value={object.laylineAreaColor}
+          onChange={(laylineAreaColor) => update({ laylineAreaColor })}
+        />
+      )}
+      {endpointSelect(
+        isFinishLine ? 'Finish-boat end' : 'Start-boat end',
+        object.startEndType,
+        'startEndType',
+        object.startEndFlagColor,
+        'startEndFlagColor',
+      )}
+      {endpointSelect(
+        isFinishLine ? 'Outer end' : 'Pin end',
+        object.pinEndType,
+        'pinEndType',
+        object.pinEndFlagColor,
+        'pinEndFlagColor',
+      )}
     </>
   )
 }
@@ -483,14 +771,20 @@ function MarkFields({
 export function PropertiesPanel() {
   const { language, t } = useI18n()
   const scenario = useEditorStore((state) => state.scenario)
+  const dragPreview = useEditorStore((state) => state.dragPreview)
   const selectedIds = useEditorStore((state) => state.selectedIds)
   const updateObject = useEditorStore((state) => state.updateObject)
   const updateObjects = useEditorStore((state) => state.updateObjects)
   const duplicateSelected = useEditorStore((state) => state.duplicateSelected)
-  const duplicateAsPosition = useEditorStore((state) => state.duplicateAsPosition)
   const deleteSelected = useEditorStore((state) => state.deleteSelected)
   const setLayer = useEditorStore((state) => state.setLayer)
-  const selected = scenario.objects.filter((object) => selectedIds.includes(object.id))
+  const selected = scenario.objects
+    .filter((object) => selectedIds.includes(object.id))
+    .map((object) =>
+      dragPreview?.id === object.id
+        ? ({ ...object, ...dragPreview.patch } as ScenarioObject)
+        : object,
+    )
 
   if (!selected.length) {
     return (
@@ -511,7 +805,9 @@ export function PropertiesPanel() {
             <h2>{t('{count} objects', { count: selected.length })}</h2>
           </div>
         </div>
-        <p className="muted">{t('Move, duplicate, layer, lock or remove the selection together.')}</p>
+        <p className="muted">
+          {t('Move, duplicate, layer, lock or remove the selection together.')}
+        </p>
         <div className="action-grid">
           <IconButton icon={<Copy />} label={t('Duplicate')} onClick={duplicateSelected} />
           <IconButton
@@ -525,20 +821,14 @@ export function PropertiesPanel() {
             }
           />
           <IconButton
-            icon={<ArrowUp />}
-            label={t('Bring forward')}
-            onClick={() => setLayer('forward')}
-          />
-          <IconButton
-            icon={<ArrowDown />}
-            label={t('Send backward')}
-            onClick={() => setLayer('backward')}
-          />
-          <IconButton
             icon={<Trash2 />}
             label={t('Delete')}
-            className="danger"
+            className="danger action-grid__wide"
             onClick={deleteSelected}
+          />
+          <LayerOrderActions
+            onForward={() => setLayer('forward')}
+            onBackward={() => setLayer('backward')}
           />
         </div>
       </div>
@@ -549,6 +839,9 @@ export function PropertiesPanel() {
   const typeLabel = {
     boat: 'Boat',
     mark: 'Mark',
+    gate: 'Gate',
+    'start-line': 'Start line',
+    'finish-line': 'Finish line',
     line: 'Line',
     arrow: 'Arrow',
     freehand: 'Freehand',
@@ -558,6 +851,14 @@ export function PropertiesPanel() {
   }[object.type]
   const update = (patch: Partial<ScenarioObject>) =>
     updateObject(object.id, patch, `Updated ${object.type}`)
+  const metrics = lineMetrics(
+    object,
+    scenario.environment.windDirection,
+    measurementBoatLengthBasis(scenario.objects, scenario.environment.measurementBoatClass).length,
+  )
+  const numberFormat = new Intl.NumberFormat(language === 'de' ? 'de-CH' : 'en', {
+    maximumFractionDigits: 1,
+  })
   return (
     <div className="properties-content">
       <div className="panel-heading">
@@ -591,10 +892,23 @@ export function PropertiesPanel() {
             <div>
               <span>{t('Tack')}</span>
               <strong>
-                {tackForHeading(object.heading, scenario.environment.windDirection) === 'port'
+                {tackForHeading(object.heading, scenario.environment.windDirection, object.tack) ===
+                'port'
                   ? t('Port')
                   : t('Starboard')}
               </strong>
+            </div>
+          </>
+        )}
+        {metrics && (
+          <>
+            <div>
+              <span>{t('Length')}</span>
+              <strong>{numberFormat.format(metrics.lengthBoatLengths)} BL</strong>
+            </div>
+            <div>
+              <span>{t('Angle to wind')}</span>
+              <strong>{Math.round(metrics.angleToWind)}°</strong>
             </div>
           </>
         )}
@@ -604,6 +918,21 @@ export function PropertiesPanel() {
       )}
       {object.type === 'mark' && (
         <MarkFields object={object} update={(patch) => update(patch as Partial<ScenarioObject>)} />
+      )}
+      {object.type === 'gate' && (
+        <GateFields object={object} update={(patch) => update(patch as Partial<ScenarioObject>)} />
+      )}
+      {object.type === 'start-line' && (
+        <CourseLineFields
+          object={object}
+          update={(patch) => update(patch as Partial<ScenarioObject>)}
+        />
+      )}
+      {object.type === 'finish-line' && (
+        <CourseLineFields
+          object={object}
+          update={(patch) => update(patch as Partial<ScenarioObject>)}
+        />
       )}
       {object.type === 'text' && (
         <>
@@ -630,7 +959,11 @@ export function PropertiesPanel() {
           </div>
         </>
       )}
-      {(object.type === 'line' || object.type === 'arrow' || object.type === 'freehand') && (
+      {(object.type === 'line' ||
+        object.type === 'arrow' ||
+        object.type === 'freehand' ||
+        object.type === 'rectangle' ||
+        object.type === 'circle') && (
         <div className="field-row">
           <Field label={t('Stroke width')}>
             <input
@@ -648,6 +981,20 @@ export function PropertiesPanel() {
           />
         </div>
       )}
+      {(object.type === 'rectangle' || object.type === 'circle') && (
+        <ColorField
+          label={t('Fill color')}
+          value={object.fill}
+          onChange={(fill) => update({ fill })}
+          palette={boatColorPaletteForBackground(scenario.canvas.background)}
+          paletteLabel={
+            isDarkPlotBackground(scenario.canvas.background)
+              ? 'Heisel dark sailing palette'
+              : 'Heisel sailing palette'
+          }
+          allowTransparent
+        />
+      )}
       <Field label={t('Opacity')}>
         <input
           type="range"
@@ -660,26 +1007,21 @@ export function PropertiesPanel() {
       </Field>
       <div className="action-grid">
         <IconButton icon={<Copy />} label={t('Duplicate')} onClick={duplicateSelected} />
-        {object.type === 'boat' && (
-          <IconButton icon={<Plus />} label={t('Add static position')} onClick={duplicateAsPosition} />
-        )}
         <IconButton
           icon={object.locked ? <Unlock /> : <Lock />}
           label={t(object.locked ? 'Unlock' : 'Lock')}
           onClick={() => update({ locked: !object.locked })}
         />
         <IconButton
-          icon={object.visible ? <EyeOff /> : <Eye />}
-          label={t(object.visible ? 'Hide' : 'Show')}
-          onClick={() => update({ visible: !object.visible })}
+          icon={<Trash2 />}
+          label={t('Delete')}
+          className="danger action-grid__wide"
+          onClick={deleteSelected}
         />
-        <IconButton icon={<ArrowUp />} label={t('Bring forward')} onClick={() => setLayer('forward')} />
-        <IconButton
-          icon={<ArrowDown />}
-          label={t('Send backward')}
-          onClick={() => setLayer('backward')}
+        <LayerOrderActions
+          onForward={() => setLayer('forward')}
+          onBackward={() => setLayer('backward')}
         />
-        <IconButton icon={<Trash2 />} label={t('Delete')} className="danger" onClick={deleteSelected} />
       </div>
     </div>
   )

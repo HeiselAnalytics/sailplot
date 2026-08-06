@@ -15,9 +15,9 @@ export default defineConfig({
         'assets/heisel-analytics-logo-on-dark.png',
       ],
       manifest: {
-        name: 'Sailing Scenario Editor',
-        short_name: 'Sailing Editor',
-        description: 'Create and share static sailing scenarios without a backend.',
+        name: 'Sailing Plot Editor',
+        short_name: 'SailPlot',
+        description: 'Create and share static sailing plots without a backend.',
         theme_color: '#171717',
         background_color: '#171717',
         display: 'standalone',

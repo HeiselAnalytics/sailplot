@@ -5,18 +5,16 @@ import {
   createId,
   createMark,
   duplicateObject,
+  nextMarkSequenceNumber,
   now,
 } from '../lib/scenario'
 import { applyObjectCommand, type ObjectCommand } from '../editor/commands/types'
 import {
   headingForNextPosition,
+  tackForHeading,
   upwindSailVisibility,
 } from '../editor/objects/boatShapes'
-import {
-  boatColorForClass,
-  nextBoatColor,
-  VSR_COACHBOAT_BLUE,
-} from '../lib/boatColors'
+import { boatColorPaletteForBackground, boatColorForClass, nextBoatColor } from '../lib/boatColors'
 import { migrateScenario } from '../services/migrations'
 import type {
   BoatClass,
@@ -31,6 +29,10 @@ const BOAT_CHAIN_FIELDS: Array<keyof BoatObject> = ['boatClass', 'color', 'name'
 const CREATION_TOOLS = new Set<EditorTool>([
   'boat',
   'mark',
+  'downwind-mark',
+  'gate',
+  'start-line',
+  'finish-line',
   'line',
   'arrow',
   'freehand',
@@ -39,17 +41,12 @@ const CREATION_TOOLS = new Set<EditorTool>([
   'circle',
 ])
 
-const nextMarkNumber = (objects: ScenarioObject[]) =>
-  objects.reduce(
-    (highest, object) => (object.type === 'mark' ? Math.max(highest, object.markNumber) : highest),
-    0,
-  ) + 1
-
 const documentStatusAfterChange = (status: EditorState['documentStatus']) =>
   status === 'downloaded' ? 'unsaved' : status
 
 interface EditorState {
   scenario: Scenario
+  dragPreview: { id: string; patch: Partial<ScenarioObject> } | null
   selectedIds: string[]
   activeTool: EditorTool
   layoutPreference: LayoutPreference
@@ -62,6 +59,7 @@ interface EditorState {
   setHydrated: (hydrated: boolean) => void
   setStatus: (status: string) => void
   setDocumentStatus: (status: EditorState['documentStatus']) => void
+  setDragPreview: (preview: EditorState['dragPreview']) => void
   setTool: (tool: EditorTool) => void
   setLayoutPreference: (preference: LayoutPreference) => void
   setScenario: (scenario: Scenario, status?: string) => void
@@ -73,6 +71,7 @@ interface EditorState {
   selectIds: (ids: string[]) => void
   addAt: (type: EditorTool, x: number, y: number) => ScenarioObject | null
   addObject: (object: ScenarioObject, label?: string) => void
+  addObjects: (objects: ScenarioObject[], label?: string) => void
   updateObject: (id: string, patch: Partial<ScenarioObject>, label?: string) => void
   updateObjects: (
     updates: Array<{ id: string; patch: Partial<ScenarioObject> }>,
@@ -80,7 +79,6 @@ interface EditorState {
   ) => void
   deleteSelected: () => void
   duplicateSelected: () => void
-  duplicateAsPosition: () => void
   setLayer: (direction: 'forward' | 'backward' | 'front' | 'back') => void
   undo: () => void
   redo: () => void
@@ -114,10 +112,11 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
   return {
     scenario: createEmptyScenario(),
+    dragPreview: null,
     selectedIds: [],
     activeTool: 'select',
     layoutPreference: 'auto',
-    defaultBoatClass: 'ILCA / Laser',
+    defaultBoatClass: 'ILCA',
     history: [],
     future: [],
     status: 'Ready',
@@ -126,25 +125,36 @@ export const useEditorStore = create<EditorState>((set, get) => {
     setHydrated: (hydrated) => set({ hydrated }),
     setStatus: (status) => set({ status }),
     setDocumentStatus: (documentStatus) => set({ documentStatus }),
+    setDragPreview: (dragPreview) => set({ dragPreview }),
     setTool: (activeTool) =>
       set((state) => {
         const restartsActiveCreation =
           state.activeTool === activeTool && CREATION_TOOLS.has(activeTool)
-        const startsBoatChain = activeTool === 'boat' && state.activeTool !== 'boat'
+        const startsCreation = CREATION_TOOLS.has(activeTool) && state.activeTool !== activeTool
+        const continuesSelectedBoatChain =
+          activeTool === 'boat' &&
+          state.activeTool !== 'boat' &&
+          state.selectedIds.length === 1 &&
+          state.scenario.objects.some(
+            (object) => object.id === state.selectedIds[0] && object.type === 'boat',
+          )
         return {
           activeTool,
           selectedIds:
-            restartsActiveCreation || startsBoatChain ? [] : state.selectedIds,
+            (restartsActiveCreation || startsCreation) && !continuesSelectedBoatChain
+              ? []
+              : state.selectedIds,
         }
       }),
     setLayoutPreference: (layoutPreference) => set({ layoutPreference }),
-    setScenario: (scenario, status = 'Scenario opened') => {
+    setScenario: (scenario, status = 'Plot opened') => {
       const migrated = migrateScenario(structuredClone(scenario))
       const latestBoat = [...migrated.objects]
         .reverse()
         .find((object): object is BoatObject => object.type === 'boat')
       set((state) => ({
         scenario: migrated,
+        dragPreview: null,
         selectedIds: [],
         history: [],
         future: [],
@@ -172,14 +182,29 @@ export const useEditorStore = create<EditorState>((set, get) => {
         documentStatus: documentStatusAfterChange(state.documentStatus),
       })),
     updateEnvironment: (patch) =>
-      set((state) => ({
-        scenario: {
-          ...state.scenario,
-          environment: { ...state.scenario.environment, ...patch },
-          metadata: { ...state.scenario.metadata, updatedAt: now() },
-        },
-        documentStatus: documentStatusAfterChange(state.documentStatus),
-      })),
+      set((state) => {
+        const environment = { ...state.scenario.environment, ...patch }
+        const objects =
+          patch.windDirection === undefined
+            ? state.scenario.objects
+            : state.scenario.objects.map((object) =>
+                object.type === 'boat'
+                  ? {
+                      ...object,
+                      tack: tackForHeading(object.heading, environment.windDirection, object.tack),
+                    }
+                  : object,
+              )
+        return {
+          scenario: {
+            ...state.scenario,
+            environment,
+            objects,
+            metadata: { ...state.scenario.metadata, updatedAt: now() },
+          },
+          documentStatus: documentStatusAfterChange(state.documentStatus),
+        }
+      }),
     select: (id, additive = false) =>
       set((state) => {
         if (!id) return { selectedIds: [] }
@@ -215,10 +240,12 @@ export const useEditorStore = create<EditorState>((set, get) => {
             y,
             heading,
             rotation: heading,
+            tack: tackForHeading(heading, state.scenario.environment.windDirection, previous.tack),
             opacity: 1,
             locked: false,
             visible: true,
             zIndex,
+            overlapIndicator: 'none',
             positionNumber:
               Math.max(
                 previous.positionNumber,
@@ -233,19 +260,23 @@ export const useEditorStore = create<EditorState>((set, get) => {
             ...upwindSailVisibility(state.defaultBoatClass),
             color: boatColorForClass(
               state.defaultBoatClass,
-              nextBoatColor(state.scenario.objects),
+              nextBoatColor(
+                state.scenario.objects,
+                boatColorPaletteForBackground(state.scenario.canvas.background),
+              ),
             ),
           }
         }
-      } else if (type === 'mark') {
+      } else if (type === 'mark' || type === 'downwind-mark') {
         object = {
           ...createMark(x, y, zIndex),
-          markNumber: nextMarkNumber(state.scenario.objects),
+          markNumber: String(nextMarkSequenceNumber(state.scenario.objects)),
+          downwind: type === 'downwind-mark',
           zoneRadius: state.scenario.environment.zoneRadiusBoatLengths,
         }
       }
       if (object) {
-        get().addObject(object, `Added ${type}`)
+        get().addObject(object, type === 'downwind-mark' ? 'Added downwind mark' : `Added ${type}`)
         set({ selectedIds: [object.id], activeTool: type === 'boat' ? 'boat' : 'select' })
       }
       return object
@@ -253,6 +284,11 @@ export const useEditorStore = create<EditorState>((set, get) => {
     addObject: (object, label = 'Added object') => {
       commit({ label, affectedIds: [object.id], before: [], after: [object] })
       set({ selectedIds: [object.id] })
+    },
+    addObjects: (objects, label = 'Added objects') => {
+      if (!objects.length) return
+      commit({ label, affectedIds: objects.map(({ id }) => id), before: [], after: objects })
+      set({ selectedIds: objects.map(({ id }) => id) })
     },
     updateObject: (id, patch, label = 'Updated object') => {
       const before = get().scenario.objects.find((object) => object.id === id)
@@ -265,8 +301,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
             boatPatch[field],
           ]),
         ) as Partial<BoatObject>
-        if (boatPatch.boatClass === 'VSR Coachboat' && !boatPatch.color) {
-          sharedPatch.color = VSR_COACHBOAT_BLUE
+        if (boatPatch.boatClass && !boatPatch.color) {
+          sharedPatch.color = boatColorForClass(boatPatch.boatClass, before.color)
         }
         if (Object.keys(sharedPatch).length) {
           const classSails = boatPatch.boatClass ? upwindSailVisibility(boatPatch.boatClass) : {}
@@ -348,14 +384,25 @@ export const useEditorStore = create<EditorState>((set, get) => {
             ...duplicate,
             sequenceId: createId(),
             positionNumber: 1,
-            color: boatColorForClass(duplicate.boatClass, nextBoatColor(colorContext)),
+            color: boatColorForClass(
+              duplicate.boatClass,
+              nextBoatColor(
+                colorContext,
+                boatColorPaletteForBackground(scenario.canvas.background),
+              ),
+            ),
           }
           after.push(boat)
           colorContext.push(boat)
         } else if (duplicate.type === 'mark') {
           after.push({
             ...duplicate,
-            markNumber: nextMarkNumber([...scenario.objects, ...after]),
+            markNumber: String(nextMarkSequenceNumber([...scenario.objects, ...after])),
+          })
+        } else if (duplicate.type === 'gate') {
+          after.push({
+            ...duplicate,
+            markNumber: nextMarkSequenceNumber([...scenario.objects, ...after]),
           })
         } else {
           after.push(duplicate)
@@ -369,23 +416,6 @@ export const useEditorStore = create<EditorState>((set, get) => {
         after,
       })
       set({ selectedIds: after.map(({ id }) => id) })
-    },
-    duplicateAsPosition: () => {
-      const selected = get().scenario.objects.find((object) =>
-        get().selectedIds.includes(object.id),
-      )
-      if (!selected || selected.type !== 'boat') return
-      const sequenceId = selected.sequenceId
-      const sequence = get().scenario.objects.filter(
-        (object) => object.type === 'boat' && object.sequenceId === sequenceId,
-      )
-      const next = duplicateObject({ ...selected, opacity: 1 }, 48)
-      next.positionNumber =
-        Math.max(
-          selected.positionNumber,
-          ...sequence.map((object) => (object.type === 'boat' ? object.positionNumber : 1)),
-        ) + 1
-      get().addObject(next, 'Added static boat position')
     },
     setLayer: (direction) => {
       const { scenario, selectedIds } = get()

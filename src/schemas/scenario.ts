@@ -1,5 +1,24 @@
 import { z } from 'zod'
-import { BOAT_CLASSES } from '../types/scenario'
+import { BOAT_CLASSES, isSupportBoatClass, type BoatClass } from '../types/scenario'
+
+const LEGACY_BOAT_CLASSES: Record<string, BoatClass> = {
+  'ILCA / Laser': 'ILCA',
+  Firefly: '420',
+  Topper: 'ILCA',
+  'Generic dinghy': '420',
+  'Generic catamaran': 'Tornado',
+  'Generic skiff': '49er',
+  Windsurfer: 'Windsurf',
+  'Wingfoil board': 'Windsurf',
+  Wingfoil: 'Windsurf',
+  kitefoil: 'Windsurf',
+  'Coach boat': 'Coachboat',
+  'Slim coachboat': 'Coachboat',
+  'VSR Coachboat': 'Coachboat',
+}
+
+const normalizeBoatClass = (value: unknown) =>
+  typeof value === 'string' ? (LEGACY_BOAT_CLASSES[value] ?? value) : value
 
 const baseObjectSchema = z.object({
   id: z.string().min(1),
@@ -16,7 +35,7 @@ const baseObjectSchema = z.object({
 
 const boatSchema = baseObjectSchema.extend({
   type: z.literal('boat'),
-  boatClass: z.enum(BOAT_CLASSES),
+  boatClass: z.preprocess(normalizeBoatClass, z.enum(BOAT_CLASSES)),
   name: z.string(),
   sailNumber: z.string(),
   label: z.string(),
@@ -36,6 +55,7 @@ const boatSchema = baseObjectSchema.extend({
   sailAngle: z.number().finite(),
   sequenceId: z.string().optional(),
   positionNumber: z.number().int().positive().optional(),
+  overlapIndicator: z.enum(['port', 'none', 'starboard']).default('none'),
   stateMarker: z.enum(['none', 'tack', 'gybe', 'head-to-wind', 'reverse', 'drift']).optional(),
 })
 
@@ -45,11 +65,78 @@ const markSchema = baseObjectSchema.extend({
   shape: z.enum(['round', 'cylindrical', 'inflatable', 'flag', 'gate', 'pin']),
   color: z.string(),
   label: z.string(),
-  markNumber: z.number().int().positive().optional(),
+  markNumber: z.preprocess(
+    (value) => (typeof value === 'number' ? String(value) : value),
+    z
+      .string()
+      .regex(/^[1-9]\d*[a-z]?$/i)
+      .max(6)
+      .optional(),
+  ),
   downwind: z.boolean().default(false),
   zoneVisible: z.boolean(),
   zoneRadius: z.number().positive(),
   zoneRadiusUnit: z.enum(['pixels', 'boat-lengths']).default('pixels'),
+})
+
+const normalizeCourseEndpoint = (value: unknown) =>
+  value === 'slim-coach-boat'
+    ? 'coach-boat'
+    : value === 'slim-coach-boat-reversed'
+      ? 'coach-boat-reversed'
+      : value
+
+const courseEndpointSchema = z.preprocess(
+  normalizeCourseEndpoint,
+  z.enum(['committee-boat', 'buoy', 'flag', 'coach-boat', 'coach-boat-reversed']),
+)
+
+const gateSchema = baseObjectSchema.extend({
+  type: z.literal('gate'),
+  width: z.number().positive().optional(),
+  endAX: z.number().finite().optional(),
+  endAY: z.number().finite().optional(),
+  endBX: z.number().finite().optional(),
+  endBY: z.number().finite().optional(),
+  markNumber: z.number().int().positive().optional(),
+  color: z.string(),
+  zoneVisible: z.boolean(),
+  zoneRadius: z.number().positive(),
+  zoneRadiusUnit: z.literal('boat-lengths'),
+})
+
+const startLineSchema = baseObjectSchema.extend({
+  type: z.literal('start-line'),
+  width: z.number().positive().optional(),
+  endAX: z.number().finite().optional(),
+  endAY: z.number().finite().optional(),
+  endBX: z.number().finite().optional(),
+  endBY: z.number().finite().optional(),
+  color: z.string(),
+  startEndType: courseEndpointSchema,
+  pinEndType: courseEndpointSchema,
+  startEndFlagColor: z.string().optional(),
+  pinEndFlagColor: z.string().optional(),
+  laylinesVisible: z.boolean().optional(),
+  laylineAreaVisible: z.boolean().optional(),
+  laylineAreaColor: z.string().optional(),
+})
+
+const finishLineSchema = baseObjectSchema.extend({
+  type: z.literal('finish-line'),
+  width: z.number().positive().optional(),
+  endAX: z.number().finite().optional(),
+  endAY: z.number().finite().optional(),
+  endBX: z.number().finite().optional(),
+  endBY: z.number().finite().optional(),
+  color: z.string(),
+  startEndType: courseEndpointSchema,
+  pinEndType: courseEndpointSchema,
+  startEndFlagColor: z.string().optional(),
+  pinEndFlagColor: z.string().optional(),
+  laylinesVisible: z.boolean().optional(),
+  laylineAreaVisible: z.boolean().optional(),
+  laylineAreaColor: z.string().optional(),
 })
 
 const lineSchema = baseObjectSchema.extend({
@@ -82,6 +169,9 @@ const shapeSchema = baseObjectSchema.extend({
 export const scenarioObjectSchema = z.union([
   boatSchema,
   markSchema,
+  gateSchema,
+  startLineSchema,
+  finishLineSchema,
   lineSchema,
   textSchema,
   shapeSchema,
@@ -89,7 +179,7 @@ export const scenarioObjectSchema = z.union([
 
 export const scenarioSchema = z
   .object({
-    format: z.literal('sailing-scenario'),
+    format: z.union([z.literal('sailplot'), z.literal('sailing-scenario')]),
     version: z.literal(1),
     metadata: z
       .object({
@@ -97,6 +187,16 @@ export const scenarioSchema = z
         title: z.string().min(1),
         description: z.string(),
         ruleReferences: z.array(z.string()),
+        additionalInformation: z
+          .array(
+            z.object({
+              id: z.string().min(1),
+              name: z.string(),
+              value: z.string(),
+            }),
+          )
+          .max(10)
+          .default([]),
         createdAt: z.string(),
         updatedAt: z.string(),
       })
@@ -122,6 +222,10 @@ export const scenarioSchema = z
       laylinesVisible: z.boolean(),
       zonesVisible: z.boolean(),
       zoneRadiusBoatLengths: z.number().positive(),
+      measurementBoatClass: z.preprocess((value) => {
+        const normalized = normalizeBoatClass(value)
+        return normalized == null || isSupportBoatClass(normalized) ? null : normalized
+      }, z.enum(BOAT_CLASSES).nullable()),
     }),
     objects: z.array(scenarioObjectSchema),
   })

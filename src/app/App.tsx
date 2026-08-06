@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import {
+  ArrowLeftRight,
+  Check,
+  ChevronDown,
+  ChevronUp,
   Download,
   FileDown,
   FileJson,
@@ -9,14 +13,16 @@ import {
   Info,
   LayoutTemplate,
   Moon,
-  MoreHorizontal,
+  MoveRight,
   Plus,
-  Printer,
   Redo2,
+  Rows3,
   Settings,
   Share2,
   Sun,
+  Trash2,
   Undo2,
+  View,
   Wind,
   X,
   ZoomIn,
@@ -25,31 +31,100 @@ import { IconButton } from '../components/ui/IconButton'
 import { ScenarioCanvas, type CanvasHandle } from '../editor/canvas/ScenarioCanvas'
 import { EditorToolbar } from '../editor/objects/EditorToolbar'
 import { PropertiesPanel } from '../editor/objects/PropertiesPanel'
-import { createStartLineExample, createWindwardExample } from '../features/projects/examples'
+import { measurementBoatLengthBasis } from '../editor/objects/boatShapes'
+import {
+  createClearAheadAsternExample,
+  createPortStarboardExample,
+  createStartLineExample,
+  createWindwardExample,
+  createWindwardLeewardExample,
+} from '../features/projects/examples'
 import { usePersistence } from '../hooks/usePersistence'
 import { useI18n, type Language } from '../i18n'
 import {
   createEmptyScenario,
   createId,
+  isDarkPlotBackground,
+  nextUntitledPlotTitle,
   normalizeSignedAngle,
   now,
+  PLOT_BACKGROUNDS,
   sanitizeFilename,
 } from '../lib/scenario'
-import { deleteProject, listProjects, saveProject, type StoredProject } from '../services/database'
+import { boatColorForClass, mapBoatColorBetweenPalettes } from '../lib/boatColors'
+import { gridOpacityForBackgroundChange } from '../lib/plotTheme'
+import { normalizeRuleReference } from '../lib/ruleReferences'
+import { addExportWatermark, createA4PlotPdf } from '../lib/exportImage'
+import {
+  deleteAllProjects,
+  deleteProject,
+  listProjects,
+  saveProject,
+  type StoredProject,
+} from '../services/database'
 import { createShareUrl, scenarioFromHash } from '../services/scenarioCodec'
 import { parseScenarioJson, serializeScenario } from '../services/scenarioFiles'
 import { useEditorStore } from '../stores/editorStore'
-import type { LayoutPreference } from '../types/scenario'
+import { SAILING_BOAT_CLASSES, type BoatClass } from '../types/scenario'
 
-type Dialog = 'projects' | 'scenario' | 'help' | 'export' | null
+type Dialog = 'projects' | 'scenario' | 'settings' | 'help' | 'export' | null
 
-const downloadBlob = (contents: BlobPart, filename: string, type: string) => {
-  const url = URL.createObjectURL(new Blob([contents], { type }))
+const HEISEL_ANALYTICS_WEBSITE = 'https://heiselanalytics.one/'
+const EXPORT_WATERMARK_URL = `${import.meta.env.BASE_URL}assets/heiselanalytics-website-qr.svg`
+const EXPORT_WATERMARK_LOGO_URL = `${import.meta.env.BASE_URL}assets/heisel-analytics-logo-on-light.png`
+const EXPORT_PRODUCT_LOGO_URL = `${import.meta.env.BASE_URL}icons/sailplot-logo-on-light.svg`
+
+const triggerDownload = (url: string, filename: string) => {
   const anchor = document.createElement('a')
+  anchor.hidden = true
+  anchor.rel = 'noopener'
   anchor.href = url
   anchor.download = filename
+  document.body.append(anchor)
   anchor.click()
-  URL.revokeObjectURL(url)
+  anchor.remove()
+}
+
+const downloadBlob = (contents: BlobPart, filename: string, type: string) => {
+  const blob =
+    contents instanceof Blob && contents.type === type ? contents : new Blob([contents], { type })
+  const url = URL.createObjectURL(blob)
+  triggerDownload(url, filename)
+  // Keep the object URL alive until Chromium has handed the file to its download manager.
+  window.setTimeout(() => URL.revokeObjectURL(url), 30_000)
+}
+
+const downloadPdfBlob = async (pdf: Blob, filename: string) => {
+  if (window.isSecureContext) {
+    downloadBlob(pdf, filename, 'application/pdf')
+    return
+  }
+
+  // Chrome warns about blob:http downloads on LAN previews. A data URL makes it explicit that
+  // this PDF already exists locally in the browser and is not fetched over an insecure connection.
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () =>
+      typeof reader.result === 'string'
+        ? resolve(reader.result)
+        : reject(new Error('Could not prepare the PDF download'))
+    reader.onerror = () => reject(reader.error ?? new Error('Could not prepare the PDF download'))
+    reader.readAsDataURL(pdf)
+  })
+  triggerDownload(dataUrl, filename)
+}
+
+function ExportInfo({ label, children }: { label: string; children: string }) {
+  return (
+    <span className="export-info">
+      <button type="button" aria-label={label} className="export-info-button">
+        <Info aria-hidden="true" />
+      </button>
+      <span className="export-info-tooltip" role="tooltip">
+        {children}
+      </span>
+    </span>
+  )
 }
 
 function SceneRangeField({
@@ -123,17 +198,63 @@ function SceneRangeField({
   )
 }
 
-function SceneSettings() {
+function SceneSettings({ embedded = false }: { embedded?: boolean }) {
   const { t } = useI18n()
+  const [basisInfoOpen, setBasisInfoOpen] = useState(false)
+  const basisId = embedded ? 'compact-boat-length-basis' : 'boat-length-basis'
+  const basisInfoId = `${basisId}-info`
   const scenario = useEditorStore((state) => state.scenario)
   const updateCanvas = useEditorStore((state) => state.updateCanvas)
+  const patchScenario = useEditorStore((state) => state.patchScenario)
   const updateEnvironment = useEditorStore((state) => state.updateEnvironment)
+  const measurementBasis = measurementBoatLengthBasis(
+    scenario.objects,
+    scenario.environment.measurementBoatClass,
+  )
+  const darkPlot = isDarkPlotBackground(scenario.canvas.background)
+  const setPlotBackground = (background: string) => {
+    const gridOpacity = gridOpacityForBackgroundChange(
+      scenario.canvas.grid.opacity,
+      scenario.canvas.background,
+      background,
+    )
+    if (background === scenario.canvas.background && gridOpacity === scenario.canvas.grid.opacity)
+      return
+    const objects =
+      background === scenario.canvas.background
+        ? scenario.objects
+        : scenario.objects.map((object) =>
+            object.type === 'boat' && SAILING_BOAT_CLASSES.includes(object.boatClass)
+              ? {
+                  ...object,
+                  color: boatColorForClass(
+                    object.boatClass,
+                    mapBoatColorBetweenPalettes(
+                      object.color,
+                      scenario.canvas.background,
+                      background,
+                    ),
+                  ),
+                }
+              : object,
+          )
+    patchScenario({
+      canvas: {
+        ...scenario.canvas,
+        background,
+        grid: { ...scenario.canvas.grid, opacity: gridOpacity },
+      },
+      objects,
+    })
+  }
   return (
-    <section className="scene-settings">
-      <div className="section-title">
-        <Settings aria-hidden="true" />
-        <span>{t('Scene')}</span>
-      </div>
+    <section className={`scene-settings ${embedded ? 'scene-settings--embedded' : ''}`}>
+      {!embedded && (
+        <div className="section-title">
+          <Settings aria-hidden="true" />
+          <span>{t('Scene')}</span>
+        </div>
+      )}
       <div className="scene-toggle-grid">
         <label className="check-row">
           <input
@@ -190,6 +311,79 @@ function SceneSettings() {
           {t('Show boat numbers')}
         </label>
       </div>
+      <div className="field">
+        <span>{t('Plot background')}</span>
+        <div className="plot-background-switch" role="group" aria-label={t('Plot background')}>
+          <button
+            type="button"
+            aria-pressed={!darkPlot}
+            className={!darkPlot ? 'is-active' : ''}
+            onClick={() => setPlotBackground(PLOT_BACKGROUNDS.light)}
+          >
+            {t('Light')}
+          </button>
+          <button
+            type="button"
+            aria-pressed={darkPlot}
+            className={darkPlot ? 'is-active' : ''}
+            onClick={() => setPlotBackground(PLOT_BACKGROUNDS.dark)}
+          >
+            {t('Dark')}
+          </button>
+        </div>
+      </div>
+      <div className="field">
+        <div className="field-label-row">
+          <label htmlFor={basisId}>BL · {t('Boat-length basis')}</label>
+          <button
+            type="button"
+            className="field-info-button"
+            aria-label={t('How BL is calculated')}
+            aria-expanded={basisInfoOpen}
+            aria-controls={basisInfoId}
+            title={t('How BL is calculated')}
+            onClick={() => setBasisInfoOpen((open) => !open)}
+          >
+            <Info aria-hidden="true" />
+          </button>
+        </div>
+        <select
+          id={basisId}
+          aria-label={t('Boat-length basis')}
+          value={scenario.environment.measurementBoatClass ?? ''}
+          onChange={(event) =>
+            updateEnvironment({
+              measurementBoatClass: (event.target.value || null) as BoatClass | null,
+            })
+          }
+        >
+          <option value="">
+            {t('Default')} - {t(measurementBasis.boatClass)}
+          </option>
+          {SAILING_BOAT_CLASSES.map((boatClass) => (
+            <option key={boatClass} value={boatClass}>
+              {t(boatClass)}
+            </option>
+          ))}
+        </select>
+        {basisInfoOpen && (
+          <p id={basisInfoId} className="field-info" role="status">
+            {t(
+              'Default uses the longest sailing boat class in the plot. Committee, jury and coach boats are excluded. Current basis: {boatClass}.',
+              { boatClass: t(measurementBasis.boatClass) },
+            )}
+          </p>
+        )}
+      </div>
+      <SceneRangeField
+        label={t('Wind direction')}
+        min={-180}
+        max={180}
+        value={normalizeSignedAngle(scenario.environment.windDirection)}
+        unit="°"
+        centered
+        onChange={(windDirection) => updateEnvironment({ windDirection })}
+      />
       <SceneRangeField
         label={t('Grid size')}
         min={8}
@@ -209,15 +403,6 @@ function SceneSettings() {
         }
       />
       <SceneRangeField
-        label={t('Wind direction')}
-        min={-180}
-        max={180}
-        value={normalizeSignedAngle(scenario.environment.windDirection)}
-        unit="°"
-        centered
-        onChange={(windDirection) => updateEnvironment({ windDirection })}
-      />
-      <SceneRangeField
         label={t('Layline angle')}
         min={0}
         max={90}
@@ -225,21 +410,69 @@ function SceneSettings() {
         unit="°"
         onChange={(laylineAngle) => updateEnvironment({ laylineAngle })}
       />
-      <div className="scene-additional-information">
-        <div className="section-title section-title--subtle">
-          <Info aria-hidden="true" />
-          <span>{t('Additional information')}</span>
-        </div>
-        <label className="field">
-          <span>{t('Wind strength (general)')}</span>
-          <input
-            value={scenario.environment.windStrength ?? ''}
-            placeholder={t('Optional, e.g. 12 kn')}
-            onChange={(event) => updateEnvironment({ windStrength: event.target.value || null })}
-          />
-        </label>
-      </div>
     </section>
+  )
+}
+
+function MobileProperties({ hasSelection }: { hasSelection: boolean }) {
+  const { t } = useI18n()
+  const [open, setOpen] = useState(false)
+  const scenario = useEditorStore((state) => state.scenario)
+  const selectedIds = useEditorStore((state) => state.selectedIds)
+  const selected = scenario.objects.filter((object) => selectedIds.includes(object.id))
+  const object = selected[0]
+  const typeLabel = object
+    ? {
+        boat: 'Boat',
+        mark: 'Mark',
+        gate: 'Gate',
+        'start-line': 'Start line',
+        'finish-line': 'Finish line',
+        line: 'Line',
+        arrow: 'Arrow',
+        freehand: 'Freehand',
+        text: 'Text',
+        rectangle: 'Rectangle',
+        circle: 'Circle',
+      }[object.type]
+    : 'Properties'
+  const titleParts = [t('Properties')]
+  if (selected.length > 1) {
+    titleParts.push(t('{count} objects', { count: selected.length }))
+  } else if (object?.type === 'boat') {
+    titleParts.push(t(object.boatClass))
+    if (object.sailNumber.trim()) titleParts.push(object.sailNumber.trim())
+    if (object.name.trim()) titleParts.push(object.name.trim())
+  } else if (object?.type === 'mark') {
+    titleParts.push(t('Mark {number}', { number: object.markNumber }))
+  } else if (object) {
+    titleParts.push(t(typeLabel))
+  }
+  const title = titleParts.join(' – ')
+
+  return (
+    <div className="mobile-properties" data-selected={hasSelection} data-open={open}>
+      {hasSelection && (
+        <>
+          <button
+            type="button"
+            className="mobile-properties-toggle"
+            aria-label={t(open ? 'Collapse properties' : 'Expand properties')}
+            aria-expanded={open}
+            aria-controls="mobile-properties-body"
+            onClick={() => setOpen((current) => !current)}
+          >
+            <span className="mobile-properties-title" title={title}>
+              {title}
+            </span>
+            {open ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}
+          </button>
+          <div id="mobile-properties-body" className="mobile-properties-body" hidden={!open}>
+            <PropertiesPanel />
+          </div>
+        </>
+      )}
+    </div>
   )
 }
 
@@ -318,16 +551,11 @@ function Modal({
   )
 }
 
-function ProjectsDialog({
-  onClose,
-  onImport,
-}: {
-  onClose: () => void
-  onImport: () => void
-}) {
+function ProjectsDialog({ onClose, onImport }: { onClose: () => void; onImport: () => void }) {
   const { t, locale, language } = useI18n()
   const [projects, setProjects] = useState<StoredProject[]>([])
   const setScenario = useEditorStore((state) => state.setScenario)
+  const scenario = useEditorStore((state) => state.scenario)
   const setDocumentStatus = useEditorStore((state) => state.setDocumentStatus)
   const refresh = () => listProjects().then(setProjects)
   useEffect(() => {
@@ -351,52 +579,114 @@ function ProjectsDialog({
     await saveProject(copy)
     await refresh()
   }
-  const create = (kind: 'empty' | 'windward' | 'start') => {
-    const created =
-      kind === 'windward'
-        ? createWindwardExample()
-        : kind === 'start'
-          ? createStartLineExample()
-          : createEmptyScenario(t('Untitled scenario'))
-    if (language === 'de' && kind === 'windward') {
-      created.metadata.title = t('Windward mark rounding')
-      created.metadata.description = t('A static visual example for discussing Rule 18.')
+  const deleteAll = async () => {
+    await deleteAllProjects()
+    setProjects([])
+  }
+  const create = async (
+    kind: 'empty' | 'windward' | 'start' | 'port-starboard' | 'windward-leeward' | 'ahead-astern',
+  ) => {
+    const storedProjects = kind === 'empty' ? await listProjects().catch(() => projects) : projects
+    const created = (() => {
+      switch (kind) {
+        case 'windward':
+          return createWindwardExample()
+        case 'start':
+          return createStartLineExample()
+        case 'port-starboard':
+          return createPortStarboardExample()
+        case 'windward-leeward':
+          return createWindwardLeewardExample()
+        case 'ahead-astern':
+          return createClearAheadAsternExample()
+        default:
+          return createEmptyScenario(
+            nextUntitledPlotTitle(t('Untitled plot'), [
+              scenario.metadata.title,
+              ...storedProjects.map((project) => project.title),
+            ]),
+          )
+      }
+    })()
+    if (language === 'de' && kind !== 'empty') {
+      const localizedMetadata = {
+        windward: ['Windward mark rounding', 'A static visual example for discussing Rule 18.'],
+        start: ['Start-line situation', 'Static positions for discussing a start-line situation.'],
+        'port-starboard': [
+          'Port–starboard crossing',
+          'Two boats on opposite tacks approaching a crossing situation.',
+        ],
+        'windward-leeward': ['Windward–leeward overlap', 'Two overlapped boats on the same tack.'],
+        'ahead-astern': [
+          'Clear ahead and clear astern',
+          'Two boats on the same tack, one clear ahead of the other.',
+        ],
+      }[kind]
+      created.metadata.title = t(localizedMetadata[0])
+      created.metadata.description = t(localizedMetadata[1])
     }
-    if (language === 'de' && kind === 'start') {
-      created.metadata.title = t('Start-line situation')
-      created.metadata.description = t('Static positions for discussing a start-line situation.')
-    }
-    setScenario(created, 'Created scenario')
+    setScenario(created, 'Created plot')
     onClose()
   }
   return (
-    <Modal title={t('Projects')} onClose={onClose} wide>
-      <div className="project-dialog-actions">
-        <button type="button" className="secondary-button" onClick={onImport}>
-          <FileDown aria-hidden="true" />
-          {t('Import JSON')}
-        </button>
-      </div>
+    <Modal title={t('Projects & templates')} onClose={onClose} wide>
       <div className="template-grid">
-        <button type="button" onClick={() => create('empty')}>
+        <button
+          type="button"
+          className="template-card--primary"
+          onClick={() => void create('empty')}
+        >
           <Plus />
-          <strong>{t('Empty scenario')}</strong>
+          <strong>{t('Empty plot')}</strong>
           <span>{t('Start with a clean canvas.')}</span>
         </button>
-        <button type="button" onClick={() => create('windward')}>
+        <button type="button" onClick={() => void create('windward')}>
           <Wind />
           <strong>{t('Windward mark')}</strong>
           <span>{t('Static Rule 18 discussion example.')}</span>
+          <RuleReferenceBubbles references={['RRS 18']} />
         </button>
-        <button type="button" onClick={() => create('start')}>
+        <button type="button" onClick={() => void create('start')}>
           <LayoutTemplate />
           <strong>{t('Start line')}</strong>
           <span>{t('Boats approaching a start line.')}</span>
         </button>
+        <button type="button" onClick={() => void create('port-starboard')}>
+          <ArrowLeftRight />
+          <strong>{t('Port–starboard')}</strong>
+          <span>{t('Opposite-tack crossing under RRS 10.')}</span>
+          <RuleReferenceBubbles references={['RRS 10']} />
+        </button>
+        <button type="button" onClick={() => void create('windward-leeward')}>
+          <Rows3 />
+          <strong>{t('Windward–leeward')}</strong>
+          <span>{t('Same-tack overlap under RRS 11.')}</span>
+          <RuleReferenceBubbles references={['RRS 11']} />
+        </button>
+        <button type="button" onClick={() => void create('ahead-astern')}>
+          <MoveRight />
+          <strong>{t('Clear ahead/astern')}</strong>
+          <span>{t('Same-tack positions under RRS 12.')}</span>
+          <RuleReferenceBubbles references={['RRS 12']} />
+        </button>
       </div>
-      <h3>{t('Recent local projects')}</h3>
+      <div className="project-list-heading">
+        <h3>{t('Recent local projects')}</h3>
+        <div className="project-list-actions">
+          <button type="button" className="secondary-button" onClick={onImport}>
+            <FileDown aria-hidden="true" />
+            {t('Import JSON')}
+          </button>
+          {projects.length > 0 && (
+            <button type="button" className="delete-all-projects" onClick={() => void deleteAll()}>
+              <Trash2 aria-hidden="true" />
+              {t('Delete all')}
+            </button>
+          )}
+        </div>
+      </div>
       {projects.length === 0 ? (
-        <div className="inline-empty">{t('No saved projects yet. Create a scenario above.')}</div>
+        <div className="inline-empty">{t('No saved projects yet. Create a plot above.')}</div>
       ) : (
         <div className="project-list">
           {projects.map((project) => (
@@ -405,6 +695,7 @@ function ProjectsDialog({
                 <strong>{project.title}</strong>
                 <span>{new Date(project.updatedAt).toLocaleString(locale)}</span>
               </button>
+              <RuleReferenceBubbles references={project.scenario.metadata.ruleReferences} />
               <button
                 type="button"
                 className="project-action"
@@ -416,7 +707,11 @@ function ProjectsDialog({
                 type="button"
                 className="danger-link"
                 onClick={() => {
-                  if (window.confirm(t('Delete “{title}” from this browser?', { title: project.title })))
+                  if (
+                    window.confirm(
+                      t('Delete “{title}” from this browser?', { title: project.title }),
+                    )
+                  )
                     void deleteProject(project.id).then(refresh)
                 }}
               >
@@ -430,19 +725,138 @@ function ProjectsDialog({
   )
 }
 
+function RuleReferenceBubbles({ references }: { references: string[] }) {
+  const { t } = useI18n()
+  if (!references.length) return null
+  const visibleReferences = references.slice(0, 3)
+  const hiddenReferences = references.slice(visibleReferences.length)
+  const hiddenReferenceCount = hiddenReferences.length
+  return (
+    <span className="rule-reference-bubbles" aria-label={t('Rule references')}>
+      {visibleReferences.map((reference) => (
+        <span className="rule-reference-bubble" key={reference}>
+          {reference}
+        </span>
+      ))}
+      {hiddenReferenceCount > 0 && (
+        <span
+          className="rule-reference-bubble rule-reference-bubble--overflow"
+          aria-label={t('{count} more rule references', { count: hiddenReferenceCount })}
+          tabIndex={0}
+        >
+          <span aria-hidden="true">...</span>
+          <span className="rule-reference-overflow-popover" role="tooltip">
+            {hiddenReferences.map((reference) => (
+              <span className="rule-reference-overflow-item" key={reference}>
+                {reference}
+              </span>
+            ))}
+          </span>
+        </span>
+      )}
+    </span>
+  )
+}
+
 function ScenarioDialog({ onClose }: { onClose: () => void }) {
   const { t } = useI18n()
   const scenario = useEditorStore((state) => state.scenario)
   const updateMetadata = useEditorStore((state) => state.updateMetadata)
+  const updateEnvironment = useEditorStore((state) => state.updateEnvironment)
+  const [titleDraft, setTitleDraft] = useState(scenario.metadata.title)
+  const [ruleReferencesDraft, setRuleReferencesDraft] = useState(() =>
+    scenario.metadata.ruleReferences.map(normalizeRuleReference),
+  )
+  const [ruleReferenceInput, setRuleReferenceInput] = useState('')
+  const [additionalInformationDraft, setAdditionalInformationDraft] = useState(() =>
+    scenario.metadata.additionalInformation.map((field) => ({ ...field })),
+  )
+  const titleInputRef = useRef<HTMLInputElement>(null)
+  const ruleReferenceInputRef = useRef<HTMLInputElement>(null)
+  const mergeRuleReferences = (references: string[], values: string[]) => {
+    const merged = [...references]
+    values
+      .map(normalizeRuleReference)
+      .filter(Boolean)
+      .forEach((value) => {
+        if (
+          !merged.some((reference) => reference.toLocaleLowerCase() === value.toLocaleLowerCase())
+        ) {
+          merged.push(value)
+        }
+      })
+    return merged
+  }
+  const addRuleReferences = (values: string[]) => {
+    setRuleReferencesDraft((references) => mergeRuleReferences(references, values))
+  }
+  const commitRuleReferenceInput = () => {
+    if (!ruleReferenceInput.trim()) return
+    addRuleReferences(ruleReferenceInput.split(','))
+    setRuleReferenceInput('')
+  }
+  const closeWithValidTitle = () => {
+    const title = titleDraft.trim() || t('Untitled plot')
+    const ruleReferences = mergeRuleReferences(ruleReferencesDraft, ruleReferenceInput.split(','))
+    const additionalInformation = additionalInformationDraft
+      .map((field, index) => ({
+        ...field,
+        name: field.name.trim() || (index === 0 && field.value.trim() ? t('Wind strength') : ''),
+        value: field.value.trim(),
+      }))
+      .filter((field) => field.name || field.value)
+    const metadataChanged =
+      title !== scenario.metadata.title ||
+      JSON.stringify(ruleReferences) !== JSON.stringify(scenario.metadata.ruleReferences) ||
+      JSON.stringify(additionalInformation) !==
+        JSON.stringify(scenario.metadata.additionalInformation)
+    if (metadataChanged) updateMetadata({ title, ruleReferences, additionalInformation })
+    const windStrength =
+      additionalInformation.find((field) => {
+        const name = field.name.trim().toLocaleLowerCase()
+        return [
+          'wind strength',
+          'wind strength (general)',
+          'windstärke',
+          'windstärke (allgemein)',
+        ].includes(name)
+      })?.value || null
+    if (windStrength !== scenario.environment.windStrength) updateEnvironment({ windStrength })
+    onClose()
+  }
+  const updateAdditionalInformation = (
+    id: string,
+    patch: Partial<(typeof additionalInformationDraft)[number]>,
+  ) =>
+    setAdditionalInformationDraft((fields) =>
+      fields.map((field) => (field.id === id ? { ...field, ...patch } : field)),
+    )
   return (
-    <Modal title={t('Scenario details')} onClose={onClose}>
-      <label className="field">
-        <span>{t('Title')}</span>
-        <input
-          value={scenario.metadata.title}
-          onChange={(event) => updateMetadata({ title: event.target.value || t('Untitled scenario') })}
-        />
-      </label>
+    <Modal title={t('Plot details')} onClose={closeWithValidTitle}>
+      <div className="field">
+        <label htmlFor="plot-title">{t('Title')}</label>
+        <div className="clearable-input">
+          <input
+            ref={titleInputRef}
+            id="plot-title"
+            value={titleDraft}
+            onChange={(event) => setTitleDraft(event.target.value)}
+          />
+          <button
+            type="button"
+            className="input-clear-button"
+            aria-label={t('Clear title')}
+            title={t('Clear title')}
+            disabled={!titleDraft}
+            onClick={() => {
+              setTitleDraft('')
+              titleInputRef.current?.focus()
+            }}
+          >
+            <X aria-hidden="true" />
+          </button>
+        </div>
+      </div>
       <label className="field">
         <span>{t('Description')}</span>
         <textarea
@@ -450,23 +864,145 @@ function ScenarioDialog({ onClose }: { onClose: () => void }) {
           onChange={(event) => updateMetadata({ description: event.target.value })}
         />
       </label>
-      <label className="field">
-        <span>{t('Rule references')}</span>
-        <input
-          value={scenario.metadata.ruleReferences.join(', ')}
-          onChange={(event) =>
-            updateMetadata({
-              ruleReferences: event.target.value
-                .split(',')
-                .map((value) => value.trim())
-                .filter(Boolean),
-            })
-          }
-        />
+      <div className="field">
+        <label htmlFor="rule-reference-input">{t('Rule references')}</label>
+        <div
+          className="rule-reference-editor"
+          onClick={() => ruleReferenceInputRef.current?.focus()}
+        >
+          <span className="rule-reference-chips" role="list">
+            {ruleReferencesDraft.map((reference) => (
+              <span className="rule-reference-chip" role="listitem" key={reference}>
+                <span>{reference}</span>
+                <button
+                  type="button"
+                  aria-label={t('Remove rule reference {reference}', { reference })}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    setRuleReferencesDraft((references) =>
+                      references.filter((item) => item !== reference),
+                    )
+                  }}
+                >
+                  <X aria-hidden="true" />
+                </button>
+              </span>
+            ))}
+          </span>
+          <input
+            ref={ruleReferenceInputRef}
+            id="rule-reference-input"
+            aria-label={t('Rule references')}
+            placeholder={t('For example 18 or 18.2(a)')}
+            value={ruleReferenceInput}
+            onChange={(event) => {
+              const parts = event.target.value.split(',')
+              if (parts.length === 1) {
+                setRuleReferenceInput(event.target.value)
+                return
+              }
+              addRuleReferences(parts.slice(0, -1))
+              setRuleReferenceInput(parts.at(-1) ?? '')
+            }}
+            onBlur={commitRuleReferenceInput}
+            onKeyDown={(event) => {
+              if ((event.key === 'Enter' || event.key === ',') && ruleReferenceInput.trim()) {
+                event.preventDefault()
+                commitRuleReferenceInput()
+              } else if (
+                event.key === 'Backspace' &&
+                !ruleReferenceInput &&
+                ruleReferencesDraft.length
+              ) {
+                setRuleReferencesDraft((references) => references.slice(0, -1))
+              }
+            }}
+          />
+        </div>
         <small>{t('Separate references with commas, for example “RRS 10, RRS 18”.')}</small>
-      </label>
+      </div>
+      <section className="plot-additional-information">
+        <div className="additional-information-heading">
+          <div className="section-title section-title--subtle">
+            <Info aria-hidden="true" />
+            <span>{t('Additional information')}</span>
+          </div>
+          <span className="additional-information-count">
+            {t('{count} of 10', { count: additionalInformationDraft.length })}
+          </span>
+        </div>
+        {additionalInformationDraft.length > 0 ? (
+          <>
+            <div className="additional-information-labels" aria-hidden="true">
+              <span>{t('Name')}</span>
+              <span>{t('Value')}</span>
+            </div>
+            <div className="additional-information-list">
+              {additionalInformationDraft.map((field, index) => (
+                <div className="additional-information-row" key={field.id}>
+                  <label className="field">
+                    <span className="visually-hidden">
+                      {t('Information name {number}', { number: index + 1 })}
+                    </span>
+                    <input
+                      value={field.name}
+                      aria-label={t('Information name {number}', { number: index + 1 })}
+                      placeholder={index === 0 ? t('Wind strength') : t('Name')}
+                      onChange={(event) =>
+                        updateAdditionalInformation(field.id, { name: event.target.value })
+                      }
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="visually-hidden">
+                      {t('Information value {number}', { number: index + 1 })}
+                    </span>
+                    <input
+                      value={field.value}
+                      aria-label={t('Information value {number}', { number: index + 1 })}
+                      placeholder={index === 0 ? t('Optional, e.g. 12 kn') : t('Value')}
+                      onChange={(event) =>
+                        updateAdditionalInformation(field.id, { value: event.target.value })
+                      }
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="additional-information-remove"
+                    aria-label={t('Remove information {number}', { number: index + 1 })}
+                    title={t('Remove information {number}', { number: index + 1 })}
+                    onClick={() =>
+                      setAdditionalInformationDraft((fields) =>
+                        fields.filter(({ id }) => id !== field.id),
+                      )
+                    }
+                  >
+                    <X aria-hidden="true" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="additional-information-empty">{t('No additional information.')}</p>
+        )}
+        <button
+          type="button"
+          className="secondary-button additional-information-add"
+          disabled={additionalInformationDraft.length >= 10}
+          onClick={() =>
+            setAdditionalInformationDraft((fields) => [
+              ...fields,
+              { id: createId(), name: '', value: '' },
+            ])
+          }
+        >
+          <Plus aria-hidden="true" />
+          {t('Add information')}
+        </button>
+      </section>
       <div className="modal-actions">
-        <button type="button" className="primary-button" onClick={onClose}>
+        <button type="button" className="primary-button" onClick={closeWithValidTitle}>
           {t('Done')}
         </button>
       </div>
@@ -477,7 +1013,12 @@ function ScenarioDialog({ onClose }: { onClose: () => void }) {
 function HelpDialog({ onClose }: { onClose: () => void }) {
   const { t } = useI18n()
   const [page, setPage] = useState<'help' | 'privacy' | 'about' | 'license'>('help')
-  const tabLabels = { help: 'Help', privacy: 'Privacy', about: 'About', license: 'License' } as const
+  const tabLabels = {
+    help: 'Help',
+    privacy: 'Privacy',
+    about: 'About',
+    license: 'License',
+  } as const
   return (
     <Modal title={t('Help & information')} onClose={onClose} wide>
       <div className="tabs" role="tablist">
@@ -497,34 +1038,70 @@ function HelpDialog({ onClose }: { onClose: () => void }) {
       {page === 'help' && (
         <div className="readable">
           <h3>{t('Build a static sailing explanation')}</h3>
-          <p>{t('Add boats, marks, lines and notes from the tool panel. Select an object to edit its properties. This editor deliberately has no playback or sailing simulation.')}</p>
-          <p>{t('The Boat tool stays active: each tap adds the next numbered position to the current boat chain. Choose Select or another tool when the chain is complete.')}</p>
+          <p>
+            {t(
+              'Add boats, marks, lines and notes from the tool panel. Select an object to edit its properties. This editor deliberately has no playback or sailing simulation.',
+            )}
+          </p>
+          <p>
+            {t(
+              'The Boat tool stays active: each tap adds the next numbered position to the current boat chain. To continue an existing chain, select one of its boats and then choose Boat. Choose Select or another tool when the chain is complete.',
+            )}
+          </p>
           <h3>{t('Mouse and keyboard')}</h3>
-          <p>{t('Scroll to zoom. Choose Pan or hold Space to move the view. Shift-click adds objects to a selection. Use Delete, arrow keys, ⌘/Ctrl+Z, ⌘/Ctrl+Shift+Z and ⌘/Ctrl+D.')}</p>
+          <p>
+            {t(
+              'Scroll to zoom. Choose Pan or hold Space to move the view. Shift-click adds objects to a selection. Use Delete, arrow keys, ⌘/Ctrl+Z, ⌘/Ctrl+Shift+Z and ⌘/Ctrl+D.',
+            )}
+          </p>
           <h3>{t('Touch and stylus')}</h3>
-          <p>{t('Tap to select and drag objects to move them. Boats, marks and text can be rotated but keep their size. Drawing tools accept mouse, finger and stylus input.')}</p>
+          <p>
+            {t(
+              'Tap to select and drag objects to move them. Drag drawing tools directly, or click twice to set start and end. Rectangle uses opposite corners; circle uses a centre and outer point. Drawing tools accept mouse, finger and stylus input.',
+            )}
+          </p>
           <h3>{t('Sharing')}</h3>
-          <p>{t('Share links contain a compressed copy of the complete project in the URL fragment. For large projects, export a JSON file instead.')}</p>
+          <p>
+            {t(
+              'Share links contain a compressed copy of the complete project in the URL fragment. For large projects, export a JSON file instead.',
+            )}
+          </p>
         </div>
       )}
       {page === 'privacy' && (
         <div className="readable">
           <h3>{t('Local-first privacy')}</h3>
-          <p>{t('Projects and preferences are stored locally in this browser using IndexedDB. JSON and image exports are created on your device. No project data is uploaded to a server.')}</p>
-          <p>{t('A share link contains the project data itself. Anyone who receives that link can access the scenario embedded in it.')}</p>
+          <p>
+            {t(
+              'Projects and preferences are stored locally in this browser using IndexedDB. JSON and image exports are created on your device. No project data is uploaded to a server.',
+            )}
+          </p>
+          <p>
+            {t(
+              'A share link contains the project data itself. Anyone who receives that link can access the plot embedded in it.',
+            )}
+          </p>
         </div>
       )}
       {page === 'about' && (
         <div className="readable">
-          <h3>{t('Sailing Scenario Editor')}</h3>
-          <p>{t('A new web-based implementation for creating static sailing and racing-rule diagrams. It is inspired by the historical BOATS application but is implemented from scratch and does not use the old application as a runtime dependency.')}</p>
+          <h3>{t('Sailing Plot Editor')}</h3>
+          <p>
+            {t(
+              'A new web-based implementation for creating static sailing and racing-rule diagrams. It is inspired by the historical BOATS application but is implemented from scratch and does not use the old application as a runtime dependency.',
+            )}
+          </p>
           <p>{t('Powered by Heisel Analytics.')}</p>
         </div>
       )}
       {page === 'license' && (
         <div className="readable">
           <h3>{t('GNU General Public License v3')}</h3>
-          <p>{t('This project is free software distributed under the GNU GPL v3. See the repository’s LICENSE file for the complete terms.')}</p>
+          <p>
+            {t(
+              'This project is free software distributed under the GNU GPL v3. See the repository’s LICENSE file for the complete terms.',
+            )}
+          </p>
         </div>
       )}
     </Modal>
@@ -536,68 +1113,155 @@ function ExportDialog({
   onJson,
   onPng,
   onShare,
-  onPrint,
+  onPdf,
 }: {
   onClose: () => void
   onJson: () => void
-  onPng: (ratio: number, transparent?: boolean) => void
-  onShare: () => void
-  onPrint: () => void
+  onPng: (ratio: number, transparent?: boolean) => Promise<void>
+  onShare: () => Promise<boolean>
+  onPdf: () => Promise<void>
 }) {
   const { t, locale } = useI18n()
   const scenario = useEditorStore((state) => state.scenario)
   const shareLength = createShareUrl(scenario).length
+  const [copied, setCopied] = useState(false)
+  const [copying, setCopying] = useState(false)
+  const copyShareLink = async () => {
+    setCopying(true)
+    const success = await onShare()
+    setCopying(false)
+    setCopied(success)
+  }
   return (
     <Modal title={t('Export & share')} onClose={onClose}>
       <div className="export-list">
-        <button type="button" onClick={onJson}>
-          <FileJson />
-          <span>
-            <strong>{t('Scenario JSON')}</strong>
+        <section className="export-option export-option--share">
+          <Share2 className="export-option-icon" aria-hidden="true" />
+          <div className="export-option-copy">
+            <div className="export-option-title">
+              <strong>{t('Share link')}</strong>
+              <ExportInfo label={t('About Share link')}>
+                {t('Copies a URL containing the complete editable plot. No upload is required.')}
+              </ExportInfo>
+            </div>
+            <small>
+              {t('{count} characters · project stays in the URL', {
+                count: shareLength.toLocaleString(locale),
+              })}
+            </small>
+          </div>
+          <button
+            type="button"
+            className={`export-copy-button ${copied ? 'is-copied' : ''}`}
+            disabled={copying}
+            onClick={() => void copyShareLink()}
+          >
+            {copied && <Check aria-hidden="true" />}
+            {t(copied ? 'Copied' : 'Copy URL with project')}
+          </button>
+        </section>
+        {shareLength > 7500 && (
+          <p className="warning">
+            {t(
+              'This link is long and may not work in every app. Prefer JSON export for this project.',
+            )}
+          </p>
+        )}
+        <section className="export-option">
+          <FileJson className="export-option-icon" aria-hidden="true" />
+          <div className="export-option-copy">
+            <div className="export-option-title">
+              <strong>{t('Plot JSON')}</strong>
+              <ExportInfo label={t('About Plot JSON')}>
+                {t('Best for editing later or transferring a plot between browsers.')}
+              </ExportInfo>
+            </div>
             <small>{t('Editable, validated project file')}</small>
-          </span>
-        </button>
-        <button type="button" onClick={() => onPng(2)}>
-          <ImageDown />
-          <span>
-            <strong>{t('PNG image · 2×')}</strong>
+          </div>
+          <button type="button" className="export-action-button" onClick={onJson}>
+            {t('Download JSON')}
+          </button>
+        </section>
+        <section className="export-option">
+          <ImageDown className="export-option-icon" aria-hidden="true" />
+          <div className="export-option-copy">
+            <div className="export-option-title">
+              <strong>{t('PNG image')}</strong>
+              <ExportInfo label={t('About PNG image')}>
+                {t(
+                  'Exports the complete plot with the Heisel Analytics logo and QR code. Choose 2× for screens and everyday use, or 4× for sharper print and detailed output.',
+                )}
+              </ExportInfo>
+            </div>
             <small>{t('Static image without editor handles')}</small>
-          </span>
-        </button>
-        <button type="button" onClick={() => onPng(4)}>
-          <ImageDown />
-          <span>
-            <strong>{t('PNG image · 4×')}</strong>
-            <small>{t('High-resolution static image')}</small>
-          </span>
-        </button>
-        <button type="button" onClick={() => onPng(2, true)}>
-          <ImageDown />
-          <span>
-            <strong>{t('Transparent PNG · 2×')}</strong>
+          </div>
+          <div className="export-resolution-actions" role="group" aria-label={t('PNG resolution')}>
+            <button
+              type="button"
+              aria-label={t('Download PNG at 2×')}
+              onClick={() => void onPng(2)}
+            >
+              2×
+            </button>
+            <button
+              type="button"
+              aria-label={t('Download PNG at 4×')}
+              onClick={() => void onPng(4)}
+            >
+              4×
+            </button>
+          </div>
+        </section>
+        <section className="export-option">
+          <ImageDown className="export-option-icon" aria-hidden="true" />
+          <div className="export-option-copy">
+            <div className="export-option-title">
+              <strong>{t('Transparent PNG')}</strong>
+              <ExportInfo label={t('About Transparent PNG')}>
+                {t(
+                  'Exports without the plot background while keeping the logo and QR code. Choose 2× for screens and everyday use, or 4× for sharper print and detailed output.',
+                )}
+              </ExportInfo>
+            </div>
             <small>{t('Canvas objects without a background')}</small>
-          </span>
-        </button>
-        <button type="button" onClick={onShare}>
-          <Share2 />
-          <span>
-            <strong>{t('Share link')}</strong>
-            <small>{t('{count} characters · project stays in the URL', { count: shareLength.toLocaleString(locale) })}</small>
-          </span>
-        </button>
-        <button type="button" onClick={onPrint}>
-          <Printer />
-          <span>
-            <strong>{t('Print or save PDF')}</strong>
-            <small>{t('Use the browser’s print dialog')}</small>
-          </span>
-        </button>
+          </div>
+          <div
+            className="export-resolution-actions"
+            role="group"
+            aria-label={t('Transparent PNG resolution')}
+          >
+            <button
+              type="button"
+              aria-label={t('Download transparent PNG at 2×')}
+              onClick={() => void onPng(2, true)}
+            >
+              2×
+            </button>
+            <button
+              type="button"
+              aria-label={t('Download transparent PNG at 4×')}
+              onClick={() => void onPng(4, true)}
+            >
+              4×
+            </button>
+          </div>
+        </section>
+        <section className="export-option">
+          <FileDown className="export-option-icon" aria-hidden="true" />
+          <div className="export-option-copy">
+            <div className="export-option-title">
+              <strong>{t('PDF document')}</strong>
+              <ExportInfo label={t('About PDF document')}>
+                {t('Downloads the plot directly as an A4 landscape PDF.')}
+              </ExportInfo>
+            </div>
+            <small>{t('A4 landscape with a clickable website QR watermark')}</small>
+          </div>
+          <button type="button" className="export-action-button" onClick={() => void onPdf()}>
+            {t('Download PDF')}
+          </button>
+        </section>
       </div>
-      {shareLength > 7500 && (
-        <p className="warning">
-          {t('This link is long and may not work in every app. Prefer JSON export for this project.')}
-        </p>
-      )}
     </Modal>
   )
 }
@@ -613,6 +1277,15 @@ export default function App() {
   )
   const scenario = useEditorStore((state) => state.scenario)
   const selectedIds = useEditorStore((state) => state.selectedIds)
+  const hasVisibleBoatLegend = scenario.objects.some(
+    (object) => object.type === 'boat' && object.visible,
+  )
+  const pdfScaleMm = 297 / scenario.canvas.width
+  const pdfPlotHeightMm = scenario.canvas.height * pdfScaleMm
+  const pdfPlotTopMm = (210 - pdfPlotHeightMm) / 2
+  const pdfWatermarkBottomMm = hasVisibleBoatLegend
+    ? Math.max(5, 210 - (pdfPlotTopMm + (scenario.canvas.height - 24) * pdfScaleMm))
+    : 5
   const activeTool = useEditorStore((state) => state.activeTool)
   const layoutPreference = useEditorStore((state) => state.layoutPreference)
   const status = useEditorStore((state) => state.status)
@@ -629,6 +1302,7 @@ export default function App() {
   const duplicateSelected = useEditorStore((state) => state.duplicateSelected)
   const undo = useEditorStore((state) => state.undo)
   const redo = useEditorStore((state) => state.redo)
+  const selectionKey = selectedIds.join('|')
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -638,9 +1312,9 @@ export default function App() {
   useEffect(() => {
     try {
       const shared = scenarioFromHash(window.location.hash)
-      if (shared) setScenario(shared, 'Opened shared scenario')
+      if (shared) setScenario(shared, 'Opened shared plot')
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Could not open the shared scenario')
+      setStatus(error instanceof Error ? error.message : 'Could not open the shared plot')
     }
     // Only decode the initial URL once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -695,62 +1369,111 @@ export default function App() {
   const exportJson = () => {
     downloadBlob(
       serializeScenario(scenario),
-      `${sanitizeFilename(scenario.metadata.title)}.sailing-scenario.json`,
+      `${sanitizeFilename(scenario.metadata.title)}.sailplot.json`,
       'application/json',
     )
     setDocumentStatus('downloaded')
-    setStatus('Exported scenario JSON')
+    setStatus('Exported plot JSON')
   }
-  const exportPng = (ratio: number, transparent = false) => {
-    const data = canvasRef.current?.exportPng(transparent, ratio)
-    if (!data) return
-    const anchor = document.createElement('a')
-    anchor.href = data
-    anchor.download = `${sanitizeFilename(scenario.metadata.title)}${transparent ? '-transparent' : ''}.png`
-    anchor.click()
-    setDocumentStatus('downloaded')
-    setStatus('Exported PNG image')
-  }
-  const share = async () => {
-    const url = createShareUrl(scenario)
-    const nativeShare = (navigator as unknown as { share?: (data?: ShareData) => Promise<void> })
-      .share
+  const exportPng = async (ratio: number, transparent = false) => {
+    const plotData = canvasRef.current?.exportPng(transparent, ratio)
+    if (!plotData) return
     try {
-      if (nativeShare)
-        await nativeShare.call(navigator, {
-          title: scenario.metadata.title,
-          text: t('Static sailing scenario'),
-          url,
-        })
-      else await navigator.clipboard.writeText(url)
-      setStatus(nativeShare ? 'Opened share sheet' : 'Share link copied')
+      const data = await addExportWatermark(
+        plotData,
+        EXPORT_WATERMARK_URL,
+        EXPORT_WATERMARK_LOGO_URL,
+        EXPORT_PRODUCT_LOGO_URL,
+      )
+      const anchor = document.createElement('a')
+      anchor.href = data
+      anchor.download = `${sanitizeFilename(scenario.metadata.title)}${transparent ? '-transparent' : ''}-${ratio}x.png`
+      anchor.click()
+      setDocumentStatus('downloaded')
+      setStatus('Exported PNG image')
     } catch (error) {
-      if ((error as DOMException).name !== 'AbortError')
-        setStatus('Could not share; copy the address from your browser.')
+      setStatus(error instanceof Error ? error.message : 'Could not export PNG image')
+    }
+  }
+  const share = async (): Promise<boolean> => {
+    const url = createShareUrl(scenario)
+    try {
+      await navigator.clipboard.writeText(url)
+      setStatus('Share link copied')
+      return true
+    } catch {
+      setStatus('Could not share; copy the address from your browser.')
+      return false
+    }
+  }
+  const exportPdf = async () => {
+    const data = canvasRef.current?.exportPng(false, 2)
+    if (!data) return
+    try {
+      const pdf = await createA4PlotPdf(
+        data,
+        EXPORT_WATERMARK_URL,
+        EXPORT_WATERMARK_LOGO_URL,
+        EXPORT_PRODUCT_LOGO_URL,
+        HEISEL_ANALYTICS_WEBSITE,
+        scenario.metadata.title,
+        pdfWatermarkBottomMm,
+      )
+      await downloadPdfBlob(pdf, `${sanitizeFilename(scenario.metadata.title)}.pdf`)
+      setDocumentStatus('downloaded')
+      setStatus('Downloaded PDF')
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Could not export PDF')
     }
   }
   const importFile = async (file?: File) => {
     if (!file) return
     if (!file.name.endsWith('.json')) {
-      setStatus('Unsupported file type. Choose a scenario JSON file.')
+      setStatus('Unsupported file type. Choose a plot JSON file.')
       return
     }
     try {
-      setScenario(parseScenarioJson(await file.text()), 'Imported scenario JSON')
+      setScenario(parseScenarioJson(await file.text()), 'Imported plot JSON')
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Could not import this file')
     }
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
+  const createCleanPlot = async () => {
+    const projects = await listProjects().catch(() => [])
+    const currentTitle = useEditorStore.getState().scenario.metadata.title
+    const title = nextUntitledPlotTitle(t('Untitled plot'), [
+      currentTitle,
+      ...projects.map((project) => project.title),
+    ])
+    setScenario(createEmptyScenario(title), 'Created plot')
+    setTool('select')
+  }
+
+  const cycleLayoutPreference = () => {
+    const automaticLayout = window.matchMedia('(max-width: 980px)').matches ? 'compact' : 'desktop'
+    const alternativeLayout = automaticLayout === 'compact' ? 'desktop' : 'compact'
+    const nextLayout =
+      layoutPreference === 'auto'
+        ? alternativeLayout
+        : layoutPreference === alternativeLayout
+          ? automaticLayout
+          : 'auto'
+    setLayoutPreference(nextLayout)
+  }
+
+  const layoutPreferenceLabel = t(
+    layoutPreference === 'auto'
+      ? 'Auto layout'
+      : layoutPreference === 'compact'
+        ? 'Compact layout'
+        : 'Desktop layout',
+  )
 
   return (
     <div className="app-shell" data-layout={layoutPreference}>
       <header className="topbar">
-        <div
-          className="app-title"
-          role="img"
-          aria-label="SailPlot"
-        >
+        <div className="app-title" role="img" aria-label="SailPlot">
           <span className="app-symbol">
             <img
               className="app-logo app-logo--on-light"
@@ -776,8 +1499,8 @@ export default function App() {
           <h1 className="topbar-document-title">
             <button
               type="button"
-              title={t('Rename scenario')}
-              aria-label={t('Rename scenario')}
+              title={t('Rename plot')}
+              aria-label={t('Rename plot')}
               onClick={() => setDialog('scenario')}
             >
               {scenario.metadata.title}
@@ -810,13 +1533,19 @@ export default function App() {
         </div>
         <div className="topbar-actions topbar-actions--file">
           <IconButton
+            className="new-plot-button"
+            icon={<Plus />}
+            label={t('New')}
+            onClick={() => void createCleanPlot()}
+          />
+          <IconButton
             icon={<FolderOpen />}
             label={t('Open projects & templates')}
             onClick={() => setDialog('projects')}
           />
           <IconButton
             icon={<Download />}
-            label={t('Download')}
+            label={t('Export / Share')}
             onClick={() => setDialog('export')}
           />
         </div>
@@ -853,18 +1582,16 @@ export default function App() {
             label={t(theme === 'dark' ? 'Use light mode' : 'Use dark mode')}
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
           />
-          <label className="layout-select" title={t('Layout preference')}>
-            <MoreHorizontal aria-hidden="true" />
-            <select
-              value={layoutPreference}
-              onChange={(event) => setLayoutPreference(event.target.value as LayoutPreference)}
-              aria-label={t('Layout preference')}
-            >
-              <option value="auto">{t('Auto layout')}</option>
-              <option value="compact">{t('Compact layout')}</option>
-              <option value="desktop">{t('Desktop layout')}</option>
-            </select>
-          </label>
+          <button
+            className="layout-cycle-button"
+            type="button"
+            title={`${t('View')}: ${layoutPreferenceLabel}`}
+            aria-label={`${t('View')}: ${layoutPreferenceLabel}`}
+            data-layout-preference={layoutPreference}
+            onClick={cycleLayoutPreference}
+          >
+            <View aria-hidden="true" />
+          </button>
           <div className="language-switch" role="group" aria-label={t('Language')}>
             {(['de', 'en'] as Language[]).map((code) => (
               <button
@@ -914,11 +1641,38 @@ export default function App() {
       <aside className="properties-panel">
         <PropertiesPanel />
       </aside>
-      <div className="mobile-properties" data-open={selectedIds.length > 0}>
-        <PropertiesPanel />
-      </div>
+      <MobileProperties
+        key={selectionKey || 'no-selection'}
+        hasSelection={selectedIds.length > 0}
+      />
       <footer className="mobile-toolbar">
         <div className="mobile-toolbar-inner">
+          {activeTool !== 'select' && (
+            <IconButton
+              compact
+              className="tool-cancel-button mobile-tool-action-button"
+              icon={<X aria-hidden="true" />}
+              label={t('Return to Select')}
+              onClick={() => setTool('select')}
+            />
+          )}
+          {selectedIds.length > 0 && (
+            <IconButton
+              compact
+              className="tool-cancel-button mobile-tool-action-button"
+              icon={<Trash2 aria-hidden="true" />}
+              label={t('Delete selection')}
+              onClick={deleteSelected}
+            />
+          )}
+          <IconButton
+            compact
+            className="mobile-tool-action-button mobile-settings-button"
+            icon={<Settings aria-hidden="true" />}
+            label={t('Scene settings')}
+            onClick={() => setDialog('settings')}
+          />
+          <span className="mobile-toolbar-divider" aria-hidden="true" />
           <EditorToolbar compact />
           <div className="mobile-history" aria-label={t('History controls')}>
             <IconButton
@@ -957,14 +1711,19 @@ export default function App() {
         />
       )}
       {dialog === 'scenario' && <ScenarioDialog onClose={() => setDialog(null)} />}
+      {dialog === 'settings' && (
+        <Modal title={t('Scene settings')} onClose={() => setDialog(null)}>
+          <SceneSettings embedded />
+        </Modal>
+      )}
       {dialog === 'help' && <HelpDialog onClose={() => setDialog(null)} />}
       {dialog === 'export' && (
         <ExportDialog
           onClose={() => setDialog(null)}
           onJson={exportJson}
           onPng={exportPng}
-          onShare={() => void share()}
-          onPrint={() => window.print()}
+          onShare={share}
+          onPdf={exportPdf}
         />
       )}
     </div>

@@ -16,9 +16,9 @@ export function parseScenarioJson(value: string): Scenario {
   const result = scenarioSchema.safeParse(parsed)
   if (!result.success) {
     const first = result.error.issues[0]
-    throw new Error(`Invalid scenario at ${first.path.join('.') || 'root'}: ${first.message}`)
+    throw new Error(`Invalid plot at ${first.path.join('.') || 'root'}: ${first.message}`)
   }
-  return migrateScenario(result.data) as Scenario
+  return migrateScenario(parsed) as Scenario
 }
 
 export const serializeScenario = (scenario: Scenario) => JSON.stringify(scenario, null, 2)

@@ -1,6 +1,11 @@
-import type { BoatClass, BoatObject, ScenarioObject } from '../../types/scenario'
+import {
+  isSupportBoatClass,
+  type BoatClass,
+  type BoatObject,
+  type ScenarioObject,
+} from '../../types/scenario'
 
-export { VSR_COACHBOAT_BLUE } from '../../lib/boatColors'
+export { COACHBOAT_BLUE } from '../../lib/boatColors'
 
 export interface BoatShapeProfile {
   hullPath: string
@@ -23,6 +28,12 @@ export interface BoatShapeProfile {
   numberPos: [number, number]
   numberSize: number
   kind: 'monohull' | 'skiff' | 'catamaran' | 'board' | 'motor' | 'vsr'
+  closeHauledMainsailAngle?: number
+  closeHauledHeadsailAngle?: number
+  /** Published class sail areas in square metres; omitted when a class has no fixed area. */
+  sailAreas?: Partial<
+    Record<'mainsail' | 'jib' | 'genoa' | 'spinnaker' | 'gennaker' | 'upwindTotal', number>
+  >
 }
 
 const profiles = {
@@ -46,14 +57,15 @@ const profiles = {
     numberPos: [0, 25],
     numberSize: 12,
     kind: 'monohull',
+    closeHauledHeadsailAngle: 15,
   },
   laser: {
     hullPath:
       'M 0 -20 C .3 -19.7 .3 -20 .7 -19.7 C 3.3 -14.3 6.7 -3.3 6.7 4.7 C 6.7 11 6.7 14.3 5 20 L -5 20 C -6.7 14.3 -6.7 11 -6.7 4.7 C -6.7 -3.3 -3.3 -14.3 -.7 -19.7 C -.3 -20 -.3 -19.7 0 -20 Z',
     displayScale: 1.72,
-    length: 40,
+    length: 42.3,
     mast: [0, -8.7],
-    mainsailSize: 28.5,
+    mainsailSize: 24.2,
     mainsailMaxAngle: 90,
     mainsailSpinMaxAngle: 90,
     jibTack: null,
@@ -67,12 +79,14 @@ const profiles = {
     numberPos: [0, 10],
     numberSize: 7,
     kind: 'monohull',
+    closeHauledMainsailAngle: 11,
+    sailAreas: { mainsail: 7.06 },
   },
   optimist: {
     hullPath:
       'M 0 -11.5 C 1.5 -11.5 1.7 -11.3 2.9 -11.1 C 3.6 -9.4 5.6 -4 5.6 1.5 C 5.6 5.4 5 9 4.6 11.5 L -4.6 11.5 C -5 9 -5.6 5.4 -5.6 1.5 C -5.6 -4 -3.6 -9.4 -2.9 -11.1 C -1.7 -11.3 -1.5 -11.5 0 -11.5 Z',
     displayScale: 2.5,
-    length: 23,
+    length: 23.6,
     mast: [0, -6.9],
     mainsailSize: 16.5,
     mainsailMaxAngle: 90,
@@ -88,6 +102,7 @@ const profiles = {
     numberPos: [0, 3],
     numberSize: 6,
     kind: 'monohull',
+    sailAreas: { mainsail: 3.3 },
   },
   topper: {
     hullPath:
@@ -144,13 +159,16 @@ const profiles = {
     jibSize: 14.4,
     jibMaxAngle: 45,
     jibSpinMaxAngle: 45,
-    spinnakerSize: 17.4,
+    spinnakerSize: 27.3,
     gennakerTack: null,
     gennakerSize: 0,
     poleLength: 0,
     numberPos: [0, 9],
     numberSize: 7,
     kind: 'monohull',
+    closeHauledMainsailAngle: 7,
+    closeHauledHeadsailAngle: 10,
+    sailAreas: { mainsail: 10.25, jib: 2.8, spinnaker: 9 },
   },
   int470: {
     hullPath:
@@ -165,22 +183,25 @@ const profiles = {
     jibSize: 15.9,
     jibMaxAngle: 45,
     jibSpinMaxAngle: 45,
-    spinnakerSize: 19,
+    spinnakerSize: 32.8,
     gennakerTack: null,
     gennakerSize: 0,
     poleLength: 0,
     numberPos: [0, 9],
     numberSize: 7,
     kind: 'monohull',
+    closeHauledMainsailAngle: 7,
+    closeHauledHeadsailAngle: 10,
+    sailAreas: { mainsail: 9.12, jib: 3.58, spinnaker: 13 },
   },
   int29er: {
     hullPath:
       'M 0 -20.5 L -.5 -20.5 C -3.5 -10.25 -6.6 -1.1 -8.3 -.5 L -8.8 18 L -4.4 20.5 L 4.4 20.5 L 8.8 18 L 8.3 -.5 C 6.6 -1.1 3.5 -10.25 .5 -20.5 Z',
     displayScale: 1.62,
-    length: 41,
+    length: 44.5,
     mast: [0, -3.4],
     mainsailSize: 20.5,
-    mainsailMaxAngle: 90,
+    mainsailMaxAngle: 85,
     mainsailSpinMaxAngle: 40,
     jibTack: [0, -20.5],
     jibSize: 17,
@@ -188,32 +209,38 @@ const profiles = {
     jibSpinMaxAngle: 35,
     spinnakerSize: 0,
     gennakerTack: [0, -34.2],
-    gennakerSize: 30.8,
+    gennakerSize: 35.2,
     poleLength: 13.7,
     numberPos: [0, 9],
     numberSize: 7,
     kind: 'skiff',
+    closeHauledMainsailAngle: 6,
+    closeHauledHeadsailAngle: 8,
+    sailAreas: { upwindTotal: 12.5, gennaker: 15 },
   },
   int49er: {
     hullPath:
       'M 0 -24 L -.5 -24 C -1.5 -23 -6.5 -5.5 -7.5 1.5 L -13.5 2.4 Q -14 2.5 -14 3 L -14 24 L -13.5 24 L -12.5 21 L -7.5 19 L -5 22 L 5 22 L 7.5 19 L 12.5 21 L 13.5 24 L 14 24 L 14 3 Q 14 2.5 13.5 2.4 L 7.5 1.5 C 6.5 -5.5 1.5 -23 .5 -24 Z',
     displayScale: 1.48,
-    length: 48,
+    length: 49.9,
     mast: [0, -2.5],
-    mainsailSize: 27,
-    mainsailMaxAngle: 90,
-    mainsailSpinMaxAngle: 65,
+    mainsailSize: 26.5,
+    mainsailMaxAngle: 85,
+    mainsailSpinMaxAngle: 40,
     jibTack: [0, -22.5],
     jibSize: 19,
     jibMaxAngle: 45,
     jibSpinMaxAngle: 35,
     spinnakerSize: 0,
     gennakerTack: [0, -42.5],
-    gennakerSize: 38,
+    gennakerSize: 41.8,
     poleLength: 18.5,
     numberPos: [0, 9],
     numberSize: 7,
     kind: 'skiff',
+    closeHauledMainsailAngle: 6,
+    closeHauledHeadsailAngle: 8,
+    sailAreas: { mainsail: 16.1, jib: 5.1, gennaker: 21.2 },
   },
   tornado: {
     hullPath:
@@ -221,41 +248,21 @@ const profiles = {
     displayScale: 1.25,
     length: 61,
     mast: [0, 0],
-    mainsailSize: 22.5,
-    mainsailMaxAngle: 20,
-    mainsailSpinMaxAngle: 20,
+    mainsailSize: 30,
+    mainsailMaxAngle: 80,
+    mainsailSpinMaxAngle: 30,
     jibTack: [0, -20],
-    jibSize: 16.8,
-    jibMaxAngle: 35,
+    jibSize: 21,
+    jibMaxAngle: 45,
     jibSpinMaxAngle: 35,
     spinnakerSize: 0,
     gennakerTack: [0, -40],
-    gennakerSize: 42,
+    gennakerSize: 45.5,
     poleLength: 40,
     numberPos: [0, 17],
     numberSize: 10,
     kind: 'catamaran',
-  },
-  rib: {
-    hullPath:
-      'M 0 -30 C 6 -26 12.1 -22.9 12.4 -10.3 L 12.4 23.5 L 8.9 30 L 5.5 23.5 L -5.5 23.5 L -8.9 30 L -12.4 23.5 L -12.4 -10.3 C -12.1 -22.9 -6 -26 0 -30 Z',
-    displayScale: 1.32,
-    length: 60,
-    mast: null,
-    mainsailSize: 0,
-    mainsailMaxAngle: 0,
-    mainsailSpinMaxAngle: 0,
-    jibTack: null,
-    jibSize: 0,
-    jibMaxAngle: 0,
-    jibSpinMaxAngle: 0,
-    spinnakerSize: 0,
-    gennakerTack: null,
-    gennakerSize: 0,
-    poleLength: 0,
-    numberPos: [0, 10],
-    numberSize: 10,
-    kind: 'motor',
+    closeHauledMainsailAngle: 3,
   },
   vsr: {
     hullPath:
@@ -314,11 +321,11 @@ const profiles = {
   },
   board: {
     hullPath:
-      'M 0 -34 C 5 -29 6 -17 5.5 0 C 5.5 18 4 29 0 34 C -4 29 -5.5 18 -5.5 0 C -6 -17 -5 -29 0 -34 Z',
-    displayScale: 1.25,
-    length: 40,
-    mast: [0, -5],
-    mainsailSize: 27,
+      'M 0 -11 C 2.7 -10.9 4.4 -9.2 4.7 -6 L 4.75 7.5 Q 4.7 9.6 4.28 11 L -4.28 11 Q -4.7 9.6 -4.75 7.5 L -4.7 -6 C -4.4 -9.2 -2.7 -10.9 0 -11 Z',
+    displayScale: 1.6,
+    length: 22,
+    mast: [0, -4.5],
+    mainsailSize: 15,
     mainsailMaxAngle: 85,
     mainsailSpinMaxAngle: 85,
     jibTack: null,
@@ -329,9 +336,10 @@ const profiles = {
     gennakerTack: null,
     gennakerSize: 0,
     poleLength: 0,
-    numberPos: [0, 10],
-    numberSize: 7,
+    numberPos: [0, 6],
+    numberSize: 5.5,
     kind: 'board',
+    sailAreas: { mainsail: 8 },
   },
   lacustre: {
     hullPath:
@@ -344,22 +352,25 @@ const profiles = {
     mainsailSpinMaxAngle: 65,
     jibTack: [0, -47.5],
     jibSize: 28,
-    genoaSize: 56,
+    genoaSize: 52,
     jibMaxAngle: 45,
     jibSpinMaxAngle: 35,
-    spinnakerSize: 46,
+    spinnakerSize: 60,
     gennakerTack: null,
     gennakerSize: 0,
     poleLength: 0,
     numberPos: [0, 34],
     numberSize: 11,
     kind: 'monohull',
+    closeHauledMainsailAngle: 6,
+    closeHauledHeadsailAngle: 9,
+    sailAreas: { upwindTotal: 40, genoa: 22, spinnaker: 65 },
   },
 } satisfies Record<string, BoatShapeProfile>
 
 export const BOAT_SHAPES: Record<BoatClass, BoatShapeProfile> = {
   Optimist: profiles.optimist,
-  'ILCA / Laser': profiles.laser,
+  ILCA: profiles.laser,
   'Generic keelboat': profiles.keelboat,
   Lacustre: profiles.lacustre,
   Tornado: profiles.tornado,
@@ -367,16 +378,9 @@ export const BOAT_SHAPES: Record<BoatClass, BoatShapeProfile> = {
   '470': profiles.int470,
   '29er': profiles.int29er,
   '49er': profiles.int49er,
-  Firefly: profiles.firefly,
-  Topper: profiles.topper,
-  'Generic dinghy': profiles.int470,
-  'Generic catamaran': profiles.tornado,
-  'Generic skiff': profiles.int49er,
-  Windsurfer: profiles.board,
-  'Wingfoil board': profiles.board,
-  'VSR Coachboat': profiles.vsr,
-  'Coach boat': profiles.rib,
-  'Jury boat': profiles.rib,
+  Windsurf: profiles.board,
+  Coachboat: profiles.vsr,
+  'Jury boat': profiles.vsr,
   'Committee boat': profiles.committee,
 }
 
@@ -391,11 +395,14 @@ export interface ZoneBoatLengthBasis {
  * longest class present, falling back to the editor's default ILCA length before a boat is added.
  */
 export function longestBoatLengthBasis(objects: ScenarioObject[]): ZoneBoatLengthBasis {
-  const boats = objects.filter((object): object is BoatObject => object.type === 'boat')
+  const boats = objects.filter(
+    (object): object is BoatObject =>
+      object.type === 'boat' && !isSupportBoatClass(object.boatClass),
+  )
   if (!boats.length) {
     return {
-      boatClass: 'ILCA / Laser',
-      length: BOAT_SHAPES['ILCA / Laser'].length,
+      boatClass: 'ILCA',
+      length: BOAT_SHAPES.ILCA.length,
       usesDefault: true,
     }
   }
@@ -406,6 +413,18 @@ export function longestBoatLengthBasis(objects: ScenarioObject[]): ZoneBoatLengt
   return {
     boatClass: longest.boatClass,
     length: BOAT_SHAPES[longest.boatClass].length,
+    usesDefault: false,
+  }
+}
+
+export function measurementBoatLengthBasis(
+  objects: ScenarioObject[],
+  boatClass: BoatClass | null,
+): ZoneBoatLengthBasis {
+  if (!boatClass || isSupportBoatClass(boatClass)) return longestBoatLengthBasis(objects)
+  return {
+    boatClass,
+    length: BOAT_SHAPES[boatClass].length,
     usesDefault: false,
   }
 }
@@ -422,17 +441,33 @@ export function isCloseHauled(
   return relative <= laylineAngle || relative >= 360 - laylineAngle
 }
 
-export const tackForHeading = (heading: number, windDirection: number): BoatObject['tack'] =>
-  relativeWindAngle(heading, windDirection) > 180 ? 'port' : 'starboard'
+export const tackForHeading = (
+  heading: number,
+  windDirection: number,
+  previousTack: BoatObject['tack'] = 'starboard',
+): BoatObject['tack'] => {
+  const relative = relativeWindAngle(heading, windDirection)
+  if (Math.abs(relative - 180) < 0.0001) return previousTack
+  return relative > 180 ? 'port' : 'starboard'
+}
 
-export function sailAngleLimits(heading: number, windDirection: number) {
-  return tackForHeading(heading, windDirection) === 'port'
+export function sailAngleLimits(
+  heading: number,
+  windDirection: number,
+  previousTack?: BoatObject['tack'],
+) {
+  return tackForHeading(heading, windDirection, previousTack) === 'port'
     ? { min: -100, max: 0 }
     : { min: 0, max: 100 }
 }
 
-export function constrainSailAngle(angle: number, heading: number, windDirection: number) {
-  const { min, max } = sailAngleLimits(heading, windDirection)
+export function constrainSailAngle(
+  angle: number,
+  heading: number,
+  windDirection: number,
+  previousTack?: BoatObject['tack'],
+) {
+  const { min, max } = sailAngleLimits(heading, windDirection, previousTack)
   return Math.min(max, Math.max(min, angle))
 }
 
@@ -453,14 +488,34 @@ export function automaticSailAngle(
   windDirection: number,
   laylineAngle: number,
   maxAngle: number,
+  previousTack?: BoatObject['tack'],
 ): number {
   const relative = relativeWindAngle(heading, windDirection)
   if (relative < laylineAngle - 10) return Math.min(laylineAngle - 20, relative)
   if (relative > 360 - (laylineAngle - 10)) return Math.max(-(laylineAngle - 20), relative - 360)
   const safeMax = Math.max(16, maxAngle)
+  if (Math.abs(relative - 180) < 0.0001) {
+    return tackForHeading(heading, windDirection, previousTack) === 'port' ? -safeMax : safeMax
+  }
   const slope = (180 - laylineAngle) / Math.max(1, safeMax - 15)
   const intercept = laylineAngle / slope - 15
   return relative < 180 ? relative / slope - intercept : relative / slope - intercept - 2 * safeMax
+}
+
+export function automaticBoatMainsailAngle(
+  boatClass: BoatClass,
+  heading: number,
+  windDirection: number,
+  laylineAngle: number,
+  maxAngle: number,
+  previousTack?: BoatObject['tack'],
+): number {
+  const profile = BOAT_SHAPES[boatClass]
+  const targetAngle = profile.closeHauledMainsailAngle
+  const fallback = automaticSailAngle(heading, windDirection, laylineAngle, maxAngle, previousTack)
+  return targetAngle == null
+    ? fallback
+    : smoothCloseHauledAngle(targetAngle, fallback, heading, windDirection, laylineAngle)
 }
 
 export function automaticJibAngle(
@@ -468,29 +523,92 @@ export function automaticJibAngle(
   windDirection: number,
   laylineAngle: number,
   maxAngle: number,
+  previousTack?: BoatObject['tack'],
 ): number {
   const relative = relativeWindAngle(heading, windDirection)
   if (relative < laylineAngle - 10) return Math.min(laylineAngle - 20, relative)
   if (relative > 360 - (laylineAngle - 10)) return Math.max(-(laylineAngle - 20), relative - 360)
   const safeMax = Math.max(25, maxAngle)
+  if (Math.abs(relative - 180) < 0.0001) {
+    return tackForHeading(heading, windDirection, previousTack) === 'port' ? -safeMax : safeMax
+  }
   const slope = (180 - laylineAngle) / Math.max(1, safeMax - 20)
   const intercept = laylineAngle / slope - 20
   return relative < 180 ? relative / slope - intercept : relative / slope - intercept - 2 * safeMax
 }
 
-export function automaticGennakerAngle(heading: number, windDirection: number): number {
+export function automaticBoatHeadsailAngle(
+  boatClass: BoatClass,
+  heading: number,
+  windDirection: number,
+  laylineAngle: number,
+  maxAngle: number,
+  previousTack?: BoatObject['tack'],
+): number {
+  const profile = BOAT_SHAPES[boatClass]
+  const targetAngle = profile.closeHauledHeadsailAngle
+  const fallback = automaticJibAngle(heading, windDirection, laylineAngle, maxAngle, previousTack)
+  return targetAngle == null
+    ? fallback
+    : smoothCloseHauledAngle(targetAngle, fallback, heading, windDirection, laylineAngle)
+}
+
+function smoothCloseHauledAngle(
+  targetAngle: number,
+  fallbackAngle: number,
+  heading: number,
+  windDirection: number,
+  laylineAngle: number,
+): number {
+  const relative = relativeWindAngle(heading, windDirection)
+  const signedRelative = relative <= 180 ? relative : relative - 360
+  const absoluteRelative = Math.abs(signedRelative)
+  const safeLaylineAngle = Math.max(1, laylineAngle)
+  const direction = Math.sign(signedRelative)
+
+  if (absoluteRelative <= safeLaylineAngle) {
+    return direction * targetAngle * (absoluteRelative / safeLaylineAngle)
+  }
+
+  const transitionWidth = 20
+  if (absoluteRelative >= safeLaylineAngle + transitionWidth) return fallbackAngle
+  const linearProgress = (absoluteRelative - safeLaylineAngle) / transitionWidth
+  const smoothProgress = linearProgress * linearProgress * (3 - 2 * linearProgress)
+  const blendedMagnitude = targetAngle + (Math.abs(fallbackAngle) - targetAngle) * smoothProgress
+  return direction * blendedMagnitude
+}
+
+export function automaticGennakerAngle(
+  heading: number,
+  windDirection: number,
+  previousTack?: BoatObject['tack'],
+): number {
   const relative = relativeWindAngle(heading, windDirection)
   if (relative < 80) return (relative / 80) * 20
   if (relative > 280) return -((360 - relative) / 80) * 20
   const slope = 10
   const intercept = -12
+  if (Math.abs(relative - 180) < 0.0001) {
+    return tackForHeading(heading, windDirection, previousTack) === 'port' ? -30 : 30
+  }
   return relative < 180 ? relative / slope - intercept : relative / slope - intercept - 60
 }
 
-export function automaticSpinnakerAngle(heading: number, windDirection: number): number {
+export function automaticSpinnakerAngle(
+  heading: number,
+  windDirection: number,
+  previousTack?: BoatObject['tack'],
+): number {
   const relative = relativeWindAngle(heading, windDirection)
   const signedRelative = relative <= 180 ? relative : relative - 360
-  const direction = signedRelative < 0 ? -1 : 1
+  const direction =
+    Math.abs(relative - 180) < 0.0001
+      ? tackForHeading(heading, windDirection, previousTack) === 'port'
+        ? -1
+        : 1
+      : signedRelative < 0
+        ? -1
+        : 1
   const absoluteRelative = Math.abs(signedRelative)
 
   // A spinnaker luffs on the centreline while the boat points into the wind. Once the wind
@@ -505,11 +623,15 @@ export const sailIncidenceAngle = (heading: number, windDirection: number, sailA
   (((relativeWindAngle(heading, windDirection) - sailAngle) % 360) + 360) % 360
 
 export function isSailStalled(heading: number, windDirection: number, sailAngle: number) {
+  const relative = relativeWindAngle(heading, windDirection)
+  if (relative >= 150 && relative <= 210) return false
   const incidence = sailIncidenceAngle(heading, windDirection, sailAngle)
   return incidence < 10 || incidence > 350 || (incidence > 170 && incidence < 190)
 }
 
 export function isGennakerStalled(heading: number, windDirection: number, sailAngle: number) {
+  const relative = relativeWindAngle(heading, windDirection)
+  if (relative >= 150 && relative <= 210) return false
   const incidence = sailIncidenceAngle(heading, windDirection, sailAngle)
   return incidence < 55 || incidence > 305 || (incidence > 170 && incidence < 190)
 }
@@ -544,7 +666,7 @@ export function luffingSpinnakerPath(
   size: number,
   poleAngle: number,
   downwindAngle: number,
-  trailLength = size * 0.72,
+  trailLength = size,
 ): string {
   const radians = (angle: number) => (angle * Math.PI) / 180
   const vector = (length: number, angle: number) => ({
@@ -554,26 +676,15 @@ export function luffingSpinnakerPath(
   const pole = vector(size, poleAngle)
   const downwind = vector(1, downwindAngle)
   const normal = { x: -downwind.y, y: downwind.x }
-  const poleSide = pole.x * normal.x + pole.y * normal.y < 0 ? -1 : 1
-  const lateralTrail = size * 0.3 * poleSide
-  const trail = {
-    x: downwind.x * trailLength + normal.x * lateralTrail,
-    y: downwind.y * trailLength + normal.y * lateralTrail,
-  }
-  const width = size * 0.08
-  const point = (x: number, y: number) => `${pathNumber(x)} ${pathNumber(y)}`
-  const offset = (base: { x: number; y: number }, along: number, across: number) =>
-    point(
-      base.x + downwind.x * size * along + normal.x * width * across,
-      base.y + downwind.y * size * along + normal.y * width * across,
-    )
+  const point = (along: number, across = 0) =>
+    `${pathNumber(pole.x + downwind.x * trailLength * along + normal.x * trailLength * 0.1 * across)} ${pathNumber(pole.y + downwind.y * trailLength * along + normal.y * trailLength * 0.1 * across)}`
 
   return (
-    `M 0 0 ` +
-    `C ${offset({ x: 0, y: 0 }, 0.22, 1)} ${offset(trail, -0.16, 1)} ${point(trail.x, trail.y)} ` +
-    `C ${offset(trail, 0.1, 1)} ${offset(pole, 0.24, 1)} ${point(pole.x, pole.y)} ` +
-    `C ${offset(pole, 0.18, -1)} ${offset(trail, 0.04, -1)} ${point(trail.x - normal.x * width, trail.y - normal.y * width)} ` +
-    `C ${offset(trail, -0.18, -1)} ${offset({ x: 0, y: 0 }, 0.18, -1)} 0 0 Z`
+    `M ${point(0)} ` +
+    `C ${point(0.2, 1)} ${point(0.2, 1)} ${point(0.3)} ` +
+    `C ${point(0.4, -1)} ${point(0.4, -1)} ${point(0.5)} ` +
+    `C ${point(0.6, 1)} ${point(0.6, 1)} ${point(0.7)} ` +
+    `C ${point(0.8, -1)} ${point(0.8, -1)} ${point(1)} Z`
   )
 }
 

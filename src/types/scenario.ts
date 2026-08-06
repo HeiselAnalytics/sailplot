@@ -1,6 +1,6 @@
 export const BOAT_CLASSES = [
   'Optimist',
-  'ILCA / Laser',
+  'ILCA',
   'Generic keelboat',
   'Lacustre',
   'Tornado',
@@ -8,25 +8,39 @@ export const BOAT_CLASSES = [
   '470',
   '29er',
   '49er',
-  'Firefly',
-  'Topper',
-  'Generic dinghy',
-  'Generic catamaran',
-  'Generic skiff',
-  'Windsurfer',
-  'Wingfoil board',
-  'VSR Coachboat',
-  'Coach boat',
+  'Windsurf',
+  'Coachboat',
   'Jury boat',
   'Committee boat',
 ] as const
 
 export type BoatClass = (typeof BOAT_CLASSES)[number]
+export const SUPPORT_BOAT_CLASSES = [
+  'Coachboat',
+  'Jury boat',
+  'Committee boat',
+] as const satisfies readonly BoatClass[]
+export const isSupportBoatClass = (value: unknown) =>
+  SUPPORT_BOAT_CLASSES.some((boatClass) => boatClass === value)
+export const SAILING_BOAT_CLASSES: readonly BoatClass[] = BOAT_CLASSES.filter(
+  (boatClass) => !isSupportBoatClass(boatClass),
+)
 export type Tack = 'port' | 'starboard'
 
 export interface BaseObject {
   id: string
-  type: 'boat' | 'mark' | 'line' | 'arrow' | 'text' | 'rectangle' | 'circle' | 'freehand'
+  type:
+    | 'boat'
+    | 'mark'
+    | 'gate'
+    | 'start-line'
+    | 'finish-line'
+    | 'line'
+    | 'arrow'
+    | 'text'
+    | 'rectangle'
+    | 'circle'
+    | 'freehand'
   x: number
   y: number
   rotation: number
@@ -60,6 +74,7 @@ export interface BoatObject extends BaseObject {
   sailAngle: number
   sequenceId: string
   positionNumber: number
+  overlapIndicator: 'port' | 'none' | 'starboard'
   stateMarker?: 'none' | 'tack' | 'gybe' | 'head-to-wind' | 'reverse' | 'drift'
 }
 
@@ -69,11 +84,59 @@ export interface MarkObject extends BaseObject {
   shape: 'round' | 'cylindrical' | 'inflatable' | 'flag' | 'gate' | 'pin'
   color: string
   label: string
-  markNumber: number
+  markNumber: string
   downwind: boolean
   zoneVisible: boolean
   zoneRadius: number
   zoneRadiusUnit: 'boat-lengths'
+}
+
+export type CourseEndpointType =
+  'committee-boat' | 'buoy' | 'flag' | 'coach-boat' | 'coach-boat-reversed'
+
+export interface GateObject extends BaseObject {
+  type: 'gate'
+  endAX: number
+  endAY: number
+  endBX: number
+  endBY: number
+  markNumber: number
+  color: string
+  zoneVisible: boolean
+  zoneRadius: number
+  zoneRadiusUnit: 'boat-lengths'
+}
+
+export interface StartLineObject extends BaseObject {
+  type: 'start-line'
+  endAX: number
+  endAY: number
+  endBX: number
+  endBY: number
+  color: string
+  startEndType: CourseEndpointType
+  pinEndType: CourseEndpointType
+  startEndFlagColor: string
+  pinEndFlagColor: string
+  laylinesVisible: boolean
+  laylineAreaVisible: boolean
+  laylineAreaColor: string
+}
+
+export interface FinishLineObject extends BaseObject {
+  type: 'finish-line'
+  endAX: number
+  endAY: number
+  endBX: number
+  endBY: number
+  color: string
+  startEndType: CourseEndpointType
+  pinEndType: CourseEndpointType
+  startEndFlagColor: string
+  pinEndFlagColor: string
+  laylinesVisible: boolean
+  laylineAreaVisible: boolean
+  laylineAreaColor: string
 }
 
 export interface LineObject extends BaseObject {
@@ -103,16 +166,29 @@ export interface ShapeObject extends BaseObject {
   fill: string
 }
 
-export type ScenarioObject = BoatObject | MarkObject | LineObject | TextObject | ShapeObject
+export type ScenarioObject =
+  | BoatObject
+  | MarkObject
+  | GateObject
+  | StartLineObject
+  | FinishLineObject
+  | LineObject
+  | TextObject
+  | ShapeObject
 
 export interface Scenario {
-  format: 'sailing-scenario'
+  format: 'sailplot'
   version: 1
   metadata: {
     id: string
     title: string
     description: string
     ruleReferences: string[]
+    additionalInformation: Array<{
+      id: string
+      name: string
+      value: string
+    }>
     createdAt: string
     updatedAt: string
   }
@@ -132,6 +208,7 @@ export interface Scenario {
     laylinesVisible: boolean
     zonesVisible: boolean
     zoneRadiusBoatLengths: number
+    measurementBoatClass: BoatClass | null
   }
   objects: ScenarioObject[]
   [key: string]: unknown
@@ -142,6 +219,10 @@ export type EditorTool =
   | 'pan'
   | 'boat'
   | 'mark'
+  | 'downwind-mark'
+  | 'gate'
+  | 'start-line'
+  | 'finish-line'
   | 'line'
   | 'arrow'
   | 'freehand'

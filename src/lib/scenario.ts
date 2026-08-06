@@ -1,5 +1,17 @@
-import type { BoatClass, BoatObject, MarkObject, Scenario, ScenarioObject } from '../types/scenario'
-import { boatColorForClass } from './boatColors'
+import type {
+  BoatClass,
+  BoatObject,
+  FinishLineObject,
+  GateObject,
+  MarkObject,
+  Scenario,
+  ScenarioObject,
+  StartLineObject,
+} from '../types/scenario'
+import { BOAT_COLOR_PALETTE, boatColorForClass } from './boatColors'
+import { PLOT_BACKGROUNDS } from './plotTheme'
+
+export { isDarkPlotBackground, normalizePlotBackground, PLOT_BACKGROUNDS } from './plotTheme'
 
 export const createId = () => {
   const runtimeCrypto = globalThis.crypto
@@ -24,10 +36,27 @@ export const createId = () => {
   return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10).join('')}`
 }
 export const normalizeHeading = (value: number) => ((value % 360) + 360) % 360
+export const START_FLAG_COLOR = '#FFAA00'
+export const FINISH_FLAG_COLOR = '#168DDD'
 export const normalizeSignedAngle = (value: number) => {
   const normalized = normalizeHeading(value)
   return normalized > 180 ? normalized - 360 : normalized
 }
+
+export const markNumberSequenceValue = (value: string | number | null | undefined) => {
+  const match = /^([1-9]\d*)/.exec(String(value ?? ''))
+  return match ? Number(match[1]) : 0
+}
+
+export const nextMarkSequenceNumber = (objects: ScenarioObject[]) =>
+  objects.reduce(
+    (highest, object) =>
+      object.type === 'mark' || object.type === 'gate'
+        ? Math.max(highest, markNumberSequenceValue(object.markNumber))
+        : highest,
+    0,
+  ) + 1
+
 export const now = () => new Date().toISOString()
 
 const baseObject = (type: ScenarioObject['type'], x: number, y: number, zIndex: number) => ({
@@ -48,7 +77,7 @@ export function createBoat(
   x: number,
   y: number,
   zIndex = 1,
-  boatClass: BoatClass = 'ILCA / Laser',
+  boatClass: BoatClass = 'ILCA',
 ): BoatObject {
   return {
     ...baseObject('boat', x, y, zIndex),
@@ -57,7 +86,7 @@ export function createBoat(
     name: '',
     sailNumber: '',
     label: '',
-    color: boatColorForClass(boatClass, '#2563EB'),
+    color: boatColorForClass(boatClass, BOAT_COLOR_PALETTE[0].value),
     heading: 0,
     tack: 'starboard',
     mainsailVisible: true,
@@ -73,6 +102,7 @@ export function createBoat(
     sailAngle: 32,
     sequenceId: createId(),
     positionNumber: 1,
+    overlapIndicator: 'none',
     stateMarker: 'none',
   }
 }
@@ -85,7 +115,7 @@ export function createMark(x: number, y: number, zIndex = 1): MarkObject {
     shape: 'round',
     color: '#FFAA00',
     label: '',
-    markNumber: 1,
+    markNumber: '1',
     downwind: false,
     zoneVisible: true,
     zoneRadius: 3,
@@ -93,23 +123,104 @@ export function createMark(x: number, y: number, zIndex = 1): MarkObject {
   }
 }
 
-export function createEmptyScenario(title = 'Untitled scenario'): Scenario {
+export function createGate(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  zIndex = 1,
+  markNumber = 1,
+  zoneRadius = 3,
+): GateObject {
+  const centerX = (x1 + x2) / 2
+  const centerY = (y1 + y2) / 2
+  return {
+    ...baseObject('gate', centerX, centerY, zIndex),
+    type: 'gate',
+    endAX: x1 - centerX,
+    endAY: y1 - centerY,
+    endBX: x2 - centerX,
+    endBY: y2 - centerY,
+    markNumber,
+    color: '#FFAA00',
+    zoneVisible: true,
+    zoneRadius,
+    zoneRadiusUnit: 'boat-lengths',
+  }
+}
+
+export function createStartLine(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  zIndex = 1,
+): StartLineObject {
+  const centerX = (x1 + x2) / 2
+  const centerY = (y1 + y2) / 2
+  return {
+    ...baseObject('start-line', centerX, centerY, zIndex),
+    type: 'start-line',
+    endAX: x1 - centerX,
+    endAY: y1 - centerY,
+    endBX: x2 - centerX,
+    endBY: y2 - centerY,
+    color: '#A3A3A3',
+    startEndType: 'committee-boat',
+    pinEndType: 'flag',
+    startEndFlagColor: START_FLAG_COLOR,
+    pinEndFlagColor: START_FLAG_COLOR,
+    laylinesVisible: false,
+    laylineAreaVisible: false,
+    laylineAreaColor: START_FLAG_COLOR,
+  }
+}
+
+export function createFinishLine(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  zIndex = 1,
+): FinishLineObject {
+  const centerX = (x1 + x2) / 2
+  const centerY = (y1 + y2) / 2
+  return {
+    ...baseObject('finish-line', centerX, centerY, zIndex),
+    type: 'finish-line',
+    endAX: x1 - centerX,
+    endAY: y1 - centerY,
+    endBX: x2 - centerX,
+    endBY: y2 - centerY,
+    color: '#A3A3A3',
+    startEndType: 'committee-boat',
+    pinEndType: 'flag',
+    startEndFlagColor: FINISH_FLAG_COLOR,
+    pinEndFlagColor: FINISH_FLAG_COLOR,
+    laylinesVisible: false,
+    laylineAreaVisible: false,
+    laylineAreaColor: FINISH_FLAG_COLOR,
+  }
+}
+
+export function createEmptyScenario(title = 'Untitled plot'): Scenario {
   const timestamp = now()
   return {
-    format: 'sailing-scenario',
+    format: 'sailplot',
     version: 1,
     metadata: {
       id: createId(),
       title,
       description: '',
       ruleReferences: [],
+      additionalInformation: [{ id: createId(), name: '', value: '' }],
       createdAt: timestamp,
       updatedAt: timestamp,
     },
     canvas: {
       width: 1920,
       height: 1080,
-      background: '#f8fbfc',
+      background: PLOT_BACKGROUNDS.light,
       boatNumbersVisible: true,
       grid: { visible: true, size: 40, snap: false, opacity: 1 },
       view: { x: 0, y: 0, scale: 1 },
@@ -122,9 +233,30 @@ export function createEmptyScenario(title = 'Untitled scenario'): Scenario {
       laylinesVisible: true,
       zonesVisible: true,
       zoneRadiusBoatLengths: 3,
+      measurementBoatClass: null,
     },
     objects: [],
   }
+}
+
+export function nextUntitledPlotTitle(baseTitle: string, existingTitles: string[]): string {
+  const defaultTitles = new Set([baseTitle, 'Untitled plot', 'Unbenannter Plot'])
+  let highestNumber = 0
+
+  for (const title of existingTitles) {
+    for (const defaultTitle of defaultTitles) {
+      if (title === defaultTitle) {
+        highestNumber = Math.max(highestNumber, 0)
+        continue
+      }
+
+      if (!title.startsWith(`${defaultTitle} `)) continue
+      const suffix = title.slice(defaultTitle.length + 1)
+      if (/^\d+$/.test(suffix)) highestNumber = Math.max(highestNumber, Number(suffix))
+    }
+  }
+
+  return `${baseTitle} ${highestNumber + 1}`
 }
 
 export function duplicateObject<T extends ScenarioObject>(object: T, offset = 24): T {
@@ -143,5 +275,5 @@ export function sanitizeFilename(value: string): string {
     .normalize('NFKD')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
-  return cleaned || 'sailing-scenario'
+  return cleaned || 'sailplot'
 }

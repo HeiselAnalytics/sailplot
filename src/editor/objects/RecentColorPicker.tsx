@@ -1,6 +1,6 @@
 import { ChevronDown } from 'lucide-react'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { BOAT_COLOR_PALETTE } from '../../lib/boatColors'
+import { BOAT_COLOR_PALETTE, type ColorPalette } from '../../lib/boatColors'
 import { useI18n } from '../../i18n'
 import { mergeRecentColors } from './recentColors'
 
@@ -41,6 +41,9 @@ interface RecentColorPickerProps {
   label: string
   value: string
   onChange: (color: string) => void
+  palette?: ColorPalette
+  paletteLabel?: string
+  allowTransparent?: boolean
 }
 
 function ColorSwatch({
@@ -75,8 +78,16 @@ function ColorSwatch({
   )
 }
 
-export function RecentColorPicker({ label, value, onChange }: RecentColorPickerProps) {
+export function RecentColorPicker({
+  label,
+  value,
+  onChange,
+  palette = BOAT_COLOR_PALETTE,
+  paletteLabel = 'Heisel sailing palette',
+  allowTransparent = false,
+}: RecentColorPickerProps) {
   const { t } = useI18n()
+  const isTransparent = value.toLowerCase() === 'transparent'
   const recentColors = useSyncExternalStore(subscribe, loadColors, () => EMPTY_COLORS)
   const displayedColors = mergeRecentColors([value], recentColors)
   const [open, setOpen] = useState(false)
@@ -114,16 +125,36 @@ export function RecentColorPicker({ label, value, onChange }: RecentColorPickerP
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
       >
-        <span className="color-picker-preview" style={{ backgroundColor: value }} />
-        <span className="color-picker-value">{value.toUpperCase()}</span>
+        <span
+          className={`color-picker-preview${isTransparent ? ' is-transparent' : ''}`}
+          style={{ backgroundColor: isTransparent ? undefined : value }}
+        />
+        <span className="color-picker-value">
+          {isTransparent ? t('No fill') : value.toUpperCase()}
+        </span>
         <ChevronDown aria-hidden="true" />
       </button>
       {open && (
-        <div className="color-picker-popover" role="dialog" aria-label={t('{label} colors', { label })}>
+        <div
+          className="color-picker-popover"
+          role="dialog"
+          aria-label={t('{label} colors', { label })}
+        >
+          {allowTransparent && (
+            <button
+              type="button"
+              className="transparent-color-option"
+              aria-pressed={isTransparent}
+              onClick={() => chooseColor('transparent')}
+            >
+              <span className="color-picker-preview is-transparent" aria-hidden="true" />
+              {t('No fill')}
+            </button>
+          )}
           <div className="color-options">
             <span className="color-options-label">{t('Palette')}</span>
-            <div className="color-swatches" aria-label={t('Regatta color palette')}>
-              {BOAT_COLOR_PALETTE.map((color) => (
+            <div className="color-swatches" aria-label={t(paletteLabel)}>
+              {palette.map((color) => (
                 <ColorSwatch
                   key={color.value}
                   color={color.value}
@@ -153,7 +184,7 @@ export function RecentColorPicker({ label, value, onChange }: RecentColorPickerP
             <span>{t('Custom color')}</span>
             <input
               type="color"
-              value={value}
+              value={/^#[0-9a-f]{6}$/i.test(value) ? value : '#ffaa00'}
               aria-label={t('{label} custom color', { label })}
               onChange={(event) => chooseColor(event.target.value)}
             />

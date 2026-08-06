@@ -26,21 +26,21 @@ export function decodeScenario(encoded: string): Scenario {
     const parsed: unknown = JSON.parse(inflate(base64UrlToBytes(encoded), { to: 'string' }))
     const version = (parsed as { version?: unknown })?.version
     if (typeof version === 'number' && version > 1) {
-      throw new Error(`This scenario uses unsupported future format version ${version}.`)
+      throw new Error(`This plot uses unsupported future format version ${version}.`)
     }
     return migrateScenario(parsed)
   } catch (error) {
-    if (error instanceof Error && error.message.startsWith('This scenario')) throw error
+    if (error instanceof Error && error.message.startsWith('This plot')) throw error
     throw new Error('The share link is invalid or damaged.')
   }
 }
 
 export function scenarioFromHash(hash: string): Scenario | null {
   const params = new URLSearchParams(hash.replace(/^#/, ''))
-  const encoded = params.get('scenario')
+  const encoded = params.get('plot') ?? params.get('scenario')
   return encoded ? decodeScenario(encoded) : null
 }
 
 export function createShareUrl(scenario: Scenario, location = window.location): string {
-  return `${location.origin}${location.pathname}#scenario=${encodeScenario(scenario)}`
+  return `${location.origin}${location.pathname}#plot=${encodeScenario(scenario)}`
 }

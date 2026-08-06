@@ -23,7 +23,54 @@ export const laylineVector = (angle: number, length: number): GridPoint => {
 }
 
 export const markLaylineRotation = (windDirection: number, downwind: boolean) =>
-  ((windDirection + (downwind ? 180 : 0)) % 360 + 360) % 360
+  (((windDirection + (downwind ? 180 : 0)) % 360) + 360) % 360
+
+export interface CourseLineLaylineGeometry {
+  endsA: [GridPoint, GridPoint]
+  endsB: [GridPoint, GridPoint]
+  area: [GridPoint, GridPoint, GridPoint, GridPoint]
+}
+
+const dot = (left: GridPoint, right: GridPoint) => left.x * right.x + left.y * right.y
+
+export function courseLineLaylineGeometry(
+  startA: GridPoint,
+  startB: GridPoint,
+  laylineAngle: number,
+  windDirection: number,
+  length: number,
+): CourseLineLaylineGeometry {
+  const base = laylineVector(laylineAngle, 1)
+  const starboard = rotate(base, windDirection)
+  const port = rotate({ x: -base.x, y: base.y }, windDirection)
+  const endpoint = (start: GridPoint, direction: GridPoint) => ({
+    x: start.x + direction.x * length,
+    y: start.y + direction.y * length,
+  })
+  const endsA: [GridPoint, GridPoint] = [endpoint(startA, starboard), endpoint(startA, port)]
+  const endsB: [GridPoint, GridPoint] = [endpoint(startB, starboard), endpoint(startB, port)]
+
+  // Left and right are determined from a viewer standing to leeward and looking upwind.
+  const crosswindRight = rotate({ x: 1, y: 0 }, windDirection)
+  const aIsLeft = dot(startA, crosswindRight) <= dot(startB, crosswindRight)
+  const leftStart = aIsLeft ? startA : startB
+  const rightStart = aIsLeft ? startB : startA
+  const towardRight = { x: rightStart.x - leftStart.x, y: rightStart.y - leftStart.y }
+  const leftInnerDirection =
+    dot(starboard, towardRight) >= dot(port, towardRight) ? starboard : port
+  const rightOuterDirection = leftInnerDirection
+
+  return {
+    endsA,
+    endsB,
+    area: [
+      leftStart,
+      rightStart,
+      endpoint(rightStart, rightOuterDirection),
+      endpoint(leftStart, leftInnerDirection),
+    ],
+  }
+}
 
 export function sailingGridSegments(
   width: number,

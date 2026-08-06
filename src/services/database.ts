@@ -49,6 +49,13 @@ export async function deleteProject(id: string): Promise<void> {
   await database.projects.delete(id)
 }
 
+export async function deleteAllProjects(): Promise<void> {
+  await database.transaction('rw', database.projects, database.preferences, async () => {
+    await database.projects.clear()
+    await database.preferences.delete('lastProjectId')
+  })
+}
+
 export async function saveLayoutPreference(value: LayoutPreference): Promise<void> {
   await database.preferences.put({ key: 'layoutPreference', value })
 }
