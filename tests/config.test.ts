@@ -17,6 +17,7 @@ describe('SailPlot configuration', () => {
     expect(merged.theme.light.background).toBe(defaultSailPlotConfig.theme.light.background)
     expect(merged.ui.help).toBe(false)
     expect(merged.ui.export).toBe(true)
+    expect(merged.links.app).toBe('https://sailplot.app/')
   })
 
   it('falls back to all defaults when optional configuration is absent', () => {

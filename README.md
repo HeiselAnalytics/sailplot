@@ -53,17 +53,21 @@ Styles are a documented subpath export: `@heiselanalytics/sailplot/styles.css`. 
 
 | Area           | Fields                                                                                                                      |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `branding`     | `appName`, `shortName`, `logo`, `logoDark`, `compactLogo`, `logoAlt`, `favicon`, partner and export asset URLs              |
+| `branding`     | `appName`, `shortName`, logos, favicon and partner/export assets                                                            |
 | `theme`        | `mode` (`light`, `dark`, `system`), complete `light`/`dark` token sets, optional body/heading fonts and radius              |
 | theme tokens   | `primary`, `primaryText`, `accent`, `background`, `surface`, `sidebar`, `secondary`, `text`, `muted`, `border`, `focusRing` |
 | `texts`        | `welcomeTitle`, `welcomeText`, `footerText`, `helpText`, `aboutText`, `poweredByText` and export descriptions               |
-| `links`        | nullable `support`, `website`, `privacy`, `imprint`, `documentation` URLs                                                   |
+| `links`        | nullable `app`, `support`, `website`, `privacy`, `imprint`, `documentation` URLs                                            |
 | `ui`           | visibility of header logo, footer, powered-by text, help, about, home, new/open/export actions                              |
 | `defaults`     | default `language` (`auto`, `de`, `en`) and `startPage` (`editor`, `home`)                                                  |
 | `localization` | locale identifiers for German and English                                                                                   |
 | root           | `pageTitle`, `storageNamespace`, `routerBasename`                                                                           |
 
 Logo, favicon and export asset fields are URL strings. A consumer owns and supplies those assets when it changes branding; they are not inferred from a hostname. The unmodified standalone defaults retain the current public SailPlot assets and appearance.
+
+Exported PNGs and PDFs contain a QR code generated from the current plot share URL. In PDFs the QR opens that exact editable plot, the upper branding half opens `links.app`, and the lower partner half opens `links.website`. A tenant can configure its app destination without SailPlot inspecting the browser hostname. `exportWatermarkQr` remains only as a deprecated configuration field for compatibility and is no longer rendered.
+
+Share links use their own versioned compact format and do not change the documented JSON project file. The link payload omits defaults and technical identities, represents objects as positional arrays, uses numeric codes for known colours/classes/enums, compresses with raw Deflate and encodes the bytes with a URL-safe Base41 alphabet selected for QR alphanumeric mode. Opening a link creates fresh project, object and information IDs while preserving the editable plot content. QR error correction uses level L to keep self-contained links as sparse as possible.
 
 An empty `storageNamespace` preserves the historic Local Storage keys and IndexedDB database name. A non-empty namespace prefixes all SailPlot preference/color keys and selects a separate IndexedDB database without changing scenario files or share-link formats.
 

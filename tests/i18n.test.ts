@@ -10,7 +10,7 @@ describe('translations', () => {
     expect(translate('de', 'Saved in browser')).toBe('Im Browser gespeichert')
     expect(translate('de', 'Downloaded')).toBe('Heruntergeladen')
     expect(translate('de', 'Not saved')).toBe('Nicht gespeichert')
-    expect(translate('de', 'Information')).toBe('Info')
+    expect(translate('de', 'Information')).toBe('Information')
     expect(translate('de', 'Add information')).toBe('Information hinzufügen')
     expect(translate('de', 'Wind strength')).toBe('Windstärke')
     expect(translate('de', 'Share')).toBe('Teilen')

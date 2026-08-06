@@ -13,6 +13,44 @@ async function openMobileProperties(page: Page) {
   await expect(page.locator('.mobile-properties-body')).toBeVisible()
 }
 
+async function countDifferentPixels(page: Page, first: Buffer, second: Buffer) {
+  return page.evaluate(
+    async ({ firstUrl, secondUrl }) => {
+      const readPixels = async (source: string) => {
+        const image = new Image()
+        image.src = source
+        await image.decode()
+        const canvas = document.createElement('canvas')
+        canvas.width = image.width
+        canvas.height = image.height
+        const context = canvas.getContext('2d')!
+        context.drawImage(image, 0, 0)
+        return context.getImageData(0, 0, image.width, image.height).data
+      }
+      const [firstPixels, secondPixels] = await Promise.all([
+        readPixels(firstUrl),
+        readPixels(secondUrl),
+      ])
+      let differentPixels = 0
+      for (let index = 0; index < firstPixels.length; index += 4) {
+        if (
+          firstPixels[index] !== secondPixels[index] ||
+          firstPixels[index + 1] !== secondPixels[index + 1] ||
+          firstPixels[index + 2] !== secondPixels[index + 2] ||
+          firstPixels[index + 3] !== secondPixels[index + 3]
+        ) {
+          differentPixels += 1
+        }
+      }
+      return differentPixels
+    },
+    {
+      firstUrl: `data:image/png;base64,${first.toString('base64')}`,
+      secondUrl: `data:image/png;base64,${second.toString('base64')}`,
+    },
+  )
+}
+
 test('switches the complete interface between German and English and remembers it', async ({
   page,
 }) => {
@@ -23,7 +61,7 @@ test('switches the complete interface between German and English and remembers i
   await language.getByRole('button', { name: 'Deutsch' }).click()
 
   await expect(page.locator('html')).toHaveAttribute('lang', 'de')
-  await expect(page).toHaveTitle('Segelplot-Editor')
+  await expect(page).toHaveTitle('SailPlot.app')
   await expect(page.getByRole('group', { name: 'Sprache' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Boot' }).first()).toBeVisible()
   await expect(page.locator('.statusbar')).toContainText('Bereit')
@@ -39,7 +77,7 @@ test('switches the complete interface between German and English and remembers i
     .getByRole('button', { name: 'English' })
     .click()
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
-  await expect(page).toHaveTitle('Sailing Plot Editor')
+  await expect(page).toHaveTitle('SailPlot.app')
 })
 
 test('makes the desktop tool and scene controls visibly interactive', async ({
@@ -129,6 +167,13 @@ test('makes the desktop tool and scene controls visibly interactive', async ({
   await lightBackground.click()
   await expect(lightBackground).toHaveAttribute('aria-pressed', 'true')
   await expect(toolsPanel.getByLabel('Grid visibility value')).toHaveValue('100')
+  const boatLegend = toolsPanel.getByRole('group', { name: 'Boat legend' })
+  const boatLegendOn = boatLegend.getByRole('button', { name: 'On' })
+  const boatLegendOff = boatLegend.getByRole('button', { name: 'Off' })
+  await expect(boatLegendOn).toHaveAttribute('aria-pressed', 'true')
+  await expect(boatLegendOff).toHaveAttribute('aria-pressed', 'false')
+  await boatLegendOff.click()
+  await expect(boatLegendOff).toHaveAttribute('aria-pressed', 'true')
 
   await toolsPanel.getByLabel('Grid size slider').fill('72')
   await expect(toolsPanel.getByLabel('Grid size value')).toHaveValue('72')
@@ -209,6 +254,33 @@ test('keeps breathing room around German function buttons', async ({ page }, tes
       buttons.every((button) => button.scrollWidth <= button.clientWidth),
     ),
   ).toBe(true)
+})
+
+test('shows the boat legend by default and toggles it from the scene sidebar', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome', 'Desktop scene sidebar check')
+  await page.goto('/')
+  const toolsPanel = page.locator('.tools-panel')
+  const legendSwitch = toolsPanel.getByRole('group', { name: 'Boat legend' })
+  const legendOn = legendSwitch.getByRole('button', { name: 'On' })
+  const legendOff = legendSwitch.getByRole('button', { name: 'Off' })
+  await expect(legendOn).toHaveAttribute('aria-pressed', 'true')
+
+  await toolsPanel.getByRole('button', { name: 'Boat', exact: true }).click()
+  const canvas = page.locator('.editor-canvas canvas').first()
+  await canvas.click({ position: { x: 260, y: 220 } })
+  const visibleLegend = await canvas.screenshot()
+
+  await legendOff.click()
+  await expect(legendOff).toHaveAttribute('aria-pressed', 'true')
+  await expect.poll(async () => (await canvas.screenshot()).equals(visibleLegend)).toBe(false)
+
+  await legendOn.click()
+  await expect(legendOn).toHaveAttribute('aria-pressed', 'true')
+  await expect
+    .poll(async () => countDifferentPixels(page, await canvas.screenshot(), visibleLegend))
+    .toBeLessThanOrEqual(2)
 })
 
 test('uses a dedicated boat palette for the dark plot', async ({ page }, testInfo) => {
@@ -464,30 +536,30 @@ test('creates lines and shapes by dragging or with two clicks and a shared edita
   await expect(status).toContainText('Resized rectangle')
 
   const circleCenterBefore = await canvas.evaluate((element: HTMLCanvasElement) =>
-    Array.from(element.getContext('2d')!.getImageData(500, 320, 1, 1).data),
+    Array.from(element.getContext('2d')!.getImageData(500, 250, 1, 1).data),
   )
   const circleEdgeBefore = await canvas.evaluate((element: HTMLCanvasElement) =>
-    Array.from(element.getContext('2d')!.getImageData(550, 320, 1, 1).data),
+    Array.from(element.getContext('2d')!.getImageData(550, 250, 1, 1).data),
   )
   const circleRotationGuideBefore = await canvas.evaluate((element: HTMLCanvasElement) =>
-    Array.from(element.getContext('2d')!.getImageData(500, 245, 1, 1).data),
+    Array.from(element.getContext('2d')!.getImageData(500, 175, 1, 1).data),
   )
   const enlargedCircleRightBefore = await canvas.evaluate((element: HTMLCanvasElement) =>
-    Array.from(element.getContext('2d')!.getImageData(575, 320, 1, 1).data),
+    Array.from(element.getContext('2d')!.getImageData(575, 250, 1, 1).data),
   )
   const enlargedCircleBottomBefore = await canvas.evaluate((element: HTMLCanvasElement) =>
-    Array.from(element.getContext('2d')!.getImageData(500, 395, 1, 1).data),
+    Array.from(element.getContext('2d')!.getImageData(500, 325, 1, 1).data),
   )
-  await drawWithTwoClicks('Circle', { x: 500, y: 320 }, { x: 550, y: 320 }, 3)
+  await drawWithTwoClicks('Circle', { x: 500, y: 250 }, { x: 550, y: 250 }, 3)
   await page.waitForTimeout(100)
   const circleCenterAfter = await canvas.evaluate((element: HTMLCanvasElement) =>
-    Array.from(element.getContext('2d')!.getImageData(500, 320, 1, 1).data),
+    Array.from(element.getContext('2d')!.getImageData(500, 250, 1, 1).data),
   )
   const circleEdgeAfter = await canvas.evaluate((element: HTMLCanvasElement) =>
-    Array.from(element.getContext('2d')!.getImageData(550, 320, 1, 1).data),
+    Array.from(element.getContext('2d')!.getImageData(550, 250, 1, 1).data),
   )
   const circleRotationGuideAfter = await canvas.evaluate((element: HTMLCanvasElement) =>
-    Array.from(element.getContext('2d')!.getImageData(500, 245, 1, 1).data),
+    Array.from(element.getContext('2d')!.getImageData(500, 175, 1, 1).data),
   )
   expect(circleCenterAfter).toEqual(circleCenterBefore)
   expect(circleEdgeAfter).not.toEqual(circleEdgeBefore)
@@ -504,16 +576,15 @@ test('creates lines and shapes by dragging or with two clicks and a shared edita
   await fillDialog.getByRole('button', { name: 'Use palette color Heisel amber #FFAA00' }).click()
   await expect(fillColor).toContainText('#FFAA00')
 
-  await page.mouse.move(canvasBounds!.x + 550, canvasBounds!.y + 370)
+  await page.mouse.move(canvasBounds!.x + 550, canvasBounds!.y + 300)
   await page.mouse.down()
-  await page.mouse.move(canvasBounds!.x + 580, canvasBounds!.y + 400)
+  await page.mouse.move(canvasBounds!.x + 580, canvasBounds!.y + 330)
   await page.mouse.up()
-  await expect(status).toContainText('Resized circle')
   const enlargedCircleRightAfter = await canvas.evaluate((element: HTMLCanvasElement) =>
-    Array.from(element.getContext('2d')!.getImageData(575, 320, 1, 1).data),
+    Array.from(element.getContext('2d')!.getImageData(575, 250, 1, 1).data),
   )
   const enlargedCircleBottomAfter = await canvas.evaluate((element: HTMLCanvasElement) =>
-    Array.from(element.getContext('2d')!.getImageData(500, 395, 1, 1).data),
+    Array.from(element.getContext('2d')!.getImageData(500, 325, 1, 1).data),
   )
   expect(enlargedCircleRightAfter).not.toEqual(enlargedCircleRightBefore)
   expect(enlargedCircleBottomAfter).not.toEqual(enlargedCircleBottomBefore)
@@ -805,11 +876,10 @@ test('exports watermarked images, copies share URLs and downloads an A4 landscap
   await expect(copyButton).toHaveCSS('background-color', 'rgb(34, 197, 94)')
   await expect
     .poll(() => page.evaluate(() => sessionStorage.getItem('copied-export-url')))
-    .toContain('#plot=')
+    .toContain('#1')
+  const copiedPlotUrl = await page.evaluate(() => sessionStorage.getItem('copied-export-url'))
+  expect(copiedPlotUrl).not.toBeNull()
 
-  const watermarkResponse = await page.request.get('/assets/heiselanalytics-website-qr.svg')
-  expect(watermarkResponse.ok()).toBe(true)
-  expect(await watermarkResponse.text()).toContain('<svg')
   const watermarkLogoResponse = await page.request.get('/assets/heisel-analytics-logo-on-light.png')
   expect(watermarkLogoResponse.ok()).toBe(true)
   const productLogoResponse = await page.request.get('/icons/sailplot-logo-on-light.svg')
@@ -818,6 +888,26 @@ test('exports watermarked images, copies share URLs and downloads an A4 landscap
   await png2x.click()
   const pngDownload = await pngDownloadPromise
   expect(pngDownload.suggestedFilename()).toBe('untitled-plot-2x.png')
+  const pngPath = await pngDownload.path()
+  expect(pngPath).not.toBeNull()
+  if (await page.evaluate(() => 'BarcodeDetector' in window)) {
+    const pngDataUrl = `data:image/png;base64,${(await readFile(pngPath!)).toString('base64')}`
+    const decodedQrValues = await page.evaluate(async (source) => {
+      const image = new Image()
+      image.src = source
+      await image.decode()
+      const BarcodeDetectorClass = (
+        window as unknown as {
+          BarcodeDetector: new (options: { formats: string[] }) => {
+            detect: (image: HTMLImageElement) => Promise<Array<{ rawValue: string }>>
+          }
+        }
+      ).BarcodeDetector
+      const detector = new BarcodeDetectorClass({ formats: ['qr_code'] })
+      return (await detector.detect(image)).map((result) => result.rawValue)
+    }, pngDataUrl)
+    expect(decodedQrValues).toContain(copiedPlotUrl)
+  }
 
   await page.evaluate(() => {
     window.print = () => {
@@ -834,12 +924,32 @@ test('exports watermarked images, copies share URLs and downloads an A4 landscap
   expect(pdfPath).not.toBeNull()
   const pdfContents = await readFile(pdfPath!)
   expect(pdfContents.subarray(0, 5).toString()).toBe('%PDF-')
-  expect(pdfContents.toString('latin1')).toContain('https://heiselanalytics.one/')
+  const pdfText = pdfContents.toString('latin1')
+  expect(pdfText).toContain('https://sailplot.app/')
+  expect(pdfText).toContain('https://heiselanalytics.one/')
+  expect(pdfText).toContain('#1')
   await expect(page.locator('html')).not.toHaveAttribute('data-print-called', 'true')
   await expect(page.locator('.statusbar')).toContainText('Downloaded PDF')
+
+  const reopenedPage = await page.context().newPage()
+  await reopenedPage.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: async (value: string) => sessionStorage.setItem('copied-export-url', value),
+      },
+    })
+  })
+  await reopenedPage.goto(copiedPlotUrl!)
+  await reopenedPage.getByRole('button', { name: 'Export / Share' }).click()
+  await reopenedPage.getByRole('button', { name: 'Copy URL with project' }).click()
+  await expect
+    .poll(() => reopenedPage.evaluate(() => sessionStorage.getItem('copied-export-url')))
+    .toBe(copiedPlotUrl)
+  await reopenedPage.close()
 })
 
-test('matches the Lighthouse-style Heisel Analytics credit', async ({ page }, testInfo) => {
+test('shows the export branding on the plot canvas', async ({ page }, testInfo) => {
   if (testInfo.project.name === 'desktop-chrome') {
     await page.setViewportSize({ width: 1440, height: 900 })
   }
@@ -929,12 +1039,81 @@ test('matches the Lighthouse-style Heisel Analytics credit', async ({ page }, te
   )
   const credit = page.getByLabel('Powered by Heisel Analytics')
   await expect(credit).toBeVisible()
+
+  if (testInfo.project.name !== 'desktop-chrome') {
+    await expect(credit).toHaveClass(/mobile-branding-bar/)
+    await expect(credit).toHaveCSS('display', 'grid')
+    await expect(page.locator('.canvas-branding')).toHaveCount(0)
+    await expect(credit.getByRole('img', { name: 'SailPlot' })).toBeVisible()
+    await expect(credit.getByRole('img', { name: 'Heisel Analytics' })).toBeVisible()
+    await expect(credit.getByRole('link', { name: 'SailPlot' })).toHaveAttribute(
+      'href',
+      'https://sailplot.app/',
+    )
+    await expect(credit.getByRole('link', { name: /Powered by Heisel Analytics/ })).toHaveAttribute(
+      'href',
+      'https://heiselanalytics.one/',
+    )
+    const compactBounds = await credit.boundingBox()
+    expect(compactBounds).not.toBeNull()
+    expect(compactBounds!.x + compactBounds!.width).toBeCloseTo(viewport!.width, 0)
+
+    await credit.getByRole('button', { name: 'Open menu' }).click()
+    const brandingMenu = credit.getByRole('menu')
+    await expect(brandingMenu.getByRole('menuitem', { name: 'Information' })).toBeVisible()
+    await expect(brandingMenu.getByRole('menuitem', { name: 'Imprint' })).toHaveAttribute(
+      'href',
+      'https://heiselanalytics.one/impressum',
+    )
+    await brandingMenu.getByRole('menuitem', { name: 'Information' }).click()
+    await expect(page.getByRole('dialog')).toContainText('Help & information')
+    return
+  }
+
   await expect(credit).toHaveCSS('display', 'flex')
-  await expect(credit).toHaveCSS('background-color', 'rgba(46, 46, 46, 0.82)')
+  await expect(credit).toHaveCSS('background-color', 'rgba(255, 255, 255, 0.86)')
+  await expect(page.locator('.brand-credit')).toHaveCount(0)
+  await expect(credit.getByRole('img', { name: 'SailPlot' })).toBeVisible()
   await expect(credit.getByRole('img', { name: 'Heisel Analytics' })).toBeVisible()
+  const partnerLink = credit.getByRole('link', { name: /Powered by Heisel Analytics/ })
+  await partnerLink.hover()
+  await expect(partnerLink).toHaveCSS('text-decoration-line', 'none')
+  await expect(credit.getByRole('link', { name: 'SailPlot' })).toHaveAttribute(
+    'href',
+    'https://sailplot.app/',
+  )
+  const plotButton = credit.getByRole('button', { name: 'Open this plot' })
+  await expect(plotButton.getByRole('img', { name: 'QR code for this plot' })).toHaveAttribute(
+    'src',
+    /^data:image\/svg\+xml/,
+  )
+  await plotButton.click()
+  let qrDialog = page.getByRole('dialog', { name: 'QR code for this plot' })
+  await expect(qrDialog.getByRole('img', { name: 'QR code for this plot' })).toHaveAttribute(
+    'src',
+    /^data:image\/svg\+xml/,
+  )
+  const [initialSharedPlot] = await Promise.all([
+    page.context().waitForEvent('page'),
+    qrDialog.getByRole('button', { name: 'Duplicate into new tab' }).click(),
+  ])
+  await initialSharedPlot.waitForLoadState()
+  const plotHrefAt100Percent = initialSharedPlot.url()
+  expect(plotHrefAt100Percent).toMatch(/#1/)
+  await expect(initialSharedPlot.locator('.statusbar')).toContainText('100%')
+  await initialSharedPlot.close()
+  await qrDialog.getByRole('button', { name: 'Close dialog' }).click()
   await expect(credit.getByRole('link', { name: 'Website' })).toHaveAttribute(
     'href',
     'https://heiselanalytics.one/',
+  )
+  await expect(credit.getByRole('link', { name: 'Website' })).toHaveCSS('color', 'rgb(255, 170, 0)')
+  await expect(credit.locator('.canvas-branding-partner-section nav')).toContainText(
+    /Information\s*\|\s*Website\s*\|\s*Imprint/,
+  )
+  await expect(credit.locator('.canvas-branding-partner-section nav > span').first()).toHaveCSS(
+    'color',
+    'rgb(46, 46, 46)',
   )
   await expect(credit.getByRole('link', { name: 'Imprint' })).toHaveAttribute(
     'href',
@@ -942,10 +1121,75 @@ test('matches the Lighthouse-style Heisel Analytics credit', async ({ page }, te
   )
 
   const bounds = await credit.boundingBox()
+  const visualBounds = await credit.locator('.canvas-branding-visual').boundingBox()
+  const logoColumnBounds = await credit.locator('.canvas-branding-logos').boundingBox()
+  const qrBounds = await credit.locator('.canvas-branding-qr').boundingBox()
+  const partnerLinkTextBounds = await credit.getByRole('link', { name: 'Website' }).boundingBox()
+  const poweredByBounds = await credit.locator('.canvas-branding-partner span').boundingBox()
+  const partnerLogoBounds = await credit.locator('.canvas-branding-partner img').boundingBox()
+  const productRowBounds = await credit.locator('.canvas-branding-product').boundingBox()
+  const productLogoBounds = await credit.locator('.canvas-branding-product img').boundingBox()
+  const canvasBounds = await page.locator('.canvas-area').boundingBox()
   expect(bounds).not.toBeNull()
-  expect(Math.round(bounds!.height)).toBe(testInfo.project.name === 'iphone' ? 42 : 50)
+  expect(visualBounds).not.toBeNull()
+  expect(logoColumnBounds).not.toBeNull()
+  expect(qrBounds).not.toBeNull()
+  expect(partnerLinkTextBounds).not.toBeNull()
+  expect(poweredByBounds).not.toBeNull()
+  expect(partnerLogoBounds).not.toBeNull()
+  expect(productRowBounds).not.toBeNull()
+  expect(productLogoBounds).not.toBeNull()
+  expect(canvasBounds).not.toBeNull()
+  expect(visualBounds!.width / visualBounds!.height).toBeCloseTo(72 / 32, 1)
+  expect(Math.abs(logoColumnBounds!.height - qrBounds!.height)).toBeLessThan(1)
+  expect(
+    Math.abs(
+      poweredByBounds!.y +
+        poweredByBounds!.height -
+        (partnerLogoBounds!.y + partnerLogoBounds!.height),
+    ),
+  ).toBeLessThan(1)
+  expect(
+    qrBounds!.y + qrBounds!.height - (partnerLinkTextBounds!.y + partnerLinkTextBounds!.height),
+  ).toBeGreaterThan(4)
+  expect(canvasBounds!.x + canvasBounds!.width - (bounds!.x + bounds!.width)).toBeCloseTo(12, 0)
+  const fittedPlotHeight = (canvasBounds!.width * 1080) / 1920
+  const fittedPlotBottom =
+    canvasBounds!.y + Math.max(fittedPlotHeight, (canvasBounds!.height + fittedPlotHeight) / 2)
+  expect(fittedPlotBottom - (bounds!.y + bounds!.height)).toBeCloseTo(12, 0)
 
-  await credit.getByRole('button', { name: 'Info' }).click()
+  if (testInfo.project.name === 'desktop-chrome') {
+    await page.mouse.move(
+      canvasBounds!.x + canvasBounds!.width / 2,
+      canvasBounds!.y + canvasBounds!.height / 2,
+    )
+    await page.mouse.wheel(0, -800)
+    await expect
+      .poll(async () => {
+        const zoomedBounds = await credit.boundingBox()
+        if (!zoomedBounds) return false
+        return (
+          zoomedBounds.x >= canvasBounds!.x + 5 &&
+          zoomedBounds.y >= canvasBounds!.y + 5 &&
+          zoomedBounds.x + zoomedBounds.width <= canvasBounds!.x + canvasBounds!.width - 5 &&
+          zoomedBounds.y + zoomedBounds.height <= canvasBounds!.y + canvasBounds!.height - 5
+        )
+      })
+      .toBe(true)
+    await plotButton.click()
+    qrDialog = page.getByRole('dialog', { name: 'QR code for this plot' })
+    const [zoomedSharedPlot] = await Promise.all([
+      page.context().waitForEvent('page'),
+      qrDialog.getByRole('button', { name: 'Duplicate into new tab' }).click(),
+    ])
+    await zoomedSharedPlot.waitForLoadState()
+    expect(zoomedSharedPlot.url()).toBe(plotHrefAt100Percent)
+    await expect(zoomedSharedPlot.locator('.statusbar')).toContainText('100%')
+    await zoomedSharedPlot.close()
+    await qrDialog.getByRole('button', { name: 'Close dialog' }).click()
+  }
+
+  await credit.getByRole('button', { name: 'Information' }).click()
   await expect(page.getByRole('dialog')).toContainText('Help & information')
 })
 

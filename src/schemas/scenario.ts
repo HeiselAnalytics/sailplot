@@ -206,6 +206,7 @@ export const scenarioSchema = z
       height: z.number().positive(),
       background: z.string(),
       boatNumbersVisible: z.boolean().default(true),
+      boatLegendVisible: z.boolean().default(true),
       grid: z.object({
         visible: z.boolean(),
         size: z.number().positive(),

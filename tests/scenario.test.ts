@@ -282,16 +282,20 @@ describe('plot format', () => {
     expect(parseScenarioJson(serializeScenario(scenario)).canvas.grid.opacity).toBe(1)
   })
 
-  it('shows boat numbers by default and preserves the scene visibility setting', () => {
+  it('shows boat numbers and the boat legend by default and preserves both settings', () => {
     const legacy = createEmptyScenario()
     delete (legacy.canvas as Partial<typeof legacy.canvas>).boatNumbersVisible
+    delete (legacy.canvas as Partial<typeof legacy.canvas>).boatLegendVisible
     delete (legacy.environment as Partial<typeof legacy.environment>).measurementBoatClass
     expect(parseScenarioJson(serializeScenario(legacy)).canvas.boatNumbersVisible).toBe(true)
+    expect(parseScenarioJson(serializeScenario(legacy)).canvas.boatLegendVisible).toBe(true)
     expect(parseScenarioJson(serializeScenario(legacy)).environment.measurementBoatClass).toBeNull()
 
     const scenario = createEmptyScenario()
     scenario.canvas.boatNumbersVisible = false
+    scenario.canvas.boatLegendVisible = false
     expect(parseScenarioJson(serializeScenario(scenario)).canvas.boatNumbersVisible).toBe(false)
+    expect(parseScenarioJson(serializeScenario(scenario)).canvas.boatLegendVisible).toBe(false)
   })
 
   it('removes support boats from a legacy measurement basis selection', () => {

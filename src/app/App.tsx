@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeftRight,
   Check,
@@ -12,6 +12,7 @@ import {
   ImageDown,
   Info,
   LayoutTemplate,
+  Menu,
   Moon,
   MoveRight,
   Plus,
@@ -57,6 +58,7 @@ import { boatColorForClass, mapBoatColorBetweenPalettes } from '../lib/boatColor
 import { gridOpacityForBackgroundChange } from '../lib/plotTheme'
 import { normalizeRuleReference } from '../lib/ruleReferences'
 import { addExportWatermark, createA4PlotPdf } from '../lib/exportImage'
+import { createPlotQrCodeDataUrl } from '../lib/exportQrCode'
 import {
   deleteAllProjects,
   deleteProject,
@@ -71,7 +73,7 @@ import { SAILING_BOAT_CLASSES, type BoatClass } from '../types/scenario'
 import type { SailPlotExtensionContext, SailPlotExtensions } from '../extensions/types'
 import { useSailPlotConfig } from '../providers/SailPlotConfigProvider'
 
-type Dialog = 'projects' | 'scenario' | 'settings' | 'help' | 'export' | null
+type Dialog = 'projects' | 'scenario' | 'settings' | 'help' | 'export' | 'qr' | null
 
 const triggerDownload = (url: string, filename: string) => {
   const anchor = document.createElement('a')
@@ -332,6 +334,27 @@ function SceneSettings({ embedded = false }: { embedded?: boolean }) {
         </div>
       </div>
       <div className="field">
+        <span>{t('Boat legend')}</span>
+        <div className="plot-background-switch" role="group" aria-label={t('Boat legend')}>
+          <button
+            type="button"
+            aria-pressed={scenario.canvas.boatLegendVisible}
+            className={scenario.canvas.boatLegendVisible ? 'is-active' : ''}
+            onClick={() => updateCanvas({ boatLegendVisible: true })}
+          >
+            {t('On')}
+          </button>
+          <button
+            type="button"
+            aria-pressed={!scenario.canvas.boatLegendVisible}
+            className={!scenario.canvas.boatLegendVisible ? 'is-active' : ''}
+            onClick={() => updateCanvas({ boatLegendVisible: false })}
+          >
+            {t('Off')}
+          </button>
+        </div>
+      </div>
+      <div className="field">
         <div className="field-label-row">
           <label htmlFor={basisId}>BL · {t('Boat-length basis')}</label>
           <button
@@ -475,55 +498,180 @@ function MobileProperties({ hasSelection }: { hasSelection: boolean }) {
   )
 }
 
-function BrandCredit({
+function MobileBrandingBar({ onInfo }: { onInfo: () => void }) {
+  const { t } = useI18n()
+  const config = useSailPlotConfig()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+    window.addEventListener('pointerdown', closeOnOutsideClick)
+    window.addEventListener('keydown', closeOnEscape)
+    return () => {
+      window.removeEventListener('pointerdown', closeOnOutsideClick)
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [menuOpen])
+
+  if (!config.ui.footer) return null
+
+  return (
+    <aside className="mobile-branding-bar" aria-label={config.texts.footerText}>
+      <div className="mobile-branding-product">
+        <a href={config.links.app ?? undefined} target="_blank" rel="noopener noreferrer">
+          <img src={config.branding.exportProductLogo} alt={config.branding.logoAlt} />
+        </a>
+      </div>
+      <div className="mobile-branding-partner-column">
+        <a
+          className="mobile-branding-partner"
+          href={config.links.website ?? undefined}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <span>Powered by</span>
+          <img src={config.branding.exportWatermarkLogo} alt={config.branding.partnerName} />
+        </a>
+        <div ref={menuRef} className="mobile-branding-menu">
+          <button
+            type="button"
+            className="mobile-branding-menu-trigger"
+            aria-label={t('Open menu')}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            <Menu aria-hidden="true" />
+          </button>
+          {menuOpen && (
+            <div className="mobile-branding-menu-popover" role="menu">
+              {config.ui.help && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    onInfo()
+                  }}
+                >
+                  {t('Information')}
+                </button>
+              )}
+              {config.links.imprint && (
+                <a
+                  href={config.links.imprint}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  role="menuitem"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {t('Imprint')}
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </aside>
+  )
+}
+
+function CanvasBranding({
   onInfo,
+  onOpenQr,
   extensions,
   extensionContext,
 }: {
   onInfo: () => void
+  onOpenQr: () => void
   extensions: SailPlotExtensions
   extensionContext: SailPlotExtensionContext
 }) {
   const { t } = useI18n()
   const config = useSailPlotConfig()
+  const scenario = useEditorStore((state) => state.scenario)
   const Footer = extensions.footer
+  const plotUrl = useMemo(() => createShareUrl(scenario), [scenario])
+  const qrCodeUrl = useMemo(() => {
+    try {
+      return createPlotQrCodeDataUrl(plotUrl, config.theme.light.primary)
+    } catch {
+      // Very large plots can still be shared through the export dialog even when
+      // they exceed the QR standard's absolute capacity.
+      return null
+    }
+  }, [config.theme.light.primary, plotUrl])
   if (!config.ui.footer) return null
   return (
-    <aside className="brand-credit" aria-label={config.texts.footerText}>
+    <aside className="canvas-branding" aria-label={config.texts.footerText}>
       {Footer ? (
         <Footer {...extensionContext} />
       ) : (
         <>
-          {config.branding.partnerLogo && (
-            <img
-              className="brand-logo"
-              src={config.branding.partnerLogo}
-              alt={config.branding.partnerName}
-            />
-          )}
-          <div className="brand-credit-copy">
-            <div className="brand-credit-title">{config.texts.footerText}</div>
-            <nav aria-label={`${config.branding.partnerName} links`}>
-              {config.ui.help && (
-                <button type="button" onClick={onInfo}>
-                  {t('Info')}
-                </button>
-              )}
-              {config.ui.help && config.links.website && <span aria-hidden="true">|</span>}
-              {config.links.website && (
-                <a href={config.links.website} target="_blank" rel="noopener noreferrer">
-                  {t('Website')}
+          <div className="canvas-branding-visual">
+            <div className="canvas-branding-logos">
+              <a
+                className="canvas-branding-product"
+                href={config.links.app ?? undefined}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <img src={config.branding.exportProductLogo} alt={config.branding.logoAlt} />
+              </a>
+              <div className="canvas-branding-partner-section">
+                <a
+                  className="canvas-branding-partner"
+                  href={config.links.website ?? undefined}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <span>Powered by</span>
+                  <img
+                    src={config.branding.exportWatermarkLogo}
+                    alt={config.branding.partnerName}
+                  />
                 </a>
-              )}
-              {(config.ui.help || config.links.website) && config.links.imprint && (
-                <span aria-hidden="true">|</span>
-              )}
-              {config.links.imprint && (
-                <a href={config.links.imprint} target="_blank" rel="noopener noreferrer">
-                  {t('Imprint')}
-                </a>
-              )}
-            </nav>
+                <nav aria-label={`${config.branding.partnerName} links`}>
+                  {config.ui.help && (
+                    <button type="button" onClick={onInfo}>
+                      {t('Information')}
+                    </button>
+                  )}
+                  {config.ui.help && config.links.website && <span aria-hidden="true">|</span>}
+                  {config.links.website && (
+                    <a href={config.links.website} target="_blank" rel="noopener noreferrer">
+                      {t('Website')}
+                    </a>
+                  )}
+                  {(config.ui.help || config.links.website) && config.links.imprint && (
+                    <span aria-hidden="true">|</span>
+                  )}
+                  {config.links.imprint && (
+                    <a href={config.links.imprint} target="_blank" rel="noopener noreferrer">
+                      {t('Imprint')}
+                    </a>
+                  )}
+                </nav>
+              </div>
+            </div>
+            {qrCodeUrl && (
+              <button
+                type="button"
+                className="canvas-branding-qr"
+                aria-label={t('Open this plot')}
+                aria-haspopup="dialog"
+                onClick={onOpenQr}
+              >
+                <img src={qrCodeUrl} alt={t('QR code for this plot')} />
+              </button>
+            )}
           </div>
         </>
       )}
@@ -580,6 +728,34 @@ function Modal({
         <div className="modal-body">{children}</div>
       </section>
     </div>
+  )
+}
+
+function PlotQrDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useI18n()
+  const config = useSailPlotConfig()
+  const scenario = useEditorStore((state) => state.scenario)
+  const plotUrl = useMemo(() => createShareUrl(scenario), [scenario])
+  const qrCodeUrl = useMemo(
+    () => createPlotQrCodeDataUrl(plotUrl, config.theme.light.primary),
+    [config.theme.light.primary, plotUrl],
+  )
+  const duplicateInNewTab = () => {
+    const newTab = window.open(plotUrl, '_blank', 'noopener,noreferrer')
+    if (newTab) newTab.opener = null
+  }
+
+  return (
+    <Modal title={t('QR code for this plot')} onClose={onClose}>
+      <div className="plot-qr-dialog">
+        <img className="plot-qr-dialog-code" src={qrCodeUrl} alt={t('QR code for this plot')} />
+        <div className="modal-actions">
+          <button type="button" className="primary-button" onClick={duplicateInNewTab}>
+            {t('Duplicate into new tab')}
+          </button>
+        </div>
+      </div>
+    </Modal>
   )
 }
 
@@ -1224,7 +1400,7 @@ function ExportDialog({
             {t(copied ? 'Copied' : 'Copy URL with project')}
           </button>
         </section>
-        {shareLength > 7500 && (
+        {shareLength > 4000 && (
           <p className="warning">
             {t(
               'This link is long and may not work in every app. Prefer JSON export for this project.',
@@ -1315,7 +1491,7 @@ function ExportDialog({
                 {t('Downloads the plot directly as an A4 landscape PDF.')}
               </ExportInfo>
             </div>
-            <small>{t('A4 landscape with a clickable website QR watermark')}</small>
+            <small>{t('A4 landscape with a clickable plot QR watermark')}</small>
           </div>
           <button type="button" className="export-action-button" onClick={() => void onPdf()}>
             {t('Download PDF')}
@@ -1338,6 +1514,9 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
   const canvasRef = useRef<CanvasHandle>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dialog, setDialog] = useState<Dialog>(null)
+  const [isCompactViewport, setIsCompactViewport] = useState(
+    () => window.matchMedia('(max-width: 980px)').matches,
+  )
   const themeStorageKey = namespacedStorageKey(config.storageNamespace, 'sailing-theme')
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (config.theme.mode === 'system') {
@@ -1349,9 +1528,9 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
   })
   const scenario = useEditorStore((state) => state.scenario)
   const selectedIds = useEditorStore((state) => state.selectedIds)
-  const hasVisibleBoatLegend = scenario.objects.some(
-    (object) => object.type === 'boat' && object.visible,
-  )
+  const hasVisibleBoatLegend =
+    scenario.canvas.boatLegendVisible &&
+    scenario.objects.some((object) => object.type === 'boat' && object.visible)
   const pdfScaleMm = 297 / scenario.canvas.width
   const pdfPlotHeightMm = scenario.canvas.height * pdfScaleMm
   const pdfPlotTopMm = (210 - pdfPlotHeightMm) / 2
@@ -1360,6 +1539,8 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
     : 5
   const activeTool = useEditorStore((state) => state.activeTool)
   const layoutPreference = useEditorStore((state) => state.layoutPreference)
+  const useCompactBranding =
+    layoutPreference === 'compact' || (layoutPreference === 'auto' && isCompactViewport)
   const status = useEditorStore((state) => state.status)
   const documentStatus = useEditorStore((state) => state.documentStatus)
   const history = useEditorStore((state) => state.history)
@@ -1380,6 +1561,14 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
     document.documentElement.dataset.theme = theme
     localStorage.setItem(themeStorageKey, theme)
   }, [theme, themeStorageKey])
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 980px)')
+    const update = () => setIsCompactViewport(media.matches)
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
 
   useEffect(() => {
     if (config.theme.mode !== 'system') return
@@ -1465,12 +1654,12 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
     const plotData = canvasRef.current?.exportPng(transparent, ratio)
     if (!plotData) return
     try {
-      const data = await addExportWatermark(
-        plotData,
-        config.branding.exportWatermarkQr,
-        config.branding.exportWatermarkLogo,
-        config.branding.exportProductLogo,
-      )
+      const data = await addExportWatermark(plotData, {
+        plotUrl: createShareUrl(scenario),
+        primaryColor: config.theme.light.primary,
+        analyticsLogoUrl: config.branding.exportWatermarkLogo,
+        productLogoUrl: config.branding.exportProductLogo,
+      })
       const anchor = document.createElement('a')
       anchor.href = data
       anchor.download = `${sanitizeFilename(scenario.metadata.title)}${transparent ? '-transparent' : ''}-${ratio}x.png`
@@ -1496,15 +1685,16 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
     const data = canvasRef.current?.exportPng(false, 2)
     if (!data) return
     try {
-      const pdf = await createA4PlotPdf(
-        data,
-        config.branding.exportWatermarkQr,
-        config.branding.exportWatermarkLogo,
-        config.branding.exportProductLogo,
-        config.links.website ?? '',
-        scenario.metadata.title,
-        pdfWatermarkBottomMm,
-      )
+      const pdf = await createA4PlotPdf(data, {
+        plotUrl: createShareUrl(scenario),
+        primaryColor: config.theme.light.primary,
+        analyticsLogoUrl: config.branding.exportWatermarkLogo,
+        productLogoUrl: config.branding.exportProductLogo,
+        productUrl: config.links.app,
+        analyticsUrl: config.links.website,
+        title: scenario.metadata.title,
+        watermarkBottomMm: pdfWatermarkBottomMm,
+      })
       await downloadPdfBlob(pdf, `${sanitizeFilename(scenario.metadata.title)}.pdf`)
       setDocumentStatus('downloaded')
       setStatus('Downloaded PDF')
@@ -1765,11 +1955,18 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
         <SceneSettings />
       </aside>
       <main className="canvas-area">
-        <ScenarioCanvas ref={canvasRef} />
-        <BrandCredit
-          onInfo={() => setDialog('help')}
-          extensions={extensions}
-          extensionContext={extensionContext}
+        <ScenarioCanvas
+          ref={canvasRef}
+          branding={
+            config.ui.footer && !useCompactBranding ? (
+              <CanvasBranding
+                onInfo={() => setDialog('help')}
+                onOpenQr={() => setDialog('qr')}
+                extensions={extensions}
+                extensionContext={extensionContext}
+              />
+            ) : undefined
+          }
         />
       </main>
       <aside className="properties-panel">
@@ -1779,6 +1976,7 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
         key={selectionKey || 'no-selection'}
         hasSelection={selectedIds.length > 0}
       />
+      {useCompactBranding && <MobileBrandingBar onInfo={() => setDialog('help')} />}
       <footer className="mobile-toolbar">
         <div className="mobile-toolbar-inner">
           {activeTool !== 'select' && (
@@ -1866,6 +2064,7 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
           onPdf={exportPdf}
         />
       )}
+      {dialog === 'qr' && <PlotQrDialog onClose={() => setDialog(null)} />}
     </div>
   )
 }

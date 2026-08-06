@@ -25,6 +25,7 @@ const german: Record<string, string> = {
   'Show wind': 'Wind anzeigen',
   'Show zones': 'Zonen anzeigen',
   'Show boat numbers': 'Bootsnummern anzeigen',
+  'Boat legend': 'Bootslegende',
   'Plot background': 'Plot-Hintergrund',
   Light: 'Hell',
   Dark: 'Dunkel',
@@ -52,9 +53,13 @@ const german: Record<string, string> = {
   '{count} of 10': '{count} von 10',
   'Powered by Heisel Analytics': 'Powered by Heisel Analytics',
   'Heisel Analytics links': 'Links von Heisel Analytics',
-  Information: 'Info',
+  Information: 'Information',
   Website: 'Webseite',
   Imprint: 'Impressum',
+  'Open this plot': 'Diesen Plot öffnen',
+  'QR code for this plot': 'QR-Code für diesen Plot',
+  'Open menu': 'Menü öffnen',
+  'Duplicate into new tab': 'In neuem Tab duplizieren',
   'Close dialog': 'Dialog schließen',
   '{label} value': 'Wert für {label}',
   '{label} slider': 'Regler für {label}',
@@ -160,8 +165,8 @@ const german: Record<string, string> = {
   'Download JSON': 'JSON herunterladen',
   'PNG image': 'PNG-Bild',
   'About PNG image': 'Informationen zum PNG-Bild',
-  'Exports the complete plot with the Heisel Analytics logo and QR code. Choose 2× for screens and everyday use, or 4× for sharper print and detailed output.':
-    'Exportiert den vollständigen Plot mit Heisel-Analytics-Logo und QR-Code. 2× eignet sich für Bildschirme und den normalen Gebrauch, 4× für schärfere Drucke und Detailansichten.',
+  'Exports the complete plot with a QR code that reopens this editable plot. Choose 2× for screens and everyday use, or 4× for sharper print and detailed output.':
+    'Exportiert den vollständigen Plot mit einem QR-Code, der diesen bearbeitbaren Plot wieder öffnet. 2× eignet sich für Bildschirme und den normalen Gebrauch, 4× für schärfere Drucke und Detailansichten.',
   'PNG resolution': 'PNG-Auflösung',
   'Download PNG at 2×': 'PNG in 2× herunterladen',
   'Download PNG at 4×': 'PNG in 4× herunterladen',
@@ -172,8 +177,8 @@ const german: Record<string, string> = {
   'Transparent PNG · 2×': 'Transparentes PNG · 2×',
   'Transparent PNG': 'Transparentes PNG',
   'About Transparent PNG': 'Informationen zum transparenten PNG',
-  'Exports without the plot background while keeping the logo and QR code. Choose 2× for screens and everyday use, or 4× for sharper print and detailed output.':
-    'Exportiert ohne Plot-Hintergrund und behält Logo und QR-Code bei. 2× eignet sich für Bildschirme und den normalen Gebrauch, 4× für schärfere Drucke und Detailansichten.',
+  'Exports without the plot background while keeping the branding and plot QR code. Choose 2× for screens and everyday use, or 4× for sharper print and detailed output.':
+    'Exportiert ohne Plot-Hintergrund und behält Branding und Plot-QR-Code bei. 2× eignet sich für Bildschirme und den normalen Gebrauch, 4× für schärfere Drucke und Detailansichten.',
   'Transparent PNG resolution': 'Auflösung des transparenten PNG',
   'Download transparent PNG at 2×': 'Transparentes PNG in 2× herunterladen',
   'Download transparent PNG at 4×': 'Transparentes PNG in 4× herunterladen',
@@ -191,8 +196,8 @@ const german: Record<string, string> = {
   'Downloads the plot directly as an A4 landscape PDF.':
     'Lädt den Plot direkt als PDF im A4-Querformat herunter.',
   'Download PDF': 'PDF herunterladen',
-  'A4 landscape with a clickable website QR watermark':
-    'A4-Querformat mit klickbarem Website-QR-Wasserzeichen',
+  'A4 landscape with a clickable plot QR watermark':
+    'A4-Querformat mit klickbarem Plot-QR-Wasserzeichen',
   'This link is long and may not work in every app. Prefer JSON export for this project.':
     'Dieser Link ist lang und funktioniert möglicherweise nicht in jeder App. Für dieses Projekt ist der JSON-Export vorzuziehen.',
   'Open projects': 'Projekte öffnen',

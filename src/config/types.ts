@@ -13,6 +13,7 @@ export interface SailPlotBranding {
   partnerName: string
   partnerLogo: string
   exportWatermarkLogo: string
+  /** @deprecated QR codes are generated from the current plot share link. */
   exportWatermarkQr: string
   exportProductLogo: string
 }
@@ -52,6 +53,7 @@ export interface SailPlotTexts {
 }
 
 export interface SailPlotLinks {
+  app: string | null
   support: string | null
   website: string | null
   privacy: string | null

@@ -31,6 +31,7 @@ const tenantConfig = {
     dark: { primary: '#e0f2fe', accent: '#38bdf8' },
   },
   storageNamespace: 'harbour-plot',
+  links: { app: 'https://plots.harbour.example/' },
 } satisfies DeepPartial<SailPlotConfig>
 
 const platformExtensions = {

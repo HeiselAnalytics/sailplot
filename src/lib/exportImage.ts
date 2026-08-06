@@ -1,3 +1,5 @@
+import { createPlotQrCodeDataUrl } from './exportQrCode'
+
 const loadImage = (source: string) =>
   new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image()
@@ -9,9 +11,102 @@ const loadImage = (source: string) =>
 
 const A4_LANDSCAPE_WIDTH_MM = 297
 const A4_LANDSCAPE_HEIGHT_MM = 210
-const PDF_WATERMARK_WIDTH_MM = 55
-const PDF_WATERMARK_HEIGHT_MM = 19
+const PDF_WATERMARK_WIDTH_MM = 91.08
+const PDF_WATERMARK_HEIGHT_MM = 40.48
+const PDF_WATERMARK_BRAND_WIDTH_MM = 50.6
 const PDF_WATERMARK_RIGHT_MM = 5
+const WATERMARK_BRAND_TO_QR_RATIO = PDF_WATERMARK_BRAND_WIDTH_MM / PDF_WATERMARK_HEIGHT_MM
+
+interface ExportWatermarkOptions {
+  plotUrl: string
+  primaryColor: string
+  analyticsLogoUrl: string
+  productLogoUrl: string
+}
+
+interface PdfExportOptions extends ExportWatermarkOptions {
+  productUrl: string | null
+  analyticsUrl: string | null
+  title: string
+  watermarkBottomMm?: number
+}
+
+function drawContainedImage(
+  context: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  verticalAlign: 'start' | 'center' | 'end' = 'center',
+) {
+  const scale = Math.min(width / image.naturalWidth, height / image.naturalHeight)
+  const renderedWidth = image.naturalWidth * scale
+  const renderedHeight = image.naturalHeight * scale
+  const renderedX = x + (width - renderedWidth) / 2
+  const renderedY =
+    verticalAlign === 'start'
+      ? y
+      : verticalAlign === 'end'
+        ? y + height - renderedHeight
+        : y + (height - renderedHeight) / 2
+  context.drawImage(image, renderedX, renderedY, renderedWidth, renderedHeight)
+  return { x: renderedX, y: renderedY, width: renderedWidth, height: renderedHeight }
+}
+
+function drawSplitBranding(
+  context: CanvasRenderingContext2D,
+  analyticsLogo: HTMLImageElement,
+  productLogo: HTMLImageElement,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  offsets: { dividerY?: number; partnerY?: number } = {},
+) {
+  const halfHeight = height / 2
+  const leftPadding = width * 0.05
+  const rightPadding = width * 0.02
+  const productLeftPadding = width * 0.05
+  const fontSize = Math.max(8, Math.round(height * 0.064))
+  const onePixelNudge = height / 120
+
+  context.strokeStyle = 'rgba(23, 23, 23, 0.18)'
+  context.lineWidth = Math.max(1, height * 0.006)
+  context.beginPath()
+  context.moveTo(x + leftPadding, y + halfHeight + (offsets.dividerY ?? 0))
+  context.lineTo(x + width - rightPadding, y + halfHeight + (offsets.dividerY ?? 0))
+  context.stroke()
+
+  drawContainedImage(
+    context,
+    productLogo,
+    x + productLeftPadding,
+    y - onePixelNudge,
+    width - productLeftPadding - rightPadding,
+    halfHeight * 0.98,
+    'end',
+  )
+
+  const partnerY = y + halfHeight + onePixelNudge + height * 0.0132 + (offsets.partnerY ?? 0)
+  const logoWidth = width * 0.65
+  context.fillStyle = '#171717'
+  context.font = `600 ${fontSize}px Arial, sans-serif`
+  context.textAlign = 'left'
+  const analyticsBounds = drawContainedImage(
+    context,
+    analyticsLogo,
+    x + width - rightPadding - logoWidth,
+    partnerY + halfHeight * 0.05,
+    logoWidth,
+    halfHeight * 0.75,
+    'start',
+  )
+  context.textBaseline = 'bottom'
+  const poweredX = x + leftPadding
+  const poweredBottom = analyticsBounds.y + analyticsBounds.height
+  context.fillText('Powered by', poweredX, poweredBottom)
+}
 
 function createPdfWatermark(
   qrCode: HTMLImageElement,
@@ -20,52 +115,22 @@ function createPdfWatermark(
 ): string {
   // Twenty pixels per millimetre keeps the small logos and QR code sharp in print.
   const canvas = document.createElement('canvas')
-  canvas.width = 1100
-  canvas.height = 380
+  canvas.width = 1440
+  canvas.height = 640
   const context = canvas.getContext('2d')
   if (!context) throw new Error('Could not prepare the PDF watermark')
 
   context.save()
-  context.fillStyle = 'rgba(255, 255, 255, 0.78)'
+  context.fillStyle = 'rgba(255, 255, 255, 0.86)'
   context.beginPath()
-  context.roundRect(0, 0, canvas.width, canvas.height, 60)
+  context.roundRect(0, 0, canvas.width, canvas.height, 64)
   context.fill()
   context.clip()
-
-  const brandX = 40
-  const brandWidth = 600
-  const qrX = 720
-  const qrSize = 380
-  const productAspectRatio = productLogo.naturalWidth / productLogo.naturalHeight
-  const productHeight = brandWidth / productAspectRatio
-  const rowGap = 16
-  const analyticsWidth = 280
-  const analyticsAspectRatio = analyticsLogo.naturalWidth / analyticsLogo.naturalHeight
-  const analyticsHeight = analyticsWidth / analyticsAspectRatio
-  const partnerHeight = Math.max(analyticsHeight, 72)
-  const brandHeight = productHeight + rowGap + partnerHeight
-  const brandY = (canvas.height - brandHeight) / 2
-
-  context.drawImage(productLogo, brandX, brandY, brandWidth, productHeight)
-
-  const partnerY = brandY + productHeight + rowGap
-  context.fillStyle = '#171717'
-  context.font = '600 42px Arial, sans-serif'
-  context.textAlign = 'center'
-  context.textBaseline = 'middle'
-  context.fillText(
-    'Powered by',
-    brandX + (brandWidth - analyticsWidth) / 2,
-    partnerY + partnerHeight * 0.55,
-  )
-  context.drawImage(
-    analyticsLogo,
-    brandX + brandWidth - analyticsWidth,
-    partnerY + (partnerHeight - analyticsHeight) / 2,
-    analyticsWidth,
-    analyticsHeight,
-  )
-  context.drawImage(qrCode, qrX, 0, qrSize, qrSize)
+  drawSplitBranding(context, analyticsLogo, productLogo, 0, 0, 800, 640, {
+    dividerY: 28,
+    partnerY: 43,
+  })
+  context.drawImage(qrCode, 800, 0, 640, 640)
   context.restore()
 
   return canvas.toDataURL('image/png')
@@ -73,19 +138,15 @@ function createPdfWatermark(
 
 export async function createA4PlotPdf(
   plotDataUrl: string,
-  qrCodeUrl: string,
-  analyticsLogoUrl: string,
-  productLogoUrl: string,
-  websiteUrl: string,
-  title: string,
-  watermarkBottomMm = 5,
+  options: PdfExportOptions,
 ): Promise<Blob> {
+  const qrCodeUrl = createPlotQrCodeDataUrl(options.plotUrl, options.primaryColor)
   const [{ jsPDF }, plot, qrCode, analyticsLogo, productLogo] = await Promise.all([
     import('jspdf'),
     loadImage(plotDataUrl),
     loadImage(qrCodeUrl),
-    loadImage(analyticsLogoUrl),
-    loadImage(productLogoUrl),
+    loadImage(options.analyticsLogoUrl),
+    loadImage(options.productLogoUrl),
   ])
   const pdf = new jsPDF({
     orientation: 'landscape',
@@ -96,13 +157,13 @@ export async function createA4PlotPdf(
   const plotHeightMm = A4_LANDSCAPE_WIDTH_MM * (plot.naturalHeight / plot.naturalWidth)
   const plotTopMm = (A4_LANDSCAPE_HEIGHT_MM - plotHeightMm) / 2
   const boundedWatermarkBottomMm = Math.min(
-    Math.max(5, watermarkBottomMm),
+    Math.max(5, options.watermarkBottomMm ?? 5),
     A4_LANDSCAPE_HEIGHT_MM - PDF_WATERMARK_HEIGHT_MM,
   )
   const watermarkX = A4_LANDSCAPE_WIDTH_MM - PDF_WATERMARK_RIGHT_MM - PDF_WATERMARK_WIDTH_MM
   const watermarkY = A4_LANDSCAPE_HEIGHT_MM - boundedWatermarkBottomMm - PDF_WATERMARK_HEIGHT_MM
 
-  pdf.setProperties({ title })
+  pdf.setProperties({ title: options.title })
   pdf.addImage(
     plotDataUrl,
     'PNG',
@@ -123,24 +184,42 @@ export async function createA4PlotPdf(
     undefined,
     'FAST',
   )
-  pdf.link(watermarkX, watermarkY, PDF_WATERMARK_WIDTH_MM, PDF_WATERMARK_HEIGHT_MM, {
-    url: websiteUrl,
-  })
+
+  if (options.productUrl) {
+    pdf.link(watermarkX, watermarkY, PDF_WATERMARK_BRAND_WIDTH_MM, PDF_WATERMARK_HEIGHT_MM / 2, {
+      url: options.productUrl,
+    })
+  }
+  if (options.analyticsUrl) {
+    pdf.link(
+      watermarkX,
+      watermarkY + PDF_WATERMARK_HEIGHT_MM / 2,
+      PDF_WATERMARK_BRAND_WIDTH_MM,
+      PDF_WATERMARK_HEIGHT_MM / 2,
+      { url: options.analyticsUrl },
+    )
+  }
+  pdf.link(
+    watermarkX + PDF_WATERMARK_BRAND_WIDTH_MM,
+    watermarkY,
+    PDF_WATERMARK_WIDTH_MM - PDF_WATERMARK_BRAND_WIDTH_MM,
+    PDF_WATERMARK_HEIGHT_MM,
+    { url: options.plotUrl },
+  )
 
   return pdf.output('blob')
 }
 
 export async function addExportWatermark(
   plotDataUrl: string,
-  qrCodeUrl: string,
-  analyticsLogoUrl: string,
-  productLogoUrl: string,
+  options: ExportWatermarkOptions,
 ): Promise<string> {
+  const qrCodeUrl = createPlotQrCodeDataUrl(options.plotUrl, options.primaryColor)
   const [plot, qrCode, analyticsLogo, productLogo] = await Promise.all([
     loadImage(plotDataUrl),
     loadImage(qrCodeUrl),
-    loadImage(analyticsLogoUrl),
-    loadImage(productLogoUrl),
+    loadImage(options.analyticsLogoUrl),
+    loadImage(options.productLogoUrl),
   ])
   const canvas = document.createElement('canvas')
   canvas.width = plot.naturalWidth
@@ -149,57 +228,34 @@ export async function addExportWatermark(
   if (!context) throw new Error('Could not prepare the watermarked export image')
 
   context.drawImage(plot, 0, 0)
-  const qrSize = Math.max(64, Math.round(Math.min(canvas.width * 0.095, canvas.height * 0.15)))
-  const padding = Math.max(10, Math.round(qrSize * 0.07))
-  const brandWidth = Math.round(qrSize * 1.75)
-  const panelWidth = padding * 2 + brandWidth + qrSize
+  const baseQrSize = Math.max(88, Math.round(Math.min(canvas.width * 0.13, canvas.height * 0.22)))
+  const qrSize = Math.round(baseQrSize * 1.265)
+  const brandWidth = Math.round(qrSize * WATERMARK_BRAND_TO_QR_RATIO)
+  const panelWidth = brandWidth + qrSize
   const panelHeight = qrSize
   const margin = Math.max(16, Math.round(qrSize * 0.09))
   const panelX = canvas.width - panelWidth - margin
   const panelY = canvas.height - panelHeight - margin
   const panelRadius = Math.max(10, Math.round(qrSize * 0.1))
+  const qrX = panelX + brandWidth
 
   context.save()
-  context.fillStyle = 'rgba(255, 255, 255, 0.78)'
+  context.fillStyle = 'rgba(255, 255, 255, 0.86)'
   context.beginPath()
   context.roundRect(panelX, panelY, panelWidth, panelHeight, panelRadius)
   context.fill()
   context.clip()
-
-  const productAspectRatio = productLogo.naturalWidth / productLogo.naturalHeight
-  const productHeight = brandWidth / productAspectRatio
-  const rowGap = Math.max(5, Math.round(qrSize * 0.04))
-  const analyticsWidth = Math.round(brandWidth * 0.55)
-  const analyticsAspectRatio = analyticsLogo.naturalWidth / analyticsLogo.naturalHeight
-  const analyticsHeight = analyticsWidth / analyticsAspectRatio
-  const partnerHeight = Math.max(analyticsHeight, qrSize * 0.19)
-  const brandHeight = productHeight + rowGap + partnerHeight
-  const brandX = panelX + padding
-  const brandY = panelY + (panelHeight - brandHeight) / 2
-  context.drawImage(productLogo, brandX, brandY, brandWidth, productHeight)
-
-  const partnerY = brandY + productHeight + rowGap
-  const poweredFontSize = Math.max(9, Math.round(qrSize * 0.09))
-  context.fillStyle = '#171717'
-  context.font = `600 ${poweredFontSize}px Arial, sans-serif`
-  context.textAlign = 'center'
-  context.textBaseline = 'middle'
-  context.fillText(
-    'Powered by',
-    brandX + (brandWidth - analyticsWidth) / 2,
-    partnerY + partnerHeight * 0.55,
-  )
-  context.save()
-  context.globalAlpha = 1
-  context.drawImage(
+  drawSplitBranding(
+    context,
     analyticsLogo,
-    brandX + brandWidth - analyticsWidth,
-    partnerY + (partnerHeight - analyticsHeight) / 2,
-    analyticsWidth,
-    analyticsHeight,
+    productLogo,
+    panelX,
+    panelY,
+    qrX - panelX,
+    panelHeight,
+    { dividerY: 28, partnerY: 43 },
   )
-  context.restore()
-  context.drawImage(qrCode, panelX + padding * 2 + brandWidth, panelY, qrSize, qrSize)
+  context.drawImage(qrCode, qrX, panelY, qrSize, qrSize)
   context.restore()
   return canvas.toDataURL('image/png')
 }

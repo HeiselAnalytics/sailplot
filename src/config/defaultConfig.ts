@@ -59,11 +59,12 @@ export const defaultSailPlotConfig: SailPlotConfig = {
       'A new web-based implementation for creating static sailing and racing-rule diagrams. It is inspired by the historical BOATS application but is implemented from scratch and does not use the old application as a runtime dependency.',
     poweredByText: 'Powered by SailPlot',
     exportPngDescription:
-      'Exports the complete plot with the Heisel Analytics logo and QR code. Choose 2× for screens and everyday use, or 4× for sharper print and detailed output.',
+      'Exports the complete plot with a QR code that reopens this editable plot. Choose 2× for screens and everyday use, or 4× for sharper print and detailed output.',
     exportTransparentPngDescription:
-      'Exports without the plot background while keeping the logo and QR code. Choose 2× for screens and everyday use, or 4× for sharper print and detailed output.',
+      'Exports without the plot background while keeping the branding and plot QR code. Choose 2× for screens and everyday use, or 4× for sharper print and detailed output.',
   },
   links: {
+    app: 'https://sailplot.app/',
     support: null,
     website: 'https://heiselanalytics.one/',
     privacy: null,
@@ -88,7 +89,7 @@ export const defaultSailPlotConfig: SailPlotConfig = {
   localization: {
     locales: { de: 'de-CH', en: 'en-GB' },
   },
-  pageTitle: 'Sailing Plot Editor',
+  pageTitle: 'SailPlot.app',
   storageNamespace: '',
   routerBasename: '',
 }

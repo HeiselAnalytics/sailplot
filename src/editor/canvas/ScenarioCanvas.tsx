@@ -1,4 +1,12 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import {
   Arrow,
   Circle,
@@ -1292,12 +1300,27 @@ function ObjectGraphic(props: ObjectGraphicProps) {
   )
 }
 
-export const ScenarioCanvas = forwardRef<CanvasHandle>(function ScenarioCanvas(_, ref) {
+interface ScenarioCanvasProps {
+  branding?: ReactNode
+}
+
+const EDITOR_BRANDING_MAX_WIDTH = 341.55
+const EDITOR_BRANDING_COMPACT_WIDTH = 273.24
+const EDITOR_BRANDING_ASPECT_RATIO = 72 / 32
+const EDITOR_BRANDING_PLOT_MARGIN = 12
+const EDITOR_BRANDING_VIEWPORT_MARGIN = 6
+
+export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(function ScenarioCanvas(
+  { branding },
+  ref,
+) {
   const { t } = useI18n()
   const containerRef = useRef<HTMLDivElement>(null)
+  const brandingRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<Konva.Stage>(null)
   const transformerRef = useRef<Konva.Transformer>(null)
   const [size, setSize] = useState({ width: 800, height: 600 })
+  const [measuredBrandingHeight, setMeasuredBrandingHeight] = useState(0)
   const [view, setView] = useState<View>({ x: 0, y: 0, scale: 1 })
   const [draft, setDraft] = useState<DrawingDraft | null>(null)
   const draftRef = useRef<DrawingDraft | null>(null)
@@ -1323,6 +1346,37 @@ export const ScenarioCanvas = forwardRef<CanvasHandle>(function ScenarioCanvas(_
   const gridColor = darkPlot ? '#71808A' : '#BCCDD3'
   const fitScale = Math.max(0.01, size.width / scenario.canvas.width)
   const actualScale = fitScale * view.scale
+  const brandingWidth = Math.max(
+    1,
+    Math.min(
+      size.width <= 640 ? EDITOR_BRANDING_COMPACT_WIDTH : EDITOR_BRANDING_MAX_WIDTH,
+      size.width - EDITOR_BRANDING_VIEWPORT_MARGIN * 2,
+      (size.height - EDITOR_BRANDING_VIEWPORT_MARGIN * 2) * EDITOR_BRANDING_ASPECT_RATIO,
+    ),
+  )
+  const brandingHeight = measuredBrandingHeight || brandingWidth / EDITOR_BRANDING_ASPECT_RATIO
+  const canvasRight = view.x + scenario.canvas.width * actualScale
+  const canvasBottom = view.y + scenario.canvas.height * actualScale
+  const brandingRight = Math.min(
+    Math.max(
+      EDITOR_BRANDING_VIEWPORT_MARGIN,
+      size.width - canvasRight + EDITOR_BRANDING_PLOT_MARGIN,
+    ),
+    Math.max(
+      EDITOR_BRANDING_VIEWPORT_MARGIN,
+      size.width - brandingWidth - EDITOR_BRANDING_VIEWPORT_MARGIN,
+    ),
+  )
+  const brandingBottom = Math.min(
+    Math.max(
+      EDITOR_BRANDING_VIEWPORT_MARGIN,
+      size.height - canvasBottom + EDITOR_BRANDING_PLOT_MARGIN,
+    ),
+    Math.max(
+      EDITOR_BRANDING_VIEWPORT_MARGIN,
+      size.height - brandingHeight - EDITOR_BRANDING_VIEWPORT_MARGIN,
+    ),
+  )
   const layline = laylineVector(scenario.environment.laylineAngle, 500)
   const zoneBoatLength = useMemo(
     () =>
@@ -1474,6 +1528,19 @@ export const ScenarioCanvas = forwardRef<CanvasHandle>(function ScenarioCanvas(_
     observer.observe(containerRef.current)
     return () => observer.disconnect()
   }, [])
+
+  useEffect(() => {
+    const element = brandingRef.current
+    if (!element) {
+      setMeasuredBrandingHeight(0)
+      return
+    }
+    const observer = new ResizeObserver(([entry]) => {
+      setMeasuredBrandingHeight(entry.contentRect.height)
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [branding])
 
   useEffect(() => {
     if (size.width && scenario.canvas.view.scale <= 1) fitToScreen()
@@ -2074,11 +2141,13 @@ export const ScenarioCanvas = forwardRef<CanvasHandle>(function ScenarioCanvas(_
                 />
               )
             })}
-          <BoatLegend
-            entries={boatLegendEntries}
-            canvasHeight={scenario.canvas.height}
-            dark={darkPlot}
-          />
+          {scenario.canvas.boatLegendVisible && (
+            <BoatLegend
+              entries={boatLegendEntries}
+              canvasHeight={scenario.canvas.height}
+              dark={darkPlot}
+            />
+          )}
           {draft &&
             (draft.tool === 'rectangle' ? (
               <Group listening={false}>
@@ -2222,6 +2291,15 @@ export const ScenarioCanvas = forwardRef<CanvasHandle>(function ScenarioCanvas(_
           />
         </Layer>
       </Stage>
+      {branding && (
+        <div
+          ref={brandingRef}
+          className="canvas-branding-anchor"
+          style={{ width: brandingWidth, right: brandingRight, bottom: brandingBottom }}
+        >
+          {branding}
+        </div>
+      )}
     </div>
   )
 })
