@@ -536,7 +536,7 @@ function MobileBrandingBar({ onInfo }: { onInfo: () => void }) {
           target="_blank"
           rel="noopener noreferrer"
         >
-          <span>Powered by</span>
+          {config.branding.partnerLabel && <span>{config.branding.partnerLabel}</span>}
           <img src={config.branding.exportWatermarkLogo} alt={config.branding.partnerName} />
         </a>
         <div ref={menuRef} className="mobile-branding-menu">
@@ -632,7 +632,7 @@ function CanvasBranding({
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <span>Powered by</span>
+                  {config.branding.partnerLabel && <span>{config.branding.partnerLabel}</span>}
                   <img
                     src={config.branding.exportWatermarkLogo}
                     alt={config.branding.partnerName}
@@ -1659,6 +1659,7 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
         primaryColor: config.theme.light.primary,
         analyticsLogoUrl: config.branding.exportWatermarkLogo,
         productLogoUrl: config.branding.exportProductLogo,
+        partnerLabel: config.branding.partnerLabel,
       })
       const anchor = document.createElement('a')
       anchor.href = data
@@ -1690,6 +1691,7 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
         primaryColor: config.theme.light.primary,
         analyticsLogoUrl: config.branding.exportWatermarkLogo,
         productLogoUrl: config.branding.exportProductLogo,
+        partnerLabel: config.branding.partnerLabel,
         productUrl: config.links.app,
         analyticsUrl: config.links.website,
         title: scenario.metadata.title,

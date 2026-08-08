@@ -22,6 +22,7 @@ interface ExportWatermarkOptions {
   primaryColor: string
   analyticsLogoUrl: string
   productLogoUrl: string
+  partnerLabel: string
 }
 
 interface PdfExportOptions extends ExportWatermarkOptions {
@@ -62,6 +63,7 @@ function drawSplitBranding(
   y: number,
   width: number,
   height: number,
+  partnerLabel: string,
   offsets: { dividerY?: number; partnerY?: number } = {},
 ) {
   const halfHeight = height / 2
@@ -89,7 +91,8 @@ function drawSplitBranding(
   )
 
   const partnerY = y + halfHeight + onePixelNudge + height * 0.0132 + (offsets.partnerY ?? 0)
-  const logoWidth = width * 0.65
+  const hasPartnerLabel = Boolean(partnerLabel.trim())
+  const logoWidth = width * (hasPartnerLabel ? 0.65 : 0.9)
   context.fillStyle = '#171717'
   context.font = `600 ${fontSize}px Arial, sans-serif`
   context.textAlign = 'left'
@@ -102,16 +105,19 @@ function drawSplitBranding(
     halfHeight * 0.75,
     'start',
   )
-  context.textBaseline = 'bottom'
-  const poweredX = x + leftPadding
-  const poweredBottom = analyticsBounds.y + analyticsBounds.height
-  context.fillText('Powered by', poweredX, poweredBottom)
+  if (hasPartnerLabel) {
+    context.textBaseline = 'bottom'
+    const labelX = x + leftPadding
+    const labelBottom = analyticsBounds.y + analyticsBounds.height
+    context.fillText(partnerLabel, labelX, labelBottom)
+  }
 }
 
 function createPdfWatermark(
   qrCode: HTMLImageElement,
   analyticsLogo: HTMLImageElement,
   productLogo: HTMLImageElement,
+  partnerLabel: string,
 ): string {
   // Twenty pixels per millimetre keeps the small logos and QR code sharp in print.
   const canvas = document.createElement('canvas')
@@ -126,7 +132,7 @@ function createPdfWatermark(
   context.roundRect(0, 0, canvas.width, canvas.height, 64)
   context.fill()
   context.clip()
-  drawSplitBranding(context, analyticsLogo, productLogo, 0, 0, 800, 640, {
+  drawSplitBranding(context, analyticsLogo, productLogo, 0, 0, 800, 640, partnerLabel, {
     dividerY: 28,
     partnerY: 43,
   })
@@ -175,7 +181,7 @@ export async function createA4PlotPdf(
     'FAST',
   )
   pdf.addImage(
-    createPdfWatermark(qrCode, analyticsLogo, productLogo),
+    createPdfWatermark(qrCode, analyticsLogo, productLogo, options.partnerLabel),
     'PNG',
     watermarkX,
     watermarkY,
@@ -253,6 +259,7 @@ export async function addExportWatermark(
     panelY,
     qrX - panelX,
     panelHeight,
+    options.partnerLabel,
     { dividerY: 28, partnerY: 43 },
   )
   context.drawImage(qrCode, qrX, panelY, qrSize, qrSize)

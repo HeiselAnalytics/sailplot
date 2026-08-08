@@ -1,9 +1,59 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useMemo, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { recolorSailPlotLogo } from '../config/logoAccent'
 import { mergeSailPlotConfig } from '../config/mergeConfig'
 import type { DeepPartial, SailPlotConfig } from '../config/types'
 
 const SailPlotConfigContext = createContext<SailPlotConfig | null>(null)
+
+const productLogoKeys = ['logo', 'logoDark', 'compactLogo', 'favicon', 'exportProductLogo'] as const
+
+type ProductLogoKey = (typeof productLogoKeys)[number]
+type ProductLogoOverrides = Partial<Pick<SailPlotConfig['branding'], ProductLogoKey>>
+
+function useLogoAccent(config: SailPlotConfig): SailPlotConfig {
+  const { logoAccentColor } = config.branding
+  const sources = productLogoKeys.map((key) => config.branding[key])
+  const requestKey = JSON.stringify([logoAccentColor, ...sources])
+  const [resolved, setResolved] = useState<{
+    requestKey: string
+    assets: ProductLogoOverrides
+  } | null>(null)
+
+  useEffect(() => {
+    if (!logoAccentColor) return
+
+    const controller = new AbortController()
+    const recoloredBySource = new Map<string, Promise<string>>()
+    const recolor = (source: string) => {
+      const existing = recoloredBySource.get(source)
+      if (existing) return existing
+      const pending = recolorSailPlotLogo(source, logoAccentColor, controller.signal).catch(
+        () => source,
+      )
+      recoloredBySource.set(source, pending)
+      return pending
+    }
+
+    void Promise.all(
+      productLogoKeys.map(async (key) => [key, await recolor(config.branding[key])] as const),
+    ).then((entries) => {
+      if (!controller.signal.aborted) {
+        setResolved({ requestKey, assets: Object.fromEntries(entries) as ProductLogoOverrides })
+      }
+    })
+
+    return () => controller.abort()
+  }, [config, logoAccentColor, requestKey])
+
+  return useMemo(() => {
+    if (!logoAccentColor || resolved?.requestKey !== requestKey) return config
+    return {
+      ...config,
+      branding: { ...config.branding, ...resolved.assets },
+    }
+  }, [config, logoAccentColor, requestKey, resolved])
+}
 
 export function SailPlotConfigProvider({
   config,
@@ -12,7 +62,8 @@ export function SailPlotConfigProvider({
   config?: DeepPartial<SailPlotConfig>
   children: ReactNode
 }) {
-  const value = useMemo(() => mergeSailPlotConfig(config), [config])
+  const mergedConfig = useMemo(() => mergeSailPlotConfig(config), [config])
+  const value = useLogoAccent(mergedConfig)
   return <SailPlotConfigContext.Provider value={value}>{children}</SailPlotConfigContext.Provider>
 }
 

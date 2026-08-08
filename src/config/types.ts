@@ -10,7 +10,10 @@ export interface SailPlotBranding {
   compactLogo: string
   logoAlt: string
   favicon: string
+  /** Replaces the orange SailPlot boat accent in product SVGs. Use a six-digit hex color. */
+  logoAccentColor: string | null
   partnerName: string
+  partnerLabel: string
   partnerLogo: string
   exportWatermarkLogo: string
   /** @deprecated QR codes are generated from the current plot share link. */
