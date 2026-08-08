@@ -30,7 +30,8 @@ import {
 } from 'lucide-react'
 import { IconButton } from '../components/ui/IconButton'
 import { namespacedStorageKey } from '../config/storage'
-import { sailPlotThemeVariables } from '../config/theme'
+import { sailPlotBrandAccentColor, sailPlotThemeVariables } from '../config/theme'
+import { SailPlotNavigation } from '../components/SailPlotNavigation'
 import { ScenarioCanvas, type CanvasHandle } from '../editor/canvas/ScenarioCanvas'
 import { EditorToolbar } from '../editor/objects/EditorToolbar'
 import { PropertiesPanel } from '../editor/objects/PropertiesPanel'
@@ -1510,6 +1511,9 @@ interface EditorAppProps {
 export default function App({ extensions, extensionContext }: EditorAppProps) {
   usePersistence()
   const config = useSailPlotConfig()
+  const setBrandAccentColor = useEditorStore((state) => state.setBrandAccentColor)
+  const brandAccentColor = sailPlotBrandAccentColor(config)
+  useEffect(() => setBrandAccentColor(brandAccentColor), [brandAccentColor, setBrandAccentColor])
   const { language, setLanguage, t, status: localizeStatus } = useI18n()
   const canvasRef = useRef<CanvasHandle>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -1898,33 +1902,7 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
               </button>
             ))}
           </div>
-          {extensions.navigationItems && extensions.navigationItems.length > 0 && (
-            <nav
-              className="sailplot-navigation sailplot-navigation--editor"
-              aria-label="Navigation"
-            >
-              {extensions.navigationItems.map((item) =>
-                item.href ? (
-                  <a
-                    key={item.id}
-                    href={item.href}
-                    target={item.external ? '_blank' : undefined}
-                    rel={item.external ? 'noopener noreferrer' : undefined}
-                  >
-                    {item.label}
-                  </a>
-                ) : (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => extensionContext.navigate(item.path ?? '/')}
-                  >
-                    {item.label}
-                  </button>
-                ),
-              )}
-            </nav>
-          )}
+          <SailPlotNavigation items={extensions.navigationItems ?? []} context={extensionContext} />
           {extensions.headerActions?.map((HeaderAction, index) => (
             <HeaderAction key={index} {...extensionContext} />
           ))}

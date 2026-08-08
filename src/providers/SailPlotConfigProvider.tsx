@@ -12,7 +12,9 @@ type ProductLogoKey = (typeof productLogoKeys)[number]
 type ProductLogoOverrides = Partial<Pick<SailPlotConfig['branding'], ProductLogoKey>>
 
 function useLogoAccent(config: SailPlotConfig): SailPlotConfig {
-  const { logoAccentColor } = config.branding
+  const logoAccentColor = config.theme.usePrimaryForBrandAccents
+    ? config.theme.light.primary
+    : config.branding.logoAccentColor
   const sources = productLogoKeys.map((key) => config.branding[key])
   const requestKey = JSON.stringify([logoAccentColor, ...sources])
   const [resolved, setResolved] = useState<{

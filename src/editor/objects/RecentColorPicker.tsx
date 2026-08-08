@@ -1,7 +1,8 @@
 import { ChevronDown } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { namespacedStorageKey } from '../../config/storage'
-import { BOAT_COLOR_PALETTE, type ColorPalette } from '../../lib/boatColors'
+import { sailPlotBrandAccentColor } from '../../config/theme'
+import { BOAT_COLOR_PALETTE, type ColorPalette, withBrandAccent } from '../../lib/boatColors'
 import { useI18n } from '../../i18n'
 import { useSailPlotConfig } from '../../providers/SailPlotConfigProvider'
 import { mergeRecentColors } from './recentColors'
@@ -95,7 +96,10 @@ export function RecentColorPicker({
   allowTransparent = false,
 }: RecentColorPickerProps) {
   const { t } = useI18n()
-  const { storageNamespace } = useSailPlotConfig()
+  const config = useSailPlotConfig()
+  const { storageNamespace } = config
+  const brandAccentColor = sailPlotBrandAccentColor(config)
+  const displayedPalette = withBrandAccent(palette, brandAccentColor)
   const storageKey = namespacedStorageKey(storageNamespace, LEGACY_STORAGE_KEY)
   const subscribeToColors = useCallback(
     (listener: () => void) => subscribe(storageKey, listener),
@@ -169,7 +173,7 @@ export function RecentColorPicker({
           <div className="color-options">
             <span className="color-options-label">{t('Palette')}</span>
             <div className="color-swatches" aria-label={t(paletteLabel)}>
-              {palette.map((color) => (
+              {displayedPalette.map((color) => (
                 <ColorSwatch
                   key={color.value}
                   color={color.value}
@@ -199,7 +203,7 @@ export function RecentColorPicker({
             <span>{t('Custom color')}</span>
             <input
               type="color"
-              value={/^#[0-9a-f]{6}$/i.test(value) ? value : '#ffaa00'}
+              value={/^#[0-9a-f]{6}$/i.test(value) ? value : brandAccentColor}
               aria-label={t('{label} custom color', { label })}
               onChange={(event) => chooseColor(event.target.value)}
             />

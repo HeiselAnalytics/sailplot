@@ -16,6 +16,7 @@ describe('SailPlot configuration', () => {
     expect(merged.branding.logoAccentColor).toBeNull()
     expect(merged.branding.shortName).toBe(defaultSailPlotConfig.branding.shortName)
     expect(merged.theme.light.accent).toBe('#0066cc')
+    expect(merged.theme.usePrimaryForBrandAccents).toBe(false)
     expect(merged.theme.light.background).toBe(defaultSailPlotConfig.theme.light.background)
     expect(merged.ui.help).toBe(false)
     expect(merged.ui.export).toBe(true)
@@ -37,6 +38,12 @@ describe('SailPlot configuration', () => {
 
     expect(merged.branding.logoAccentColor).toBe('#0f766e')
     expect(merged.branding.logo).toBe(defaultSailPlotConfig.branding.logo)
+  })
+
+  it('can apply the tenant primary color to all built-in brand accents', () => {
+    const merged = mergeSailPlotConfig({ theme: { usePrimaryForBrandAccents: true } })
+
+    expect(merged.theme.usePrimaryForBrandAccents).toBe(true)
   })
 
   it('falls back to all defaults when optional configuration is absent', () => {

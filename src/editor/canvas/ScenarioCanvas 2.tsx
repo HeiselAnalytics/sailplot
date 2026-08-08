@@ -656,6 +656,7 @@ function MarkGraphic({
   onPreviewChange,
   inkColor,
   outlineColor,
+  brandAccentColor,
 }: ObjectGraphicProps) {
   if (object.type !== 'mark') return null
   const isFlag = object.shape === 'flag'
@@ -676,7 +677,7 @@ function MarkGraphic({
   const normalizedColor = markColor.replace('#', '')
   const colorValue = /^[0-9a-f]{6}$/i.test(normalizedColor)
     ? Number.parseInt(normalizedColor, 16)
-    : 0xffaa00
+    : Number.parseInt(brandAccentColor.slice(1), 16)
   const red = (colorValue >> 16) & 0xff
   const green = (colorValue >> 8) & 0xff
   const blue = colorValue & 0xff
@@ -1053,6 +1054,7 @@ interface ObjectGraphicProps {
   boatNumbersVisible: boolean
   inkColor: string
   outlineColor: string
+  brandAccentColor: string
   interactionScale: number
 }
 
@@ -1063,6 +1065,7 @@ function TwoPointLineGraphic({
   onChange,
   onPreviewChange,
   inkColor,
+  brandAccentColor,
   interactionScale,
 }: ObjectGraphicProps) {
   if (object.type !== 'line' && object.type !== 'arrow') return null
@@ -1133,7 +1136,7 @@ function TwoPointLineGraphic({
             x={points[index * 2]}
             y={points[index * 2 + 1]}
             radius={8 / Math.max(interactionScale, 0.01)}
-            fill="#FFAA00"
+            fill={brandAccentColor}
             stroke={inkColor}
             strokeWidth={2 / Math.max(interactionScale, 0.01)}
             hitStrokeWidth={touchHitStrokeWidth(interactionScale)}
@@ -1340,6 +1343,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
   const updateCanvas = useEditorStore((state) => state.updateCanvas)
   const setTool = useEditorStore((state) => state.setTool)
   const setDragPreview = useEditorStore((state) => state.setDragPreview)
+  const brandAccentColor = useEditorStore((state) => state.brandAccentColor)
   const darkPlot = isDarkPlotBackground(scenario.canvas.background)
   const inkColor = darkPlot ? DARK_PLOT_INK : LIGHT_PLOT_INK
   const outlineColor = darkPlot ? DARK_PLOT_OUTLINE : LIGHT_PLOT_INK
@@ -1821,11 +1825,12 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
           nextZIndex,
           nextMarkSequenceNumber(scenario.objects),
           scenario.environment.zoneRadiusBoatLengths,
+          brandAccentColor,
         ),
         'Added gate',
       )
     } else if (draftToComplete.tool === 'start-line') {
-      addObject(createStartLine(x1, y1, x2, y2, nextZIndex), 'Added start line')
+      addObject(createStartLine(x1, y1, x2, y2, nextZIndex, brandAccentColor), 'Added start line')
     } else if (draftToComplete.tool === 'finish-line') {
       addObject(createFinishLine(x1, y1, x2, y2, nextZIndex), 'Added finish line')
     } else if (draftToComplete.tool === 'rectangle' || draftToComplete.tool === 'circle') {
@@ -2061,7 +2066,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
                   x={0}
                   y={-72}
                   radius={6}
-                  fill="#FFAA00"
+                  fill={brandAccentColor}
                   stroke={outlineColor}
                   strokeWidth={2}
                 />
@@ -2138,6 +2143,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
                   inkColor={inkColor}
                   outlineColor={outlineColor}
                   interactionScale={actualScale}
+                  brandAccentColor={brandAccentColor}
                 />
               )
             })}
@@ -2164,7 +2170,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
                   x={draft.points[0]}
                   y={draft.points[1]}
                   radius={6}
-                  fill="#FFAA00"
+                  fill={brandAccentColor}
                   stroke={inkColor}
                   strokeWidth={2}
                 />
@@ -2172,7 +2178,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
                   x={draft.points[2]}
                   y={draft.points[3]}
                   radius={6}
-                  fill="#FFAA00"
+                  fill={brandAccentColor}
                   stroke={inkColor}
                   strokeWidth={2}
                 />
@@ -2194,7 +2200,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
                   x={draft.points[0]}
                   y={draft.points[1]}
                   radius={6}
-                  fill="#FFAA00"
+                  fill={brandAccentColor}
                   stroke={inkColor}
                   strokeWidth={2}
                 />
@@ -2202,7 +2208,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
                   x={draft.points[2]}
                   y={draft.points[3]}
                   radius={6}
-                  fill="#FFAA00"
+                  fill={brandAccentColor}
                   stroke={inkColor}
                   strokeWidth={2}
                 />
@@ -2223,7 +2229,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
                     x={draft.points[index * 2]}
                     y={draft.points[index * 2 + 1]}
                     radius={6}
-                    fill="#FFAA00"
+                    fill={brandAccentColor}
                     stroke={inkColor}
                     strokeWidth={2}
                   />
@@ -2244,7 +2250,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
                     x={draft.points[index * 2]}
                     y={draft.points[index * 2 + 1]}
                     radius={6}
-                    fill="#FFAA00"
+                    fill={brandAccentColor}
                     stroke={inkColor}
                     strokeWidth={2}
                   />
@@ -2285,7 +2291,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
             anchorSize={18}
             borderStroke={inkColor}
             borderStrokeWidth={2}
-            anchorFill="#FFAA00"
+            anchorFill={brandAccentColor}
             anchorStroke={inkColor}
             anchorCornerRadius={4}
           />

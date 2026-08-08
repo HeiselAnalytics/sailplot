@@ -10,6 +10,8 @@ export function boatColorForClass(boatClass: BoatClass, color: string): string {
   return color
 }
 
+export const SAILPLOT_AMBER = '#FFAA00'
+
 export const BOAT_COLOR_PALETTE = [
   { name: 'Heisel amber', value: '#FFAA00' },
   { name: 'Midnight navy', value: '#18324A' },
@@ -36,8 +38,25 @@ export type ColorPalette = ReadonlyArray<{ name: string; value: string }>
 
 const normalized = (color: string) => color.toUpperCase()
 
-export const boatColorPaletteForBackground = (background: string): ColorPalette =>
-  isDarkPlotBackground(background) ? DARK_BOAT_COLOR_PALETTE : BOAT_COLOR_PALETTE
+export function withBrandAccent(
+  palette: ColorPalette,
+  brandAccentColor = SAILPLOT_AMBER,
+): ColorPalette {
+  if (normalized(brandAccentColor) === SAILPLOT_AMBER) return palette
+  return palette.map((entry) =>
+    normalized(entry.value) === SAILPLOT_AMBER
+      ? { name: 'Brand primary', value: brandAccentColor }
+      : entry,
+  )
+}
+
+export const boatColorPaletteForBackground = (
+  background: string,
+  brandAccentColor = SAILPLOT_AMBER,
+): ColorPalette => {
+  const palette = isDarkPlotBackground(background) ? DARK_BOAT_COLOR_PALETTE : BOAT_COLOR_PALETTE
+  return withBrandAccent(palette, brandAccentColor)
+}
 
 export function mapBoatColorBetweenPalettes(
   color: string,

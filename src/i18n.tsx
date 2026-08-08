@@ -11,6 +11,7 @@ type Variables = Record<string, string | number>
 const german: Record<string, string> = {
   'Sailing Plot Editor': 'Segelplot-Editor',
   Language: 'Sprache',
+  Menu: 'Menü',
   English: 'Englisch',
   German: 'Deutsch',
   Scene: 'Szene',

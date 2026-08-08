@@ -362,6 +362,7 @@ h3 {
 
 .language-switch {
   display: inline-flex;
+  width: 68px;
   align-items: center;
   gap: 2px;
   height: 32px;
@@ -839,7 +840,7 @@ h3 {
   justify-content: space-between;
   gap: 0;
   padding: 0 4.5% 5.5%;
-  color: #ffaa00;
+  color: var(--highlight);
   font-size: clamp(6px, 0.55vw, 8px);
   font-weight: 600;
   line-height: 1;
@@ -887,6 +888,65 @@ h3 {
 
 .sailplot-navigation--editor {
   margin-left: 4px;
+}
+
+.sailplot-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.topbar .sailplot-menu {
+  margin-left: 4px;
+}
+
+.sailplot-navigation .sailplot-menu-trigger {
+  display: inline-flex;
+  width: 68px;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--secondary);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.sailplot-menu-trigger svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  stroke-width: 2.5;
+}
+
+.sailplot-menu-popover {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 7px);
+  right: 0;
+  display: grid;
+  min-width: 168px;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--foreground), transparent 84%);
+}
+
+.sailplot-navigation .sailplot-menu-popover a,
+.sailplot-navigation .sailplot-menu-popover button {
+  display: flex;
+  width: 100%;
+  min-height: 36px;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: 5px;
+  color: var(--foreground);
+  text-align: left;
+  white-space: nowrap;
 }
 
 .extension-page-shell {
@@ -980,7 +1040,7 @@ h3 {
 
 .canvas-branding nav a,
 .canvas-branding nav button {
-  color: #ffaa00;
+  color: var(--highlight);
 }
 
 .canvas-branding nav > span {
@@ -996,7 +1056,7 @@ h3 {
 
 .canvas-branding nav a:hover,
 .canvas-branding nav button:hover {
-  color: #ffaa00;
+  color: var(--highlight);
 }
 
 .canvas-branding a.canvas-branding-partner:hover,
@@ -2626,12 +2686,22 @@ input[type='number']::-webkit-outer-spin-button {
   }
 
   .language-switch {
+    width: 72px;
     height: 40px;
   }
 
   .language-switch button {
     min-width: 32px;
     height: 34px;
+  }
+
+  .sailplot-navigation .sailplot-menu-trigger {
+    width: 40px;
+    min-height: 40px;
+  }
+
+  .sailplot-menu-trigger span {
+    display: none;
   }
 }
 

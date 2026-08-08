@@ -10,7 +10,21 @@ import { COACHBOAT_BLUE } from '../src/editor/objects/boatShapes'
 import { useEditorStore } from '../src/stores/editorStore'
 
 describe('command history', () => {
-  beforeEach(() => useEditorStore.getState().setScenario(createEmptyScenario()))
+  beforeEach(() => {
+    useEditorStore.getState().setBrandAccentColor('#FFAA00')
+    useEditorStore.getState().setScenario(createEmptyScenario())
+  })
+
+  it('uses the configured brand accent for the first new boat and mark', () => {
+    const store = useEditorStore.getState()
+    store.setBrandAccentColor('#0f766e')
+
+    expect(store.addAt('boat', 100, 120)).toMatchObject({ type: 'boat', color: '#0f766e' })
+    expect(useEditorStore.getState().addAt('mark', 200, 120)).toMatchObject({
+      type: 'mark',
+      color: '#0f766e',
+    })
+  })
 
   it('undoes and redoes object creation', () => {
     const boat = createBoat(100, 120)

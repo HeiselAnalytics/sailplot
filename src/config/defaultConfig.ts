@@ -21,6 +21,7 @@ export const defaultSailPlotConfig: SailPlotConfig = {
   },
   theme: {
     mode: 'dark',
+    usePrimaryForBrandAccents: false,
     light: {
       primary: '#171717',
       primaryText: '#fafafa',

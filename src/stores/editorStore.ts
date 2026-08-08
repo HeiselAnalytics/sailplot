@@ -15,6 +15,7 @@ import {
   upwindSailVisibility,
 } from '../editor/objects/boatShapes'
 import { boatColorPaletteForBackground, boatColorForClass, nextBoatColor } from '../lib/boatColors'
+import { SAILPLOT_AMBER } from '../lib/boatColors'
 import { migrateScenario } from '../services/migrations'
 import type {
   BoatClass,
@@ -51,6 +52,7 @@ interface EditorState {
   activeTool: EditorTool
   layoutPreference: LayoutPreference
   defaultBoatClass: BoatClass
+  brandAccentColor: string
   history: ObjectCommand[]
   future: ObjectCommand[]
   status: string
@@ -62,6 +64,7 @@ interface EditorState {
   setDragPreview: (preview: EditorState['dragPreview']) => void
   setTool: (tool: EditorTool) => void
   setLayoutPreference: (preference: LayoutPreference) => void
+  setBrandAccentColor: (color: string) => void
   setScenario: (scenario: Scenario, status?: string) => void
   patchScenario: (patch: Partial<Scenario>) => void
   updateMetadata: (patch: Partial<Scenario['metadata']>) => void
@@ -117,6 +120,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     activeTool: 'select',
     layoutPreference: 'auto',
     defaultBoatClass: 'ILCA',
+    brandAccentColor: SAILPLOT_AMBER,
     history: [],
     future: [],
     status: 'Ready',
@@ -147,6 +151,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
         }
       }),
     setLayoutPreference: (layoutPreference) => set({ layoutPreference }),
+    setBrandAccentColor: (brandAccentColor) => set({ brandAccentColor }),
     setScenario: (scenario, status = 'Plot opened') => {
       const migrated = migrateScenario(structuredClone(scenario))
       const latestBoat = [...migrated.objects]
@@ -256,20 +261,23 @@ export const useEditorStore = create<EditorState>((set, get) => {
           }
         } else {
           object = {
-            ...createBoat(x, y, zIndex, state.defaultBoatClass),
+            ...createBoat(x, y, zIndex, state.defaultBoatClass, state.brandAccentColor),
             ...upwindSailVisibility(state.defaultBoatClass),
             color: boatColorForClass(
               state.defaultBoatClass,
               nextBoatColor(
                 state.scenario.objects,
-                boatColorPaletteForBackground(state.scenario.canvas.background),
+                boatColorPaletteForBackground(
+                  state.scenario.canvas.background,
+                  state.brandAccentColor,
+                ),
               ),
             ),
           }
         }
       } else if (type === 'mark' || type === 'downwind-mark') {
         object = {
-          ...createMark(x, y, zIndex),
+          ...createMark(x, y, zIndex, state.brandAccentColor),
           markNumber: String(nextMarkSequenceNumber(state.scenario.objects)),
           downwind: type === 'downwind-mark',
           zoneRadius: state.scenario.environment.zoneRadiusBoatLengths,

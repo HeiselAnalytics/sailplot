@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { SailPlotNavigation } from '../components/SailPlotNavigation'
 import type { DeepPartial, SailPlotConfig } from '../config/types'
 import { sailPlotThemeVariables } from '../config/theme'
 import type {
   SailPlotExtensionComponent,
   SailPlotExtensionContext,
   SailPlotExtensions,
-  SailPlotNavigationItem,
 } from '../extensions/types'
 import { I18nProvider } from '../i18n'
 import { SailPlotConfigProvider, useSailPlotConfig } from '../providers/SailPlotConfigProvider'
@@ -66,35 +66,7 @@ function HeaderLogo({ config }: { config: SailPlotConfig }) {
   )
 }
 
-export function SailPlotNavigation({
-  items,
-  context,
-}: {
-  items: SailPlotNavigationItem[]
-  context: SailPlotExtensionContext
-}) {
-  if (!items.length) return null
-  return (
-    <nav className="sailplot-navigation" aria-label="Navigation">
-      {items.map((item) =>
-        item.href ? (
-          <a
-            key={item.id}
-            href={item.href}
-            target={item.external ? '_blank' : undefined}
-            rel={item.external ? 'noopener noreferrer' : undefined}
-          >
-            {item.label}
-          </a>
-        ) : (
-          <button key={item.id} type="button" onClick={() => context.navigate(item.path ?? '/')}>
-            {item.label}
-          </button>
-        ),
-      )}
-    </nav>
-  )
-}
+export { SailPlotNavigation } from '../components/SailPlotNavigation'
 
 function ExtensionComponents({
   components = [],

@@ -83,8 +83,13 @@ describe('SailPlotApp', () => {
     )
 
     const navigation = container.querySelector('.sailplot-navigation')
+    await act(async () =>
+      navigation?.querySelector<HTMLButtonElement>('.sailplot-menu-trigger')?.click(),
+    )
     expect(navigation?.querySelector('a')?.getAttribute('href')).toBe('https://example.com')
-    await act(async () => navigation?.querySelector<HTMLButtonElement>('button')?.click())
+    await act(async () =>
+      navigation?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.click(),
+    )
     expect(container.querySelector('h1')?.textContent).toBe('Extra page')
     expect(window.location.pathname).toBe('/extra')
   })

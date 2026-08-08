@@ -37,6 +37,13 @@ describe('boat color palette', () => {
     expect(boatColorPaletteForBackground(PLOT_BACKGROUNDS.dark)).toBe(DARK_BOAT_COLOR_PALETTE)
   })
 
+  it('replaces the first amber swatch with a configured tenant primary color', () => {
+    const palette = boatColorPaletteForBackground(PLOT_BACKGROUNDS.light, '#0f766e')
+
+    expect(palette[0]).toEqual({ name: 'Brand primary', value: '#0f766e' })
+    expect(palette.slice(1)).toEqual(BOAT_COLOR_PALETTE.slice(1))
+  })
+
   it('maps standard colors between plot palettes and preserves custom colors', () => {
     expect(
       mapBoatColorBetweenPalettes('#18324a', PLOT_BACKGROUNDS.light, PLOT_BACKGROUNDS.dark),

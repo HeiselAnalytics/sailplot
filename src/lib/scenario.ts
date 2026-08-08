@@ -8,7 +8,7 @@ import type {
   ScenarioObject,
   StartLineObject,
 } from '../types/scenario'
-import { BOAT_COLOR_PALETTE, boatColorForClass } from './boatColors'
+import { boatColorForClass, SAILPLOT_AMBER } from './boatColors'
 import { PLOT_BACKGROUNDS } from './plotTheme'
 
 export { isDarkPlotBackground, normalizePlotBackground, PLOT_BACKGROUNDS } from './plotTheme'
@@ -78,6 +78,7 @@ export function createBoat(
   y: number,
   zIndex = 1,
   boatClass: BoatClass = 'ILCA',
+  brandAccentColor = SAILPLOT_AMBER,
 ): BoatObject {
   return {
     ...baseObject('boat', x, y, zIndex),
@@ -86,7 +87,7 @@ export function createBoat(
     name: '',
     sailNumber: '',
     label: '',
-    color: boatColorForClass(boatClass, BOAT_COLOR_PALETTE[0].value),
+    color: boatColorForClass(boatClass, brandAccentColor),
     heading: 0,
     tack: 'starboard',
     mainsailVisible: true,
@@ -107,13 +108,18 @@ export function createBoat(
   }
 }
 
-export function createMark(x: number, y: number, zIndex = 1): MarkObject {
+export function createMark(
+  x: number,
+  y: number,
+  zIndex = 1,
+  brandAccentColor = SAILPLOT_AMBER,
+): MarkObject {
   return {
     ...baseObject('mark', x, y, zIndex),
     type: 'mark',
     markType: 'racing',
     shape: 'round',
-    color: '#FFAA00',
+    color: brandAccentColor,
     label: '',
     markNumber: '1',
     downwind: false,
@@ -131,6 +137,7 @@ export function createGate(
   zIndex = 1,
   markNumber = 1,
   zoneRadius = 3,
+  brandAccentColor = SAILPLOT_AMBER,
 ): GateObject {
   const centerX = (x1 + x2) / 2
   const centerY = (y1 + y2) / 2
@@ -142,7 +149,7 @@ export function createGate(
     endBX: x2 - centerX,
     endBY: y2 - centerY,
     markNumber,
-    color: '#FFAA00',
+    color: brandAccentColor,
     zoneVisible: true,
     zoneRadius,
     zoneRadiusUnit: 'boat-lengths',
@@ -155,6 +162,7 @@ export function createStartLine(
   x2: number,
   y2: number,
   zIndex = 1,
+  brandAccentColor = SAILPLOT_AMBER,
 ): StartLineObject {
   const centerX = (x1 + x2) / 2
   const centerY = (y1 + y2) / 2
@@ -168,11 +176,11 @@ export function createStartLine(
     color: '#A3A3A3',
     startEndType: 'committee-boat',
     pinEndType: 'flag',
-    startEndFlagColor: START_FLAG_COLOR,
-    pinEndFlagColor: START_FLAG_COLOR,
+    startEndFlagColor: brandAccentColor,
+    pinEndFlagColor: brandAccentColor,
     laylinesVisible: false,
     laylineAreaVisible: false,
-    laylineAreaColor: START_FLAG_COLOR,
+    laylineAreaColor: brandAccentColor,
   }
 }
 

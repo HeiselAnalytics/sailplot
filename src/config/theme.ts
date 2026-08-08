@@ -1,6 +1,12 @@
 import type { CSSProperties } from 'react'
 import type { SailPlotConfig, SailPlotThemeColors } from './types'
 
+export function sailPlotBrandAccentColor(config: SailPlotConfig): string {
+  return config.theme.usePrimaryForBrandAccents
+    ? config.theme.light.primary
+    : config.theme.light.accent
+}
+
 export function sailPlotThemeVariables(
   colors: SailPlotThemeColors,
   config: SailPlotConfig,
@@ -14,7 +20,8 @@ export function sailPlotThemeVariables(
     '--muted': colors.muted,
     '--border': colors.border,
     '--ring': colors.focusRing,
-    '--highlight': colors.accent,
+    '--highlight': config.theme.usePrimaryForBrandAccents ? colors.primary : colors.accent,
+    ...(config.theme.usePrimaryForBrandAccents ? { '--highlight-text': colors.primaryText } : {}),
     '--button': colors.primary,
     '--button-text': colors.primaryText,
     ...(config.theme.fontFamily ? { '--font-body': config.theme.fontFamily } : {}),

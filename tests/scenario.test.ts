@@ -125,6 +125,17 @@ describe('plot format', () => {
     })
   })
 
+  it('uses a configured tenant primary color for new amber-default objects', () => {
+    expect(createBoat(100, 200, 1, 'ILCA', '#0f766e').color).toBe('#0f766e')
+    expect(createMark(100, 200, 1, '#0f766e').color).toBe('#0f766e')
+    expect(createGate(100, 200, 300, 200, 1, 1, 3, '#0f766e').color).toBe('#0f766e')
+    expect(createStartLine(100, 200, 500, 200, 1, '#0f766e')).toMatchObject({
+      startEndFlagColor: '#0f766e',
+      pinEndFlagColor: '#0f766e',
+      laylineAreaColor: '#0f766e',
+    })
+  })
+
   it('preserves alphanumeric mark numbers and migrates legacy numeric values', () => {
     const scenario = createEmptyScenario()
     scenario.objects = [{ ...createMark(100, 200), markNumber: '18z' }]

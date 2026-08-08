@@ -37,6 +37,8 @@ export interface SailPlotThemeColors {
 
 export interface SailPlotTheme {
   mode: SailPlotThemeMode
+  /** Uses the tenant's light primary color for SailPlot's default amber accents and objects. */
+  usePrimaryForBrandAccents: boolean
   light: SailPlotThemeColors
   dark: SailPlotThemeColors
   fontFamily: string | null
