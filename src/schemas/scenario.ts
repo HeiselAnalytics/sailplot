@@ -88,7 +88,14 @@ const normalizeCourseEndpoint = (value: unknown) =>
 
 const courseEndpointSchema = z.preprocess(
   normalizeCourseEndpoint,
-  z.enum(['committee-boat', 'buoy', 'flag', 'coach-boat', 'coach-boat-reversed']),
+  z.enum([
+    'committee-boat',
+    'committee-boat-reversed',
+    'buoy',
+    'flag',
+    'coach-boat',
+    'coach-boat-reversed',
+  ]),
 )
 
 const gateSchema = baseObjectSchema.extend({

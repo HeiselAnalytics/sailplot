@@ -236,7 +236,8 @@ function BoatFields({
   const { t } = useI18n()
   const environment = useEditorStore((state) => state.scenario.environment)
   const plotBackground = useEditorStore((state) => state.scenario.canvas.background)
-  const hullPalette = boatColorPaletteForBackground(plotBackground)
+  const brandAccentColor = useEditorStore((state) => state.brandAccentColor)
+  const hullPalette = boatColorPaletteForBackground(plotBackground, brandAccentColor)
   const profile = BOAT_SHAPES[object.boatClass]
   const hasMainsail = Boolean(profile.mast && profile.mainsailSize)
   const hasJib = Boolean(profile.jibTack && profile.jibSize)
@@ -634,6 +635,7 @@ function MarkFields({
 
 const courseEndpointOptions: Array<{ value: CourseEndpointType; label: string }> = [
   { value: 'committee-boat', label: 'Committee boat' },
+  { value: 'committee-boat-reversed', label: 'Committee boat (reversed)' },
   { value: 'buoy', label: 'Buoy' },
   { value: 'flag', label: 'Flag' },
   { value: 'coach-boat', label: 'Coachboat' },
@@ -768,7 +770,7 @@ function CourseLineFields({
   )
 }
 
-export function PropertiesPanel() {
+export function PropertiesPanel({ emptyContent }: { emptyContent?: React.ReactNode } = {}) {
   const { language, t } = useI18n()
   const scenario = useEditorStore((state) => state.scenario)
   const dragPreview = useEditorStore((state) => state.dragPreview)
@@ -778,6 +780,7 @@ export function PropertiesPanel() {
   const duplicateSelected = useEditorStore((state) => state.duplicateSelected)
   const deleteSelected = useEditorStore((state) => state.deleteSelected)
   const setLayer = useEditorStore((state) => state.setLayer)
+  const brandAccentColor = useEditorStore((state) => state.brandAccentColor)
   const selected = scenario.objects
     .filter((object) => selectedIds.includes(object.id))
     .map((object) =>
@@ -788,10 +791,13 @@ export function PropertiesPanel() {
 
   if (!selected.length) {
     return (
-      <div className="empty-state">
-        <MouseHint />
-        <h2>{t('No selection')}</h2>
-        <p>{t('Select an object on the canvas to edit its properties.')}</p>
+      <div className={`empty-state${emptyContent ? ' empty-state--with-content' : ''}`}>
+        <div className="empty-state-message">
+          <MouseHint />
+          <h2>{t('No selection')}</h2>
+          <p>{t('Select an object on the canvas to edit its properties.')}</p>
+        </div>
+        {emptyContent && <div className="empty-state-extension">{emptyContent}</div>}
       </div>
     )
   }
@@ -986,7 +992,7 @@ export function PropertiesPanel() {
           label={t('Fill color')}
           value={object.fill}
           onChange={(fill) => update({ fill })}
-          palette={boatColorPaletteForBackground(scenario.canvas.background)}
+          palette={boatColorPaletteForBackground(scenario.canvas.background, brandAccentColor)}
           paletteLabel={
             isDarkPlotBackground(scenario.canvas.background)
               ? 'Heisel dark sailing palette'

@@ -1,6 +1,13 @@
 export type SailPlotLanguage = 'auto' | 'de' | 'en'
+export type SailPlotLanguageMode = 'de' | 'en' | 'both'
 export type SailPlotThemeMode = 'light' | 'dark' | 'system'
 export type SailPlotStartPage = 'editor' | 'home'
+export type SailPlotMarkColorMode = 'sailplot' | 'primary' | 'red' | 'orange' | 'custom'
+
+export interface SailPlotPartnerLink {
+  label: string
+  url: string
+}
 
 export interface SailPlotBranding {
   appName: string
@@ -15,6 +22,8 @@ export interface SailPlotBranding {
   partnerName: string
   partnerLabel: string
   partnerLogo: string
+  /** Optional logo destinations. Null uses the configured website and imprint links. */
+  partnerLinks: SailPlotPartnerLink[] | null
   exportWatermarkLogo: string
   /** @deprecated QR codes are generated from the current plot share link. */
   exportWatermarkQr: string
@@ -37,13 +46,21 @@ export interface SailPlotThemeColors {
 
 export interface SailPlotTheme {
   mode: SailPlotThemeMode
-  /** Uses the tenant's light primary color for SailPlot's default amber accents and objects. */
+  /** Uses the tenant's primary color for product branding, UI accents, and the first boat color. */
   usePrimaryForBrandAccents: boolean
+  /** Color of the three QR finder-centre dots. Null follows the light primary color. */
+  qrFinderColor: string | null
   light: SailPlotThemeColors
   dark: SailPlotThemeColors
   fontFamily: string | null
   headingFontFamily: string | null
   borderRadius: string | null
+}
+
+export interface SailPlotObjectColors {
+  markColorMode: SailPlotMarkColorMode
+  markCustomColor: string | null
+  startLineFlagColor: string
 }
 
 export interface SailPlotTexts {
@@ -69,6 +86,7 @@ export interface SailPlotLinks {
 export interface SailPlotUiVisibility {
   headerLogo: boolean
   footer: boolean
+  canvasBrandingLinks: boolean
   poweredBySailPlot: boolean
   help: boolean
   about: boolean
@@ -84,6 +102,8 @@ export interface SailPlotDefaults {
 }
 
 export interface SailPlotLocalization {
+  /** Fixed German/English hides the switch; both keeps the language switch available. */
+  languageMode: SailPlotLanguageMode
   locales: Record<'de' | 'en', string>
 }
 
@@ -98,6 +118,7 @@ export interface SailPlotConfig {
   ui: SailPlotUiVisibility
   defaults: SailPlotDefaults
   localization: SailPlotLocalization
+  objectColors: SailPlotObjectColors
   pageTitle: string
   storageNamespace: string
   routerBasename: string

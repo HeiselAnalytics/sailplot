@@ -36,6 +36,11 @@
   --success: #22c55e;
   --button: #171717;
   --button-text: #fafafa;
+  --interactive-accent: color-mix(in srgb, var(--highlight) 55%, var(--foreground));
+  --interactive-hover: color-mix(in srgb, var(--interactive-accent), transparent 72%);
+  --interactive-hover-strong: color-mix(in srgb, var(--interactive-accent), transparent 62%);
+  --interactive-hover-subtle: color-mix(in srgb, var(--interactive-accent), transparent 78%);
+  --button-hover: color-mix(in srgb, var(--button) 70%, var(--button-text));
   --radius: 7px;
   font-family: var(--font-body);
   font-synthesis: none;
@@ -137,6 +142,10 @@ h3 {
   padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   background: var(--panel);
+}
+
+.app-shell[data-layout='compact'] .topbar {
+  z-index: 90;
 }
 
 .app-title {
@@ -551,6 +560,10 @@ h3 {
   font-size: 12px;
 }
 
+.tools-panel .scene-toggle-grid input[type='checkbox']:checked {
+  accent-color: var(--highlight);
+}
+
 .plot-background-switch {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -681,6 +694,11 @@ h3 {
   min-width: 0;
   min-height: 32px;
   accent-color: var(--foreground);
+}
+
+.tools-panel .scene-range-control > input[type='range'],
+.tools-panel .scene-range-slider input[type='range'] {
+  accent-color: var(--highlight);
 }
 
 .scene-range-slider {
@@ -820,6 +838,17 @@ h3 {
   object-fit: contain;
 }
 
+.canvas-branding-partner--logo-only img {
+  width: calc(100% - 5px);
+  max-width: none;
+  height: 90%;
+  transform: translateX(1px);
+}
+
+.canvas-branding-partner--logo-only {
+  transform: translateY(-3px);
+}
+
 .canvas-branding-qr {
   display: block;
   min-width: 0;
@@ -951,19 +980,22 @@ h3 {
 
 .extension-page-shell {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(min-content, 1fr) auto;
   width: 100%;
   height: 100%;
-  overflow: auto;
+  overflow-y: auto;
   background: var(--background);
   color: var(--foreground);
 }
 
 .extension-page-header {
+  position: sticky;
+  z-index: 80;
+  top: 0;
   display: flex;
   min-height: 68px;
   align-items: center;
-  gap: 20px;
+  gap: 8px;
   padding: 8px 18px;
   border-bottom: 1px solid var(--border);
   background: var(--panel);
@@ -974,6 +1006,10 @@ h3 {
   width: 164px;
   height: 48px;
   flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
 }
 
 .extension-shell-logo img {
@@ -990,19 +1026,79 @@ h3 {
 }
 
 .extension-page-header .sailplot-navigation {
-  margin-left: auto;
+  margin-left: 0;
 }
 
 .extension-header-actions {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-left: auto;
+}
+
+.extension-editor-back {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid #ffaa00;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-right: 16px;
+}
+
+.extension-editor-back:hover {
+  background: color-mix(in srgb, #ffaa00, transparent 84%);
 }
 
 .extension-page-content {
-  width: min(100% - 32px, 1040px);
+  width: min(100% - 32px, 1280px);
   margin: 0 auto;
   padding: 48px 0;
+}
+
+@media (max-width: 560px) {
+  .extension-page-header {
+    gap: 4px;
+    padding-inline: 6px;
+  }
+
+  .extension-shell-logo {
+    width: 90px;
+    height: 40px;
+  }
+
+  .extension-header-actions .icon-button {
+    width: 40px;
+    min-height: 40px;
+    padding: 0;
+  }
+
+  .extension-editor-back {
+    width: 40px;
+    min-height: 40px;
+    padding: 0;
+    margin-right: 4px;
+  }
+
+  .extension-editor-back-label {
+    display: none;
+  }
+
+  .extension-header-actions {
+    gap: 4px;
+  }
+
+  .extension-page-header .language-switch {
+    width: 64px;
+  }
 }
 
 .extension-page-footer {
@@ -2681,6 +2777,11 @@ input[type='number']::-webkit-outer-spin-button {
   }
 
   .topbar .icon-button {
+    width: 40px;
+    min-height: 40px;
+  }
+
+  .extension-header-actions .icon-button {
     width: 40px;
     min-height: 40px;
   }

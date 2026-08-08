@@ -4,6 +4,7 @@ import type { SailPlotConfig } from '../config/types'
 export interface SailPlotExtensionContext {
   config: SailPlotConfig
   currentPath: string
+  language: 'de' | 'en'
   navigate: (path: string) => void
 }
 
@@ -12,6 +13,7 @@ export type SailPlotExtensionComponent = ComponentType<SailPlotExtensionContext>
 export interface SailPlotRoute {
   path: string
   title?: string
+  footer?: boolean
   component: SailPlotExtensionComponent
 }
 
@@ -21,6 +23,9 @@ export interface SailPlotNavigationItem {
   path?: string
   href?: string
   external?: boolean
+  separatorBefore?: boolean
+  muted?: boolean
+  version?: boolean
 }
 
 export interface SailPlotEvent {
@@ -34,9 +39,12 @@ export interface SailPlotExtensions {
   routes?: SailPlotRoute[]
   navigationItems?: SailPlotNavigationItem[]
   headerActions?: SailPlotExtensionComponent[]
+  pageFooter?: SailPlotExtensionComponent
   footer?: SailPlotExtensionComponent
   footerExtensions?: SailPlotExtensionComponent[]
   homeContent?: SailPlotExtensionComponent
   helpContent?: SailPlotExtensionComponent
+  emptySelectionContent?: SailPlotExtensionComponent
+  compactBrandingContent?: SailPlotExtensionComponent
   onEvent?: (event: SailPlotEvent) => void
 }

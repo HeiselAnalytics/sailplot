@@ -92,7 +92,12 @@ export interface MarkObject extends BaseObject {
 }
 
 export type CourseEndpointType =
-  'committee-boat' | 'buoy' | 'flag' | 'coach-boat' | 'coach-boat-reversed'
+  | 'committee-boat'
+  | 'committee-boat-reversed'
+  | 'buoy'
+  | 'flag'
+  | 'coach-boat'
+  | 'coach-boat-reversed'
 
 export interface GateObject extends BaseObject {
   type: 'gate'

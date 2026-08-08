@@ -13,10 +13,18 @@ describe('SailPlot configuration', () => {
 
     expect(merged.branding.appName).toBe('Harbour Plot')
     expect(merged.branding.partnerLabel).toBe('Powered by')
+    expect(merged.branding.partnerLinks).toBeNull()
     expect(merged.branding.logoAccentColor).toBeNull()
     expect(merged.branding.shortName).toBe(defaultSailPlotConfig.branding.shortName)
     expect(merged.theme.light.accent).toBe('#0066cc')
     expect(merged.theme.usePrimaryForBrandAccents).toBe(false)
+    expect(merged.theme.qrFinderColor).toBe('#FFAA00')
+    expect(merged.objectColors).toEqual({
+      markColorMode: 'sailplot',
+      markCustomColor: null,
+      startLineFlagColor: '#FF5E00',
+    })
+    expect(merged.localization.languageMode).toBe('both')
     expect(merged.theme.light.background).toBe(defaultSailPlotConfig.theme.light.background)
     expect(merged.ui.help).toBe(false)
     expect(merged.ui.export).toBe(true)

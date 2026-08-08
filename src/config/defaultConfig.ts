@@ -15,6 +15,7 @@ export const defaultSailPlotConfig: SailPlotConfig = {
     partnerName: 'Heisel Analytics',
     partnerLabel: 'Powered by',
     partnerLogo: asset('assets/heisel-analytics-logo-on-dark.png'),
+    partnerLinks: null,
     exportWatermarkLogo: asset('assets/heisel-analytics-logo-on-light.png'),
     exportWatermarkQr: asset('assets/heiselanalytics-website-qr.svg'),
     exportProductLogo: asset('icons/sailplot-logo-on-light.svg'),
@@ -22,6 +23,7 @@ export const defaultSailPlotConfig: SailPlotConfig = {
   theme: {
     mode: 'dark',
     usePrimaryForBrandAccents: false,
+    qrFinderColor: '#FFAA00',
     light: {
       primary: '#171717',
       primaryText: '#fafafa',
@@ -77,6 +79,7 @@ export const defaultSailPlotConfig: SailPlotConfig = {
   ui: {
     headerLogo: true,
     footer: true,
+    canvasBrandingLinks: true,
     poweredBySailPlot: false,
     help: true,
     about: true,
@@ -90,7 +93,13 @@ export const defaultSailPlotConfig: SailPlotConfig = {
     startPage: 'editor',
   },
   localization: {
+    languageMode: 'both',
     locales: { de: 'de-CH', en: 'en-GB' },
+  },
+  objectColors: {
+    markColorMode: 'sailplot',
+    markCustomColor: null,
+    startLineFlagColor: '#FF5E00',
   },
   pageTitle: 'SailPlot.app',
   storageNamespace: '',

@@ -15,6 +15,7 @@ import {
   sanitizeFilename,
   START_FLAG_COLOR,
 } from '../src/lib/scenario'
+import { SAILPLOT_AMBER } from '../src/lib/boatColors'
 import { scenarioSchema } from '../src/schemas/scenario'
 import { COACHBOAT_BLUE } from '../src/editor/objects/boatShapes'
 import { parseScenarioJson, serializeScenario } from '../src/services/scenarioFiles'
@@ -125,14 +126,14 @@ describe('plot format', () => {
     })
   })
 
-  it('uses a configured tenant primary color for new amber-default objects', () => {
+  it('accepts independent configured defaults for boats, marks, gates, and start flags', () => {
     expect(createBoat(100, 200, 1, 'ILCA', '#0f766e').color).toBe('#0f766e')
-    expect(createMark(100, 200, 1, '#0f766e').color).toBe('#0f766e')
-    expect(createGate(100, 200, 300, 200, 1, 1, 3, '#0f766e').color).toBe('#0f766e')
-    expect(createStartLine(100, 200, 500, 200, 1, '#0f766e')).toMatchObject({
-      startEndFlagColor: '#0f766e',
-      pinEndFlagColor: '#0f766e',
-      laylineAreaColor: '#0f766e',
+    expect(createMark(100, 200, 1, '#D72638').color).toBe('#D72638')
+    expect(createGate(100, 200, 300, 200, 1, 1, 3, '#F97316').color).toBe('#F97316')
+    expect(createStartLine(100, 200, 500, 200, 1, '#663399')).toMatchObject({
+      startEndFlagColor: '#663399',
+      pinEndFlagColor: '#663399',
+      laylineAreaColor: SAILPLOT_AMBER,
     })
   })
 
@@ -188,7 +189,7 @@ describe('plot format', () => {
       pinEndFlagColor: START_FLAG_COLOR,
       laylinesVisible: false,
       laylineAreaVisible: false,
-      laylineAreaColor: START_FLAG_COLOR,
+      laylineAreaColor: SAILPLOT_AMBER,
     })
   })
 

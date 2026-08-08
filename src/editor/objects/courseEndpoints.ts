@@ -12,11 +12,11 @@ export interface CourseEndpointBoatAppearance {
 export function courseEndpointBoatAppearance(
   type: CourseEndpointType,
 ): CourseEndpointBoatAppearance | null {
-  if (type === 'committee-boat') {
+  if (type === 'committee-boat' || type === 'committee-boat-reversed') {
     return {
       boatClass: 'Committee boat',
       color: COMMITTEE_BOAT_COLOR,
-      reversed: false,
+      reversed: type === 'committee-boat-reversed',
     }
   }
   if (type === 'coach-boat' || type === 'coach-boat-reversed') {
@@ -27,4 +27,16 @@ export function courseEndpointBoatAppearance(
     }
   }
   return null
+}
+
+export function courseEndpointShowsSignalFlag(type: CourseEndpointType): boolean {
+  return courseEndpointBoatAppearance(type) !== null
+}
+
+export function courseEndpointAccentColor(
+  type: CourseEndpointType,
+  markColor: string,
+  flagColor: string,
+): string {
+  return type === 'buoy' ? markColor : flagColor
 }

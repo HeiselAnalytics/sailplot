@@ -2,10 +2,10 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: './e2e',
-  use: { baseURL: 'http://127.0.0.1:41789' },
+  use: { baseURL: 'http://127.0.0.1:41790' },
   webServer: {
-    command: 'npm run dev -- --host 127.0.0.1 --port 41789',
-    port: 41789,
+    command: 'npm run dev -- --host 127.0.0.1 --port 41790',
+    port: 41790,
     reuseExistingServer: false,
   },
   projects: [

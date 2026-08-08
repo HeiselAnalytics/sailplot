@@ -29,7 +29,12 @@ import {
 } from 'lucide-react'
 import { IconButton } from '../components/ui/IconButton'
 import { namespacedStorageKey } from '../config/storage'
-import { sailPlotBrandAccentColor, sailPlotThemeVariables } from '../config/theme'
+import { resolveMarkColor, resolveStartLineFlagColor } from '../config/objectColors'
+import {
+  sailPlotBrandAccentColor,
+  sailPlotQrFinderColor,
+  sailPlotThemeVariables,
+} from '../config/theme'
 import { SailPlotNavigation } from '../components/SailPlotNavigation'
 import { ScenarioCanvas, type CanvasHandle } from '../editor/canvas/ScenarioCanvas'
 import { EditorToolbar } from '../editor/objects/EditorToolbar'
@@ -509,18 +514,19 @@ function CanvasBranding({
 }) {
   const { t } = useI18n()
   const config = useSailPlotConfig()
+  const qrFinderColor = sailPlotQrFinderColor(config)
   const scenario = useEditorStore((state) => state.scenario)
   const Footer = extensions.footer
   const plotUrl = useMemo(() => createShareUrl(scenario), [scenario])
   const qrCodeUrl = useMemo(() => {
     try {
-      return createPlotQrCodeDataUrl(plotUrl, config.theme.light.primary)
+      return createPlotQrCodeDataUrl(plotUrl, qrFinderColor)
     } catch {
       // Very large plots can still be shared through the export dialog even when
       // they exceed the QR standard's absolute capacity.
       return null
     }
-  }, [config.theme.light.primary, plotUrl])
+  }, [plotUrl, qrFinderColor])
   if (!config.ui.footer) return null
   return (
     <aside className="canvas-branding" aria-label={config.texts.footerText}>
@@ -540,7 +546,9 @@ function CanvasBranding({
               </a>
               <div className="canvas-branding-partner-section">
                 <a
-                  className="canvas-branding-partner"
+                  className={`canvas-branding-partner${
+                    config.branding.partnerLabel ? '' : ' canvas-branding-partner--logo-only'
+                  }`}
                   href={config.links.website ?? undefined}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -1396,8 +1404,16 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
   usePersistence()
   const config = useSailPlotConfig()
   const setBrandAccentColor = useEditorStore((state) => state.setBrandAccentColor)
+  const setObjectColors = useEditorStore((state) => state.setObjectColors)
   const brandAccentColor = sailPlotBrandAccentColor(config)
+  const qrFinderColor = sailPlotQrFinderColor(config)
+  const markColor = resolveMarkColor(config)
+  const startLineFlagColor = resolveStartLineFlagColor(config)
   useEffect(() => setBrandAccentColor(brandAccentColor), [brandAccentColor, setBrandAccentColor])
+  useEffect(
+    () => setObjectColors(markColor, startLineFlagColor),
+    [markColor, setObjectColors, startLineFlagColor],
+  )
   const { language, setLanguage, t, status: localizeStatus } = useI18n()
   const canvasRef = useRef<CanvasHandle>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -1531,7 +1547,7 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
     try {
       const data = await addExportWatermark(plotData, {
         plotUrl: createShareUrl(scenario),
-        primaryColor: config.theme.light.primary,
+        primaryColor: qrFinderColor,
         analyticsLogoUrl: config.branding.exportWatermarkLogo,
         productLogoUrl: config.branding.exportProductLogo,
         partnerLabel: config.branding.partnerLabel,
@@ -1563,7 +1579,7 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
     try {
       const pdf = await createA4PlotPdf(data, {
         plotUrl: createShareUrl(scenario),
-        primaryColor: config.theme.light.primary,
+        primaryColor: qrFinderColor,
         analyticsLogoUrl: config.branding.exportWatermarkLogo,
         productLogoUrl: config.branding.exportProductLogo,
         partnerLabel: config.branding.partnerLabel,
@@ -1759,20 +1775,22 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
           >
             <View aria-hidden="true" />
           </button>
-          <div className="language-switch" role="group" aria-label={t('Language')}>
-            {(['de', 'en'] as Language[]).map((code) => (
-              <button
-                key={code}
-                type="button"
-                className={language === code ? 'is-active' : ''}
-                aria-pressed={language === code}
-                aria-label={code === 'de' ? 'Deutsch' : 'English'}
-                onClick={() => setLanguage(code)}
-              >
-                {code.toUpperCase()}
-              </button>
-            ))}
-          </div>
+          {config.localization.languageMode === 'both' && (
+            <div className="language-switch" role="group" aria-label={t('Language')}>
+              {(['de', 'en'] as Language[]).map((code) => (
+                <button
+                  key={code}
+                  type="button"
+                  className={language === code ? 'is-active' : ''}
+                  aria-pressed={language === code}
+                  aria-label={code === 'de' ? 'Deutsch' : 'English'}
+                  onClick={() => setLanguage(code)}
+                >
+                  {code.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          )}
           <SailPlotNavigation items={extensions.navigationItems ?? []} context={extensionContext} />
           {extensions.headerActions?.map((HeaderAction, index) => (
             <HeaderAction key={index} {...extensionContext} />

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { translate, translateStatus } from '../src/i18n'
+import { defaultSailPlotConfig } from '../src/config/defaultConfig'
+import { resolveInitialLanguage, translate, translateStatus } from '../src/i18n'
 
 describe('translations', () => {
   it('translates interface labels and interpolates values', () => {
@@ -26,5 +27,20 @@ describe('translations', () => {
     expect(translateStatus('de', 'Undid: Added boat')).toBe('Rückgängig: Boot hinzugefügt')
     expect(translateStatus('de', 'Deleted 1 object')).toBe('1 Objekt gelöscht')
     expect(translateStatus('de', 'Deleted 4 objects')).toBe('4 Objekte gelöscht')
+  })
+
+  it('locks fixed tenant languages and resolves both-language defaults', () => {
+    const germanOnly = {
+      ...defaultSailPlotConfig,
+      localization: { ...defaultSailPlotConfig.localization, languageMode: 'de' as const },
+    }
+    const both = {
+      ...defaultSailPlotConfig,
+      localization: { ...defaultSailPlotConfig.localization, languageMode: 'both' as const },
+    }
+
+    expect(resolveInitialLanguage(germanOnly, 'en', 'en-GB')).toBe('de')
+    expect(resolveInitialLanguage(both, 'en', 'de-CH')).toBe('en')
+    expect(resolveInitialLanguage(both, null, 'de-CH')).toBe('de')
   })
 })

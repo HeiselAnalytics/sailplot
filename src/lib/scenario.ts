@@ -36,7 +36,7 @@ export const createId = () => {
   return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10).join('')}`
 }
 export const normalizeHeading = (value: number) => ((value % 360) + 360) % 360
-export const START_FLAG_COLOR = '#FFAA00'
+export const START_FLAG_COLOR = '#FF5E00'
 export const FINISH_FLAG_COLOR = '#168DDD'
 export const normalizeSignedAngle = (value: number) => {
   const normalized = normalizeHeading(value)
@@ -112,14 +112,14 @@ export function createMark(
   x: number,
   y: number,
   zIndex = 1,
-  brandAccentColor = SAILPLOT_AMBER,
+  markColor = SAILPLOT_AMBER,
 ): MarkObject {
   return {
     ...baseObject('mark', x, y, zIndex),
     type: 'mark',
     markType: 'racing',
     shape: 'round',
-    color: brandAccentColor,
+    color: markColor,
     label: '',
     markNumber: '1',
     downwind: false,
@@ -137,7 +137,7 @@ export function createGate(
   zIndex = 1,
   markNumber = 1,
   zoneRadius = 3,
-  brandAccentColor = SAILPLOT_AMBER,
+  markColor = SAILPLOT_AMBER,
 ): GateObject {
   const centerX = (x1 + x2) / 2
   const centerY = (y1 + y2) / 2
@@ -149,7 +149,7 @@ export function createGate(
     endBX: x2 - centerX,
     endBY: y2 - centerY,
     markNumber,
-    color: brandAccentColor,
+    color: markColor,
     zoneVisible: true,
     zoneRadius,
     zoneRadiusUnit: 'boat-lengths',
@@ -162,7 +162,7 @@ export function createStartLine(
   x2: number,
   y2: number,
   zIndex = 1,
-  brandAccentColor = SAILPLOT_AMBER,
+  startLineFlagColor = START_FLAG_COLOR,
 ): StartLineObject {
   const centerX = (x1 + x2) / 2
   const centerY = (y1 + y2) / 2
@@ -176,11 +176,11 @@ export function createStartLine(
     color: '#A3A3A3',
     startEndType: 'committee-boat',
     pinEndType: 'flag',
-    startEndFlagColor: brandAccentColor,
-    pinEndFlagColor: brandAccentColor,
+    startEndFlagColor: startLineFlagColor,
+    pinEndFlagColor: startLineFlagColor,
     laylinesVisible: false,
     laylineAreaVisible: false,
-    laylineAreaColor: brandAccentColor,
+    laylineAreaColor: SAILPLOT_AMBER,
   }
 }
 

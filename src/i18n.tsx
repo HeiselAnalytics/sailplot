@@ -1,5 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 import { defaultSailPlotConfig } from './config/defaultConfig'
 import { namespacedStorageKey } from './config/storage'
 import type { SailPlotConfig } from './config/types'
@@ -12,6 +20,11 @@ const german: Record<string, string> = {
   'Sailing Plot Editor': 'Segelplot-Editor',
   Language: 'Sprache',
   Menu: 'Menü',
+  'Licenses & Branding': 'Lizenzen & Branding',
+  'Make your own SailPlot': 'Dein eigenes SailPlot',
+  Instructions: 'Anleitung',
+  Changelog: 'Changelog',
+  'Open Source': 'Open Source',
   English: 'Englisch',
   German: 'Deutsch',
   Scene: 'Szene',
@@ -203,6 +216,7 @@ const german: Record<string, string> = {
     'Dieser Link ist lang und funktioniert möglicherweise nicht in jeder App. Für dieses Projekt ist der JSON-Export vorzuziehen.',
   'Open projects': 'Projekte öffnen',
   'Open projects & templates': 'Projekte & Vorlagen öffnen',
+  'Back to editor': 'Zurück zum Editor',
   Download: 'Herunterladen',
   Share: 'Teilen',
   'Import JSON': 'JSON importieren',
@@ -336,6 +350,7 @@ const german: Record<string, string> = {
   'Fixed support boat hull color': 'Feste Rumpffarbe des Begleitboots',
   'Jury boat': 'Juryboot',
   'Committee boat': 'Startschiff',
+  'Committee boat (reversed)': 'Startschiff (umgekehrt)',
   'Windward mark rounding': 'Rundung der Luvmarke',
   'A static visual example for discussing Rule 18.':
     'Ein statisches Beispiel zur Besprechung von Regel 18.',
@@ -476,20 +491,38 @@ interface I18nValue {
 const I18nContext = createContext<I18nValue | null>(null)
 const LEGACY_STORAGE_KEY = 'sailing-language'
 
-const initialLanguage = (config: SailPlotConfig): Language => {
-  const stored = window.localStorage.getItem(
-    namespacedStorageKey(config.storageNamespace, LEGACY_STORAGE_KEY),
-  )
+export function resolveInitialLanguage(
+  config: SailPlotConfig,
+  stored: string | null,
+  browserLanguage: string,
+): Language {
+  if (config.localization.languageMode !== 'both') return config.localization.languageMode
   if (stored === 'de' || stored === 'en') return stored
   if (config.defaults.language === 'de' || config.defaults.language === 'en') {
     return config.defaults.language
   }
-  return window.navigator.language.toLowerCase().startsWith('de') ? 'de' : 'en'
+  return browserLanguage.toLowerCase().startsWith('de') ? 'de' : 'en'
+}
+
+const initialLanguage = (config: SailPlotConfig): Language => {
+  const stored = window.localStorage.getItem(
+    namespacedStorageKey(config.storageNamespace, LEGACY_STORAGE_KEY),
+  )
+  return resolveInitialLanguage(config, stored, window.navigator.language)
 }
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const config = useSailPlotConfig()
   const [language, setLanguage] = useState<Language>(() => initialLanguage(config))
+  const languageMode = config.localization.languageMode
+  const setConfiguredLanguage = useCallback(
+    (nextLanguage: Language) => setLanguage(languageMode === 'both' ? nextLanguage : languageMode),
+    [languageMode],
+  )
+
+  useEffect(() => {
+    if (languageMode !== 'both') setLanguage(languageMode)
+  }, [languageMode])
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -506,12 +539,12 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const value = useMemo<I18nValue>(
     () => ({
       language,
-      setLanguage,
+      setLanguage: setConfiguredLanguage,
       t: (key, variables) => translate(language, key, variables),
       status: (message) => translateStatus(language, message),
       locale: config.localization.locales[language],
     }),
-    [config.localization.locales, language],
+    [config.localization.locales, language, setConfiguredLanguage],
   )
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>

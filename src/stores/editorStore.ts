@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { applyResolvedObjectColors, SAILPLOT_ORANGE } from '../config/objectColors'
 import {
   createBoat,
   createEmptyScenario,
@@ -7,6 +8,7 @@ import {
   duplicateObject,
   nextMarkSequenceNumber,
   now,
+  START_FLAG_COLOR,
 } from '../lib/scenario'
 import { applyObjectCommand, type ObjectCommand } from '../editor/commands/types'
 import {
@@ -53,6 +55,8 @@ interface EditorState {
   layoutPreference: LayoutPreference
   defaultBoatClass: BoatClass
   brandAccentColor: string
+  markColor: string
+  startLineFlagColor: string
   history: ObjectCommand[]
   future: ObjectCommand[]
   status: string
@@ -65,6 +69,7 @@ interface EditorState {
   setTool: (tool: EditorTool) => void
   setLayoutPreference: (preference: LayoutPreference) => void
   setBrandAccentColor: (color: string) => void
+  setObjectColors: (markColor: string, startLineFlagColor: string) => void
   setScenario: (scenario: Scenario, status?: string) => void
   patchScenario: (patch: Partial<Scenario>) => void
   updateMetadata: (patch: Partial<Scenario['metadata']>) => void
@@ -121,6 +126,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
     layoutPreference: 'auto',
     defaultBoatClass: 'ILCA',
     brandAccentColor: SAILPLOT_AMBER,
+    markColor: SAILPLOT_ORANGE,
+    startLineFlagColor: START_FLAG_COLOR,
     history: [],
     future: [],
     status: 'Ready',
@@ -152,13 +159,19 @@ export const useEditorStore = create<EditorState>((set, get) => {
       }),
     setLayoutPreference: (layoutPreference) => set({ layoutPreference }),
     setBrandAccentColor: (brandAccentColor) => set({ brandAccentColor }),
+    setObjectColors: (markColor, startLineFlagColor) =>
+      set((state) => ({
+        markColor,
+        startLineFlagColor,
+        scenario: applyResolvedObjectColors(state.scenario, markColor, startLineFlagColor),
+      })),
     setScenario: (scenario, status = 'Plot opened') => {
       const migrated = migrateScenario(structuredClone(scenario))
       const latestBoat = [...migrated.objects]
         .reverse()
         .find((object): object is BoatObject => object.type === 'boat')
       set((state) => ({
-        scenario: migrated,
+        scenario: applyResolvedObjectColors(migrated, state.markColor, state.startLineFlagColor),
         dragPreview: null,
         selectedIds: [],
         history: [],
@@ -277,7 +290,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
         }
       } else if (type === 'mark' || type === 'downwind-mark') {
         object = {
-          ...createMark(x, y, zIndex, state.brandAccentColor),
+          ...createMark(x, y, zIndex, state.markColor),
           markNumber: String(nextMarkSequenceNumber(state.scenario.objects)),
           downwind: type === 'downwind-mark',
           zoneRadius: state.scenario.environment.zoneRadiusBoatLengths,

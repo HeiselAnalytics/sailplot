@@ -109,8 +109,8 @@ describe('minimal share payload', () => {
     gate.zoneVisible = false
 
     const start = createStartLine(300, 180, 900, 210, 5)
-    start.startEndType = 'coach-boat'
-    start.pinEndType = 'buoy'
+    start.startEndType = 'committee-boat-reversed'
+    start.pinEndType = 'coach-boat-reversed'
     start.startEndFlagColor = '#D72638'
     start.pinEndFlagColor = '#FFD100'
     start.laylinesVisible = true

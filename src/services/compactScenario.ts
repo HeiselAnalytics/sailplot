@@ -75,6 +75,7 @@ const ENDPOINT_TYPES = [
   'flag',
   'coach-boat',
   'coach-boat-reversed',
+  'committee-boat-reversed',
 ] as const satisfies readonly CourseEndpointType[]
 const OVERLAP_INDICATORS = ['none', 'port', 'starboard'] as const
 const STATE_MARKERS = ['none', 'tack', 'gybe', 'head-to-wind', 'reverse', 'drift'] as const

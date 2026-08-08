@@ -12,7 +12,6 @@ import {
   ImageDown,
   Info,
   LayoutTemplate,
-  Menu,
   Moon,
   MoveRight,
   Plus,
@@ -30,7 +29,13 @@ import {
 } from 'lucide-react'
 import { IconButton } from '../components/ui/IconButton'
 import { namespacedStorageKey } from '../config/storage'
-import { sailPlotBrandAccentColor, sailPlotThemeVariables } from '../config/theme'
+import { resolveMarkColor, resolveStartLineFlagColor } from '../config/objectColors'
+import { resolvePartnerLinks } from '../config/partnerLinks'
+import {
+  sailPlotBrandAccentColor,
+  sailPlotQrFinderColor,
+  sailPlotThemeVariables,
+} from '../config/theme'
 import { SailPlotNavigation } from '../components/SailPlotNavigation'
 import { ScenarioCanvas, type CanvasHandle } from '../editor/canvas/ScenarioCanvas'
 import { EditorToolbar } from '../editor/objects/EditorToolbar'
@@ -499,11 +504,27 @@ function MobileProperties({ hasSelection }: { hasSelection: boolean }) {
   )
 }
 
-function MobileBrandingBar({ onInfo }: { onInfo: () => void }) {
+function MobileBrandingBar({
+  onInfo,
+  extensions,
+  extensionContext,
+}: {
+  onInfo: () => void
+  extensions: SailPlotExtensions
+  extensionContext: SailPlotExtensionContext
+}) {
   const { t } = useI18n()
   const config = useSailPlotConfig()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const partnerLinks = resolvePartnerLinks(config)
+  const actionCount = partnerLinks.length + (config.ui.help ? 1 : 0)
+  const singlePartnerLink = actionCount === 1 ? partnerLinks[0] : undefined
+  const openInfoDirectly = actionCount === 1 && config.ui.help
+  const CompactBrandingContent = extensions.compactBrandingContent
+  const partnerClassName = `mobile-branding-partner${
+    config.branding.partnerLabel ? '' : ' mobile-branding-partner--logo-only'
+  }`
 
   useEffect(() => {
     if (!menuOpen) return
@@ -531,26 +552,46 @@ function MobileBrandingBar({ onInfo }: { onInfo: () => void }) {
         </a>
       </div>
       <div className="mobile-branding-partner-column">
-        <a
-          className="mobile-branding-partner"
-          href={config.links.website ?? undefined}
-          target="_blank"
-          rel="noopener noreferrer"
+        <div
+          ref={menuRef}
+          className={`mobile-branding-partner-menu${
+            config.branding.partnerLabel ? '' : ' mobile-branding-partner-menu--logo-only'
+          }`}
         >
-          {config.branding.partnerLabel && <span>{config.branding.partnerLabel}</span>}
-          <img src={config.branding.exportWatermarkLogo} alt={config.branding.partnerName} />
-        </a>
-        <div ref={menuRef} className="mobile-branding-menu">
-          <button
-            type="button"
-            className="mobile-branding-menu-trigger"
-            aria-label={t('Open menu')}
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((open) => !open)}
-          >
-            <Menu aria-hidden="true" />
-          </button>
+          {singlePartnerLink ? (
+            <a
+              className={partnerClassName}
+              href={singlePartnerLink.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`${config.branding.partnerName}: ${t(singlePartnerLink.label)}`}
+            >
+              {config.branding.partnerLabel && <span>{config.branding.partnerLabel}</span>}
+              <img src={config.branding.exportWatermarkLogo} alt="" />
+            </a>
+          ) : actionCount > 0 ? (
+            <button
+              type="button"
+              className={partnerClassName}
+              aria-label={`${config.branding.partnerName}: ${
+                openInfoDirectly ? t('Information') : t('Open menu')
+              }`}
+              aria-haspopup={actionCount > 1 ? 'menu' : undefined}
+              aria-expanded={actionCount > 1 ? menuOpen : undefined}
+              onClick={() => {
+                if (openInfoDirectly) onInfo()
+                else setMenuOpen((open) => !open)
+              }}
+            >
+              {config.branding.partnerLabel && <span>{config.branding.partnerLabel}</span>}
+              <img src={config.branding.exportWatermarkLogo} alt="" />
+            </button>
+          ) : (
+            <div className={partnerClassName}>
+              {config.branding.partnerLabel && <span>{config.branding.partnerLabel}</span>}
+              <img src={config.branding.exportWatermarkLogo} alt={config.branding.partnerName} />
+            </div>
+          )}
           {menuOpen && (
             <div className="mobile-branding-menu-popover" role="menu">
               {config.ui.help && (
@@ -565,20 +606,24 @@ function MobileBrandingBar({ onInfo }: { onInfo: () => void }) {
                   {t('Information')}
                 </button>
               )}
-              {config.links.imprint && (
+              {partnerLinks.map((link) => (
                 <a
-                  href={config.links.imprint}
+                  key={`${link.label}:${link.url}`}
+                  href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   role="menuitem"
                   onClick={() => setMenuOpen(false)}
                 >
-                  {t('Imprint')}
+                  {t(link.label)}
                 </a>
-              )}
+              ))}
             </div>
           )}
         </div>
+      </div>
+      <div className="mobile-branding-spacer">
+        {CompactBrandingContent && <CompactBrandingContent {...extensionContext} />}
       </div>
     </aside>
   )
@@ -597,18 +642,19 @@ function CanvasBranding({
 }) {
   const { t } = useI18n()
   const config = useSailPlotConfig()
+  const qrFinderColor = sailPlotQrFinderColor(config)
   const scenario = useEditorStore((state) => state.scenario)
   const Footer = extensions.footer
   const plotUrl = useMemo(() => createShareUrl(scenario), [scenario])
   const qrCodeUrl = useMemo(() => {
     try {
-      return createPlotQrCodeDataUrl(plotUrl, config.theme.light.primary)
+      return createPlotQrCodeDataUrl(plotUrl, qrFinderColor)
     } catch {
       // Very large plots can still be shared through the export dialog even when
       // they exceed the QR standard's absolute capacity.
       return null
     }
-  }, [config.theme.light.primary, plotUrl])
+  }, [plotUrl, qrFinderColor])
   if (!config.ui.footer) return null
   return (
     <aside className="canvas-branding" aria-label={config.texts.footerText}>
@@ -628,7 +674,9 @@ function CanvasBranding({
               </a>
               <div className="canvas-branding-partner-section">
                 <a
-                  className="canvas-branding-partner"
+                  className={`canvas-branding-partner${
+                    config.branding.partnerLabel ? '' : ' canvas-branding-partner--logo-only'
+                  }`}
                   href={config.links.website ?? undefined}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -639,27 +687,29 @@ function CanvasBranding({
                     alt={config.branding.partnerName}
                   />
                 </a>
-                <nav aria-label={`${config.branding.partnerName} links`}>
-                  {config.ui.help && (
-                    <button type="button" onClick={onInfo}>
-                      {t('Information')}
-                    </button>
-                  )}
-                  {config.ui.help && config.links.website && <span aria-hidden="true">|</span>}
-                  {config.links.website && (
-                    <a href={config.links.website} target="_blank" rel="noopener noreferrer">
-                      {t('Website')}
-                    </a>
-                  )}
-                  {(config.ui.help || config.links.website) && config.links.imprint && (
-                    <span aria-hidden="true">|</span>
-                  )}
-                  {config.links.imprint && (
-                    <a href={config.links.imprint} target="_blank" rel="noopener noreferrer">
-                      {t('Imprint')}
-                    </a>
-                  )}
-                </nav>
+                {config.ui.canvasBrandingLinks && (
+                  <nav aria-label={`${config.branding.partnerName} links`}>
+                    {config.ui.help && (
+                      <button type="button" onClick={onInfo}>
+                        {t('Information')}
+                      </button>
+                    )}
+                    {config.ui.help && config.links.website && <span aria-hidden="true">|</span>}
+                    {config.links.website && (
+                      <a href={config.links.website} target="_blank" rel="noopener noreferrer">
+                        {t('Website')}
+                      </a>
+                    )}
+                    {(config.ui.help || config.links.website) && config.links.imprint && (
+                      <span aria-hidden="true">|</span>
+                    )}
+                    {config.links.imprint && (
+                      <a href={config.links.imprint} target="_blank" rel="noopener noreferrer">
+                        {t('Imprint')}
+                      </a>
+                    )}
+                  </nav>
+                )}
               </div>
             </div>
             {qrCodeUrl && (
@@ -735,11 +785,12 @@ function Modal({
 function PlotQrDialog({ onClose }: { onClose: () => void }) {
   const { t } = useI18n()
   const config = useSailPlotConfig()
+  const qrFinderColor = sailPlotQrFinderColor(config)
   const scenario = useEditorStore((state) => state.scenario)
   const plotUrl = useMemo(() => createShareUrl(scenario), [scenario])
   const qrCodeUrl = useMemo(
-    () => createPlotQrCodeDataUrl(plotUrl, config.theme.light.primary),
-    [config.theme.light.primary, plotUrl],
+    () => createPlotQrCodeDataUrl(plotUrl, qrFinderColor),
+    [plotUrl, qrFinderColor],
   )
   const duplicateInNewTab = () => {
     const newTab = window.open(plotUrl, '_blank', 'noopener,noreferrer')
@@ -1512,9 +1563,18 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
   usePersistence()
   const config = useSailPlotConfig()
   const setBrandAccentColor = useEditorStore((state) => state.setBrandAccentColor)
+  const setObjectColors = useEditorStore((state) => state.setObjectColors)
   const brandAccentColor = sailPlotBrandAccentColor(config)
+  const qrFinderColor = sailPlotQrFinderColor(config)
+  const markColor = resolveMarkColor(config)
+  const startLineFlagColor = resolveStartLineFlagColor(config)
   useEffect(() => setBrandAccentColor(brandAccentColor), [brandAccentColor, setBrandAccentColor])
+  useEffect(
+    () => setObjectColors(markColor, startLineFlagColor),
+    [markColor, setObjectColors, startLineFlagColor],
+  )
   const { language, setLanguage, t, status: localizeStatus } = useI18n()
+  const EmptySelectionContent = extensions.emptySelectionContent
   const canvasRef = useRef<CanvasHandle>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dialog, setDialog] = useState<Dialog>(null)
@@ -1660,7 +1720,7 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
     try {
       const data = await addExportWatermark(plotData, {
         plotUrl: createShareUrl(scenario),
-        primaryColor: config.theme.light.primary,
+        primaryColor: qrFinderColor,
         analyticsLogoUrl: config.branding.exportWatermarkLogo,
         productLogoUrl: config.branding.exportProductLogo,
         partnerLabel: config.branding.partnerLabel,
@@ -1692,7 +1752,7 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
     try {
       const pdf = await createA4PlotPdf(data, {
         plotUrl: createShareUrl(scenario),
-        primaryColor: config.theme.light.primary,
+        primaryColor: qrFinderColor,
         analyticsLogoUrl: config.branding.exportWatermarkLogo,
         productLogoUrl: config.branding.exportProductLogo,
         partnerLabel: config.branding.partnerLabel,
@@ -1888,20 +1948,22 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
           >
             <View aria-hidden="true" />
           </button>
-          <div className="language-switch" role="group" aria-label={t('Language')}>
-            {(['de', 'en'] as Language[]).map((code) => (
-              <button
-                key={code}
-                type="button"
-                className={language === code ? 'is-active' : ''}
-                aria-pressed={language === code}
-                aria-label={code === 'de' ? 'Deutsch' : 'English'}
-                onClick={() => setLanguage(code)}
-              >
-                {code.toUpperCase()}
-              </button>
-            ))}
-          </div>
+          {config.localization.languageMode === 'both' && (
+            <div className="language-switch" role="group" aria-label={t('Language')}>
+              {(['de', 'en'] as Language[]).map((code) => (
+                <button
+                  key={code}
+                  type="button"
+                  className={language === code ? 'is-active' : ''}
+                  aria-pressed={language === code}
+                  aria-label={code === 'de' ? 'Deutsch' : 'English'}
+                  onClick={() => setLanguage(code)}
+                >
+                  {code.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          )}
           <SailPlotNavigation items={extensions.navigationItems ?? []} context={extensionContext} />
           {extensions.headerActions?.map((HeaderAction, index) => (
             <HeaderAction key={index} {...extensionContext} />
@@ -1950,13 +2012,23 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
         />
       </main>
       <aside className="properties-panel">
-        <PropertiesPanel />
+        <PropertiesPanel
+          emptyContent={
+            EmptySelectionContent ? <EmptySelectionContent {...extensionContext} /> : undefined
+          }
+        />
       </aside>
       <MobileProperties
         key={selectionKey || 'no-selection'}
         hasSelection={selectedIds.length > 0}
       />
-      {useCompactBranding && <MobileBrandingBar onInfo={() => setDialog('help')} />}
+      {useCompactBranding && (
+        <MobileBrandingBar
+          onInfo={() => setDialog('help')}
+          extensions={extensions}
+          extensionContext={extensionContext}
+        />
+      )}
       <footer className="mobile-toolbar">
         <div className="mobile-toolbar-inner">
           {activeTool !== 'select' && (

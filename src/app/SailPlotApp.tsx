@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Moon, Sun } from 'lucide-react'
 import { SailPlotNavigation } from '../components/SailPlotNavigation'
+import { IconButton } from '../components/ui/IconButton'
 import type { DeepPartial, SailPlotConfig } from '../config/types'
+import { namespacedStorageKey } from '../config/storage'
 import { sailPlotThemeVariables } from '../config/theme'
 import type {
   SailPlotExtensionComponent,
   SailPlotExtensionContext,
   SailPlotExtensions,
 } from '../extensions/types'
-import { I18nProvider } from '../i18n'
+import { I18nProvider, useI18n } from '../i18n'
 import { SailPlotConfigProvider, useSailPlotConfig } from '../providers/SailPlotConfigProvider'
 import EditorApp from './App'
 
@@ -40,29 +43,44 @@ function resolveConfiguredTheme(config: SailPlotConfig): 'light' | 'dark' {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
-function useConfiguredTheme(config: SailPlotConfig): 'light' | 'dark' {
-  const [theme, setTheme] = useState(() => resolveConfiguredTheme(config))
+function useConfiguredTheme(config: SailPlotConfig) {
+  const storageKey = namespacedStorageKey(config.storageNamespace, 'sailing-theme')
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (config.theme.mode === 'system') return resolveConfiguredTheme(config)
+    const stored = window.localStorage.getItem(storageKey)
+    return stored === 'light' || stored === 'dark' ? stored : config.theme.mode
+  })
+
   useEffect(() => {
-    if (config.theme.mode !== 'system') {
-      setTheme(config.theme.mode)
-      return
-    }
+    if (config.theme.mode !== 'system') return
     const media = window.matchMedia('(prefers-color-scheme: dark)')
     const update = () => setTheme(media.matches ? 'dark' : 'light')
-    update()
     media.addEventListener('change', update)
     return () => media.removeEventListener('change', update)
   }, [config.theme.mode])
-  return theme
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    window.localStorage.setItem(storageKey, theme)
+  }, [storageKey, theme])
+
+  return { theme, setTheme }
 }
 
-function HeaderLogo({ config }: { config: SailPlotConfig }) {
+function HeaderLogo({ context }: { context: SailPlotExtensionContext }) {
+  const { config, navigate } = context
+  const { t } = useI18n()
   if (!config.ui.headerLogo) return null
   return (
-    <span className="extension-shell-logo" role="img" aria-label={config.branding.logoAlt}>
+    <button
+      type="button"
+      className="extension-shell-logo"
+      aria-label={`${t('Back to editor')}: ${config.branding.shortName}`}
+      onClick={() => navigate('/editor')}
+    >
       <img src={config.branding.logo} alt="" className="app-logo--on-light" aria-hidden="true" />
       <img src={config.branding.logoDark} alt="" className="app-logo--on-dark" aria-hidden="true" />
-    </span>
+    </button>
   )
 }
 
@@ -82,27 +100,62 @@ function ExtensionPageShell({
   children,
   context,
   extensions,
+  showFooter = true,
 }: {
   children: ReactNode
   context: SailPlotExtensionContext
   extensions: SailPlotExtensions
+  showFooter?: boolean
 }) {
-  const Footer = extensions.footer
-  const theme = useConfiguredTheme(context.config)
+  const Footer = extensions.pageFooter ?? extensions.footer
+  const { theme, setTheme } = useConfiguredTheme(context.config)
+  const { language, setLanguage, t } = useI18n()
+  const nextTheme = theme === 'dark' ? 'light' : 'dark'
   return (
     <div
       className="extension-page-shell"
       style={sailPlotThemeVariables(context.config.theme[theme], context.config)}
     >
       <header className="extension-page-header">
-        <HeaderLogo config={context.config} />
-        <SailPlotNavigation items={extensions.navigationItems ?? []} context={context} />
+        <HeaderLogo context={context} />
         <div className="extension-header-actions">
+          <button
+            type="button"
+            className="extension-editor-back"
+            aria-label={t('Back to editor')}
+            onClick={() => context.navigate('/editor')}
+          >
+            <span aria-hidden="true">←</span>
+            <span className="extension-editor-back-label">{t('Back to editor')}</span>
+          </button>
+          <IconButton
+            compact
+            icon={theme === 'dark' ? <Sun /> : <Moon />}
+            label={t(nextTheme === 'light' ? 'Use light mode' : 'Use dark mode')}
+            onClick={() => setTheme(nextTheme)}
+          />
           <ExtensionComponents components={extensions.headerActions} context={context} />
+          {context.config.localization.languageMode === 'both' && (
+            <div className="language-switch" role="group" aria-label={t('Language')}>
+              {(['de', 'en'] as const).map((code) => (
+                <button
+                  key={code}
+                  type="button"
+                  className={language === code ? 'is-active' : ''}
+                  aria-pressed={language === code}
+                  aria-label={code === 'de' ? 'Deutsch' : 'English'}
+                  onClick={() => setLanguage(code)}
+                >
+                  {code.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
+        <SailPlotNavigation items={extensions.navigationItems ?? []} context={context} />
       </header>
       <main className="extension-page-content">{children}</main>
-      {context.config.ui.footer && (
+      {showFooter && context.config.ui.footer && (
         <footer className="extension-page-footer">
           {Footer ? <Footer {...context} /> : <span>{context.config.texts.footerText}</span>}
           <ExtensionComponents components={extensions.footerExtensions} context={context} />
@@ -115,6 +168,7 @@ function ExtensionPageShell({
 
 function ConfiguredApplication({ extensions = {} }: { extensions?: SailPlotExtensions }) {
   const config = useSailPlotConfig()
+  const { language } = useI18n()
   const basename = normalizeBasename(config.routerBasename)
   const [currentPath, setCurrentPath] = useState(() =>
     pathWithoutBasename(window.location.pathname, basename),
@@ -144,10 +198,10 @@ function ConfiguredApplication({ extensions = {} }: { extensions?: SailPlotExten
     extensions.onEvent?.({ type: 'navigation', path: target })
   }
   const context = useMemo<SailPlotExtensionContext>(
-    () => ({ config, currentPath, navigate }),
+    () => ({ config, currentPath, language, navigate }),
     // navigate intentionally follows the active basename and extensions for this render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [basename, config, currentPath, extensions],
+    [basename, config, currentPath, extensions, language],
   )
   const route = extensions.routes?.find(
     (candidate) => normalizePath(candidate.path) === currentPath,
@@ -162,10 +216,8 @@ function ConfiguredApplication({ extensions = {} }: { extensions?: SailPlotExten
 
   useEffect(() => {
     if (showEditor) return
-    const theme = resolveConfiguredTheme(config)
-    document.documentElement.dataset.theme = theme
     extensions.onEvent?.({ type: 'route-view', path: currentPath })
-  }, [config, currentPath, extensions, showEditor])
+  }, [currentPath, extensions, showEditor])
 
   useEffect(() => {
     if (!route?.title) return
@@ -183,7 +235,11 @@ function ConfiguredApplication({ extensions = {} }: { extensions?: SailPlotExten
   if (route) {
     const RouteComponent = route.component
     return (
-      <ExtensionPageShell context={context} extensions={extensions}>
+      <ExtensionPageShell
+        context={context}
+        extensions={extensions}
+        showFooter={route.footer !== false}
+      >
         <RouteComponent {...context} />
       </ExtensionPageShell>
     )

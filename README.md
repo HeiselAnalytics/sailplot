@@ -55,6 +55,12 @@ SailPlot does not require authentication and does not include analytics, trackin
 storage. Clearing browser data can remove locally stored projects, so important plots should also be
 saved as project files.
 
+## Origin and attribution
+
+SailPlot was inspired by the historical open-source
+[BOATS race-scenario drawing tool](https://sourceforge.net/projects/boats/). SailPlot is a new
+web-based implementation and does not use BOATS as a runtime dependency.
+
 ## License
 
 See [LICENSE](LICENSE).

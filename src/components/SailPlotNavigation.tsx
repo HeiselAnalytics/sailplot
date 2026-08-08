@@ -48,32 +48,42 @@ export function SailPlotNavigation({
       </button>
       {open && (
         <div className="sailplot-menu-popover" role="menu">
-          {items.map((item) =>
-            item.href ? (
+          {items.map((item) => {
+            const className = [
+              item.separatorBefore ? 'sailplot-menu-item--separator' : '',
+              item.muted ? 'sailplot-menu-item--muted' : '',
+              item.version ? 'sailplot-menu-item--version' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')
+
+            return item.href ? (
               <a
                 key={item.id}
+                className={className || undefined}
                 href={item.href}
                 target={item.external ? '_blank' : undefined}
                 rel={item.external ? 'noopener noreferrer' : undefined}
                 role="menuitem"
                 onClick={() => setOpen(false)}
               >
-                {item.label}
+                {t(item.label)}
               </a>
             ) : (
               <button
                 key={item.id}
                 type="button"
+                className={className || undefined}
                 role="menuitem"
                 onClick={() => {
                   setOpen(false)
                   context.navigate(item.path ?? '/')
                 }}
               >
-                {item.label}
+                {t(item.label)}
               </button>
-            ),
-          )}
+            )
+          })}
         </div>
       )}
     </nav>

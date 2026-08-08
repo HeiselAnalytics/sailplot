@@ -5,6 +5,7 @@ import {
   createGate,
   createMark,
   createStartLine,
+  START_FLAG_COLOR,
 } from '../src/lib/scenario'
 import { COACHBOAT_BLUE } from '../src/editor/objects/boatShapes'
 import { useEditorStore } from '../src/stores/editorStore'
@@ -12,17 +13,44 @@ import { useEditorStore } from '../src/stores/editorStore'
 describe('command history', () => {
   beforeEach(() => {
     useEditorStore.getState().setBrandAccentColor('#FFAA00')
+    useEditorStore.getState().setObjectColors('#FFAA00', START_FLAG_COLOR)
     useEditorStore.getState().setScenario(createEmptyScenario())
   })
 
-  it('uses the configured brand accent for the first new boat and mark', () => {
+  it('keeps the first boat brand accent independent from the default mark color', () => {
     const store = useEditorStore.getState()
     store.setBrandAccentColor('#0f766e')
 
     expect(store.addAt('boat', 100, 120)).toMatchObject({ type: 'boat', color: '#0f766e' })
     expect(useEditorStore.getState().addAt('mark', 200, 120)).toMatchObject({
       type: 'mark',
-      color: '#0f766e',
+      color: '#FFAA00',
+    })
+  })
+
+  it('applies configured mark and start-line colors to new and loaded default objects', () => {
+    const scenario = createEmptyScenario()
+    scenario.objects = [
+      createMark(100, 120, 1),
+      createGate(160, 120, 240, 120, 2),
+      { ...createStartLine(100, 220, 500, 220, 3), startEndFlagColor: '#0f766e' },
+    ]
+    const store = useEditorStore.getState()
+    store.setObjectColors('#D72638', START_FLAG_COLOR)
+    store.setScenario(scenario)
+
+    expect(useEditorStore.getState().scenario.objects).toMatchObject([
+      { type: 'mark', color: '#D72638' },
+      { type: 'gate', color: '#D72638' },
+      {
+        type: 'start-line',
+        startEndFlagColor: START_FLAG_COLOR,
+        pinEndFlagColor: START_FLAG_COLOR,
+      },
+    ])
+    expect(useEditorStore.getState().addAt('mark', 300, 120)).toMatchObject({
+      type: 'mark',
+      color: '#D72638',
     })
   })
 

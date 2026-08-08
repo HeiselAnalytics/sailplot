@@ -67,7 +67,11 @@ import {
   snapToSailingGrid,
 } from './gridGeometry'
 import { pinTransformBoundsToNamedNode } from './rotationBounds'
-import { courseEndpointBoatAppearance } from '../objects/courseEndpoints'
+import {
+  courseEndpointAccentColor,
+  courseEndpointBoatAppearance,
+  courseEndpointShowsSignalFlag,
+} from '../objects/courseEndpoints'
 
 export interface CanvasHandle {
   fitToScreen: () => void
@@ -859,11 +863,11 @@ function CourseGraphic({
   inkColor,
   outlineColor,
   interactionScale,
+  configuredMarkColor,
 }: ObjectGraphicProps) {
   const [activeEndpoint, setActiveEndpoint] = useState<'a' | 'b' | null>(null)
   if (object.type !== 'gate' && object.type !== 'start-line' && object.type !== 'finish-line')
     return null
-  const isFinishLine = object.type === 'finish-line'
   const baseLineColor = object.type === 'gate' ? '#A3A3A3' : object.color
   const lineColor = selected ? darkenHexColor(baseLineColor) : baseLineColor
   const courseLaylines =
@@ -1014,8 +1018,12 @@ function CourseGraphic({
               type={object.pinEndType}
               windDirection={windDirection}
               selected={selected && activeEndpoint === 'a'}
-              accentColor={object.pinEndFlagColor}
-              showSignalFlag={isFinishLine}
+              accentColor={courseEndpointAccentColor(
+                object.pinEndType,
+                configuredMarkColor,
+                object.pinEndFlagColor,
+              )}
+              showSignalFlag={courseEndpointShowsSignalFlag(object.pinEndType)}
               inkColor={inkColor}
               outlineColor={outlineColor}
             />
@@ -1030,8 +1038,12 @@ function CourseGraphic({
               type={object.startEndType}
               windDirection={windDirection}
               selected={selected && activeEndpoint === 'b'}
-              accentColor={object.startEndFlagColor}
-              showSignalFlag={isFinishLine}
+              accentColor={courseEndpointAccentColor(
+                object.startEndType,
+                configuredMarkColor,
+                object.startEndFlagColor,
+              )}
+              showSignalFlag={courseEndpointShowsSignalFlag(object.startEndType)}
               inkColor={inkColor}
               outlineColor={outlineColor}
             />
@@ -1055,6 +1067,7 @@ interface ObjectGraphicProps {
   inkColor: string
   outlineColor: string
   brandAccentColor: string
+  configuredMarkColor: string
   interactionScale: number
 }
 
@@ -1344,6 +1357,8 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
   const setTool = useEditorStore((state) => state.setTool)
   const setDragPreview = useEditorStore((state) => state.setDragPreview)
   const brandAccentColor = useEditorStore((state) => state.brandAccentColor)
+  const markColor = useEditorStore((state) => state.markColor)
+  const startLineFlagColor = useEditorStore((state) => state.startLineFlagColor)
   const darkPlot = isDarkPlotBackground(scenario.canvas.background)
   const inkColor = darkPlot ? DARK_PLOT_INK : LIGHT_PLOT_INK
   const outlineColor = darkPlot ? DARK_PLOT_OUTLINE : LIGHT_PLOT_INK
@@ -1825,12 +1840,12 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
           nextZIndex,
           nextMarkSequenceNumber(scenario.objects),
           scenario.environment.zoneRadiusBoatLengths,
-          brandAccentColor,
+          markColor,
         ),
         'Added gate',
       )
     } else if (draftToComplete.tool === 'start-line') {
-      addObject(createStartLine(x1, y1, x2, y2, nextZIndex, brandAccentColor), 'Added start line')
+      addObject(createStartLine(x1, y1, x2, y2, nextZIndex, startLineFlagColor), 'Added start line')
     } else if (draftToComplete.tool === 'finish-line') {
       addObject(createFinishLine(x1, y1, x2, y2, nextZIndex), 'Added finish line')
     } else if (draftToComplete.tool === 'rectangle' || draftToComplete.tool === 'circle') {
@@ -2144,6 +2159,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
                   outlineColor={outlineColor}
                   interactionScale={actualScale}
                   brandAccentColor={brandAccentColor}
+                  configuredMarkColor={markColor}
                 />
               )
             })}

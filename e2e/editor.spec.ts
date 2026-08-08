@@ -1045,22 +1045,26 @@ test('shows the export branding on the plot canvas', async ({ page }, testInfo) 
     await expect(credit).toHaveCSS('display', 'grid')
     await expect(page.locator('.canvas-branding')).toHaveCount(0)
     await expect(credit.getByRole('img', { name: 'SailPlot' })).toBeVisible()
-    await expect(credit.getByRole('img', { name: 'Heisel Analytics' })).toBeVisible()
     await expect(credit.getByRole('link', { name: 'SailPlot' })).toHaveAttribute(
       'href',
       'https://sailplot.app/',
     )
-    await expect(credit.getByRole('link', { name: /Powered by Heisel Analytics/ })).toHaveAttribute(
-      'href',
-      'https://heiselanalytics.one/',
-    )
+    await expect(credit.locator('.mobile-branding-menu-trigger')).toHaveCount(0)
+    const partnerLogoMenu = credit.getByRole('button', { name: /Open menu/ })
+    await expect(partnerLogoMenu.locator('img')).toBeVisible()
     const compactBounds = await credit.boundingBox()
     expect(compactBounds).not.toBeNull()
     expect(compactBounds!.x + compactBounds!.width).toBeCloseTo(viewport!.width, 0)
 
-    await credit.getByRole('button', { name: 'Open menu' }).click()
+    await partnerLogoMenu.click()
     const brandingMenu = credit.getByRole('menu')
+    await expect(brandingMenu).toHaveCSS('z-index', '50')
+    await expect(page.locator('.mobile-properties')).toHaveCSS('z-index', '40')
     await expect(brandingMenu.getByRole('menuitem', { name: 'Information' })).toBeVisible()
+    await expect(brandingMenu.getByRole('menuitem', { name: 'Website' })).toHaveAttribute(
+      'href',
+      'https://heiselanalytics.one/',
+    )
     await expect(brandingMenu.getByRole('menuitem', { name: 'Imprint' })).toHaveAttribute(
       'href',
       'https://heiselanalytics.one/impressum',
@@ -1681,12 +1685,12 @@ test('creates gate, start-line and finish-line layouts as single undoable action
     .filter({ hasText: 'Pin end' })
     .locator('select')
   const pinFlagColor = page.locator('button[aria-label="Open Pin end flag color selector"]:visible')
-  await expect(pinFlagColor).toContainText('#FFAA00')
+  await expect(pinFlagColor).toContainText('#FF5E00')
   await startEnd.selectOption('flag')
   const startFlagColor = page.locator(
     'button[aria-label="Open Start-boat end flag color selector"]:visible',
   )
-  await expect(startFlagColor).toContainText('#FFAA00')
+  await expect(startFlagColor).toContainText('#FF5E00')
   await startFlagColor.click()
   await expect(page.getByLabel('Sailing signal flag palette')).toBeVisible()
   await expect(
