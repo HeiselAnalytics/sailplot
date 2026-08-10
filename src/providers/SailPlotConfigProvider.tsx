@@ -11,6 +11,12 @@ const productLogoKeys = ['logo', 'logoDark', 'compactLogo', 'favicon', 'exportPr
 type ProductLogoKey = (typeof productLogoKeys)[number]
 type ProductLogoOverrides = Partial<Pick<SailPlotConfig['branding'], ProductLogoKey>>
 
+const transparentProductLogo =
+  'data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22/%3E'
+const transparentProductLogos = Object.fromEntries(
+  productLogoKeys.map((key) => [key, transparentProductLogo]),
+) as ProductLogoOverrides
+
 function useLogoAccent(config: SailPlotConfig): SailPlotConfig {
   const logoAccentColor = config.theme.usePrimaryForBrandAccents
     ? config.theme.light.primary
@@ -49,12 +55,15 @@ function useLogoAccent(config: SailPlotConfig): SailPlotConfig {
   }, [config, logoAccentColor, requestKey])
 
   return useMemo(() => {
-    if (!logoAccentColor || resolved?.requestKey !== requestKey) return config
+    if (!logoAccentColor) return config
     return {
       ...config,
-      branding: { ...config.branding, ...resolved.assets },
+      branding: {
+        ...config.branding,
+        ...(resolved?.assets ?? transparentProductLogos),
+      },
     }
-  }, [config, logoAccentColor, requestKey, resolved])
+  }, [config, logoAccentColor, resolved])
 }
 
 export function SailPlotConfigProvider({

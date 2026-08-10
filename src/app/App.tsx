@@ -75,7 +75,7 @@ import {
 import { createShareUrl, scenarioFromHash } from '../services/scenarioCodec'
 import { parseScenarioJson, serializeScenario } from '../services/scenarioFiles'
 import { useEditorStore } from '../stores/editorStore'
-import { SAILING_BOAT_CLASSES, type BoatClass } from '../types/scenario'
+import { SAILING_BOAT_CLASSES, type BoatClass, type BoatObject } from '../types/scenario'
 import type { SailPlotExtensionContext, SailPlotExtensions } from '../extensions/types'
 import { useSailPlotConfig } from '../providers/SailPlotConfigProvider'
 
@@ -562,12 +562,15 @@ function MobileBrandingBar({
             <a
               className={partnerClassName}
               href={singlePartnerLink.url}
-              target="_blank"
-              rel="noopener noreferrer"
+              target={/^https?:/iu.test(singlePartnerLink.url) ? '_blank' : undefined}
+              rel={/^https?:/iu.test(singlePartnerLink.url) ? 'noopener noreferrer' : undefined}
               aria-label={`${config.branding.partnerName}: ${t(singlePartnerLink.label)}`}
             >
               {config.branding.partnerLabel && <span>{config.branding.partnerLabel}</span>}
-              <img src={config.branding.exportWatermarkLogo} alt="" />
+              <img
+                src={config.branding.exportWatermarkLogo}
+                alt={config.branding.partnerName}
+              />
             </a>
           ) : actionCount > 0 ? (
             <button
@@ -584,7 +587,10 @@ function MobileBrandingBar({
               }}
             >
               {config.branding.partnerLabel && <span>{config.branding.partnerLabel}</span>}
-              <img src={config.branding.exportWatermarkLogo} alt="" />
+              <img
+                src={config.branding.exportWatermarkLogo}
+                alt={config.branding.partnerName}
+              />
             </button>
           ) : (
             <div className={partnerClassName}>
@@ -610,8 +616,8 @@ function MobileBrandingBar({
                 <a
                   key={`${link.label}:${link.url}`}
                   href={link.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  target={/^https?:/iu.test(link.url) ? '_blank' : undefined}
+                  rel={/^https?:/iu.test(link.url) ? 'noopener noreferrer' : undefined}
                   role="menuitem"
                   onClick={() => setMenuOpen(false)}
                 >
@@ -629,23 +635,15 @@ function MobileBrandingBar({
   )
 }
 
-function CanvasBranding({
-  onInfo,
-  onOpenQr,
-  extensions,
-  extensionContext,
-}: {
-  onInfo: () => void
-  onOpenQr: () => void
-  extensions: SailPlotExtensions
-  extensionContext: SailPlotExtensionContext
-}) {
+function CanvasQrCode({ onOpen }: { onOpen: () => void }) {
   const { t } = useI18n()
   const config = useSailPlotConfig()
   const qrFinderColor = sailPlotQrFinderColor(config)
   const scenario = useEditorStore((state) => state.scenario)
-  const Footer = extensions.footer
-  const plotUrl = useMemo(() => createShareUrl(scenario), [scenario])
+  const plotUrl = useMemo(
+    () => config.links.qrCode ?? createShareUrl(scenario),
+    [config.links.qrCode, scenario],
+  )
   const qrCodeUrl = useMemo(() => {
     try {
       return createPlotQrCodeDataUrl(plotUrl, qrFinderColor)
@@ -655,6 +653,59 @@ function CanvasBranding({
       return null
     }
   }, [plotUrl, qrFinderColor])
+  if (!qrCodeUrl) return null
+
+  return (
+    <button
+      type="button"
+      className="canvas-plot-qr"
+      aria-label={t('Open this plot')}
+      aria-haspopup="dialog"
+      onClick={onOpen}
+    >
+      <img src={qrCodeUrl} alt={t('QR code for this plot')} />
+    </button>
+  )
+}
+
+function CanvasBranding({
+  onInfo,
+  extensions,
+  extensionContext,
+}: {
+  onInfo: () => void
+  extensions: SailPlotExtensions
+  extensionContext: SailPlotExtensionContext
+}) {
+  const { t } = useI18n()
+  const config = useSailPlotConfig()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const partnerLinks = resolvePartnerLinks(config)
+  const actionCount = partnerLinks.length + (config.ui.help ? 1 : 0)
+  const singlePartnerLink = actionCount === 1 ? partnerLinks[0] : undefined
+  const openInfoDirectly = actionCount === 1 && config.ui.help
+  const partnerClassName = `canvas-branding-partner${
+    config.branding.partnerLabel ? '' : ' canvas-branding-partner--logo-only'
+  }`
+  const Footer = extensions.footer
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+    window.addEventListener('pointerdown', closeOnOutsideClick)
+    window.addEventListener('keydown', closeOnEscape)
+    return () => {
+      window.removeEventListener('pointerdown', closeOnOutsideClick)
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [menuOpen])
+
   if (!config.ui.footer) return null
   return (
     <aside className="canvas-branding" aria-label={config.texts.footerText}>
@@ -672,57 +723,84 @@ function CanvasBranding({
               >
                 <img src={config.branding.exportProductLogo} alt={config.branding.logoAlt} />
               </a>
-              <div className="canvas-branding-partner-section">
-                <a
-                  className={`canvas-branding-partner${
-                    config.branding.partnerLabel ? '' : ' canvas-branding-partner--logo-only'
-                  }`}
-                  href={config.links.website ?? undefined}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {config.branding.partnerLabel && <span>{config.branding.partnerLabel}</span>}
-                  <img
-                    src={config.branding.exportWatermarkLogo}
-                    alt={config.branding.partnerName}
-                  />
-                </a>
-                {config.ui.canvasBrandingLinks && (
-                  <nav aria-label={`${config.branding.partnerName} links`}>
+              <div ref={menuRef} className="canvas-branding-partner-section">
+                {singlePartnerLink ? (
+                  <a
+                    className={partnerClassName}
+                    href={singlePartnerLink.url}
+                    target={/^https?:/iu.test(singlePartnerLink.url) ? '_blank' : undefined}
+                    rel={
+                      /^https?:/iu.test(singlePartnerLink.url)
+                        ? 'noopener noreferrer'
+                        : undefined
+                    }
+                    aria-label={`${config.branding.partnerName}: ${t(singlePartnerLink.label)}`}
+                  >
+                    {config.branding.partnerLabel && <span>{config.branding.partnerLabel}</span>}
+                    <img
+                      src={config.branding.exportWatermarkLogo}
+                      alt={config.branding.partnerName}
+                    />
+                  </a>
+                ) : actionCount > 0 ? (
+                  <button
+                    type="button"
+                    className={partnerClassName}
+                    aria-label={`${config.branding.partnerName}: ${
+                      openInfoDirectly ? t('Information') : t('Open menu')
+                    }`}
+                    aria-haspopup={actionCount > 1 ? 'menu' : undefined}
+                    aria-expanded={actionCount > 1 ? menuOpen : undefined}
+                    onClick={() => {
+                      if (openInfoDirectly) onInfo()
+                      else setMenuOpen((open) => !open)
+                    }}
+                  >
+                    {config.branding.partnerLabel && <span>{config.branding.partnerLabel}</span>}
+                    <img
+                      src={config.branding.exportWatermarkLogo}
+                      alt={config.branding.partnerName}
+                    />
+                  </button>
+                ) : (
+                  <div className={partnerClassName}>
+                    {config.branding.partnerLabel && <span>{config.branding.partnerLabel}</span>}
+                    <img
+                      src={config.branding.exportWatermarkLogo}
+                      alt={config.branding.partnerName}
+                    />
+                  </div>
+                )}
+                {menuOpen && (
+                  <div className="canvas-branding-menu-popover" role="menu">
                     {config.ui.help && (
-                      <button type="button" onClick={onInfo}>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(false)
+                          onInfo()
+                        }}
+                      >
                         {t('Information')}
                       </button>
                     )}
-                    {config.ui.help && config.links.website && <span aria-hidden="true">|</span>}
-                    {config.links.website && (
-                      <a href={config.links.website} target="_blank" rel="noopener noreferrer">
-                        {t('Website')}
+                    {partnerLinks.map((link) => (
+                      <a
+                        key={`${link.label}:${link.url}`}
+                        href={link.url}
+                        target={/^https?:/iu.test(link.url) ? '_blank' : undefined}
+                        rel={/^https?:/iu.test(link.url) ? 'noopener noreferrer' : undefined}
+                        role="menuitem"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        {t(link.label)}
                       </a>
-                    )}
-                    {(config.ui.help || config.links.website) && config.links.imprint && (
-                      <span aria-hidden="true">|</span>
-                    )}
-                    {config.links.imprint && (
-                      <a href={config.links.imprint} target="_blank" rel="noopener noreferrer">
-                        {t('Imprint')}
-                      </a>
-                    )}
-                  </nav>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
-            {qrCodeUrl && (
-              <button
-                type="button"
-                className="canvas-branding-qr"
-                aria-label={t('Open this plot')}
-                aria-haspopup="dialog"
-                onClick={onOpenQr}
-              >
-                <img src={qrCodeUrl} alt={t('QR code for this plot')} />
-              </button>
-            )}
           </div>
         </>
       )}
@@ -787,7 +865,10 @@ function PlotQrDialog({ onClose }: { onClose: () => void }) {
   const config = useSailPlotConfig()
   const qrFinderColor = sailPlotQrFinderColor(config)
   const scenario = useEditorStore((state) => state.scenario)
-  const plotUrl = useMemo(() => createShareUrl(scenario), [scenario])
+  const plotUrl = useMemo(
+    () => config.links.qrCode ?? createShareUrl(scenario),
+    [config.links.qrCode, scenario],
+  )
   const qrCodeUrl = useMemo(
     () => createPlotQrCodeDataUrl(plotUrl, qrFinderColor),
     [plotUrl, qrFinderColor],
@@ -1592,6 +1673,31 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
   })
   const scenario = useEditorStore((state) => state.scenario)
   const selectedIds = useEditorStore((state) => state.selectedIds)
+  useEffect(() => {
+    if (!config.theme.usePrimaryForBrandAccents) return
+    const firstBoat = scenario.objects.find(
+      (object): object is BoatObject =>
+        object.type === 'boat' && SAILING_BOAT_CLASSES.includes(object.boatClass),
+    )
+    if (!firstBoat) return
+
+    const normalizedPrimary = brandAccentColor.toUpperCase()
+    const sequenceUsesPrimary = scenario.objects
+      .filter(
+        (object): object is BoatObject =>
+          object.type === 'boat' && object.sequenceId === firstBoat.sequenceId,
+      )
+      .every((object) => object.color.toUpperCase() === normalizedPrimary)
+    if (sequenceUsesPrimary) return
+
+    useEditorStore.getState().patchScenario({
+      objects: scenario.objects.map((object) =>
+        object.type === 'boat' && object.sequenceId === firstBoat.sequenceId
+          ? { ...object, color: brandAccentColor }
+          : object,
+      ),
+    })
+  }, [brandAccentColor, config.theme.usePrimaryForBrandAccents, scenario.objects])
   const hasVisibleBoatLegend =
     scenario.canvas.boatLegendVisible &&
     scenario.objects.some((object) => object.type === 'boat' && object.visible)
@@ -1719,7 +1825,7 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
     if (!plotData) return
     try {
       const data = await addExportWatermark(plotData, {
-        plotUrl: createShareUrl(scenario),
+        plotUrl: config.links.qrCode ?? createShareUrl(scenario),
         primaryColor: qrFinderColor,
         analyticsLogoUrl: config.branding.exportWatermarkLogo,
         productLogoUrl: config.branding.exportProductLogo,
@@ -1751,7 +1857,7 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
     if (!data) return
     try {
       const pdf = await createA4PlotPdf(data, {
-        plotUrl: createShareUrl(scenario),
+        plotUrl: config.links.qrCode ?? createShareUrl(scenario),
         primaryColor: qrFinderColor,
         analyticsLogoUrl: config.branding.exportWatermarkLogo,
         productLogoUrl: config.branding.exportProductLogo,
@@ -2003,10 +2109,14 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
             config.ui.footer && !useCompactBranding ? (
               <CanvasBranding
                 onInfo={() => setDialog('help')}
-                onOpenQr={() => setDialog('qr')}
                 extensions={extensions}
                 extensionContext={extensionContext}
               />
+            ) : undefined
+          }
+          topRightOverlay={
+            config.ui.footer && !useCompactBranding ? (
+              <CanvasQrCode onOpen={() => setDialog('qr')} />
             ) : undefined
           }
         />

@@ -1079,14 +1079,16 @@ test('shows the export branding on the plot canvas', async ({ page }, testInfo) 
   await expect(page.locator('.brand-credit')).toHaveCount(0)
   await expect(credit.getByRole('img', { name: 'SailPlot' })).toBeVisible()
   await expect(credit.getByRole('img', { name: 'Heisel Analytics' })).toBeVisible()
-  const partnerLink = credit.getByRole('link', { name: /Powered by Heisel Analytics/ })
-  await partnerLink.hover()
-  await expect(partnerLink).toHaveCSS('text-decoration-line', 'none')
+  const partnerMenuButton = credit.getByRole('button', {
+    name: /Heisel Analytics: Open menu/,
+  })
+  await expect(partnerMenuButton).toBeVisible()
+  await partnerMenuButton.hover()
   await expect(credit.getByRole('link', { name: 'SailPlot' })).toHaveAttribute(
     'href',
     'https://sailplot.app/',
   )
-  const plotButton = credit.getByRole('button', { name: 'Open this plot' })
+  const plotButton = page.getByRole('button', { name: 'Open this plot' })
   await expect(plotButton.getByRole('img', { name: 'QR code for this plot' })).toHaveAttribute(
     'src',
     /^data:image\/svg\+xml/,
@@ -1107,28 +1109,25 @@ test('shows the export branding on the plot canvas', async ({ page }, testInfo) 
   await expect(initialSharedPlot.locator('.statusbar')).toContainText('100%')
   await initialSharedPlot.close()
   await qrDialog.getByRole('button', { name: 'Close dialog' }).click()
-  await expect(credit.getByRole('link', { name: 'Website' })).toHaveAttribute(
+
+  await partnerMenuButton.click()
+  const partnerMenu = credit.getByRole('menu')
+  await expect(partnerMenu.getByRole('menuitem', { name: 'Information' })).toBeVisible()
+  await expect(partnerMenu.getByRole('menuitem', { name: 'Website' })).toHaveAttribute(
     'href',
     'https://heiselanalytics.one/',
   )
-  await expect(credit.getByRole('link', { name: 'Website' })).toHaveCSS('color', 'rgb(255, 170, 0)')
-  await expect(credit.locator('.canvas-branding-partner-section nav')).toContainText(
-    /Information\s*\|\s*Website\s*\|\s*Imprint/,
-  )
-  await expect(credit.locator('.canvas-branding-partner-section nav > span').first()).toHaveCSS(
-    'color',
-    'rgb(46, 46, 46)',
-  )
-  await expect(credit.getByRole('link', { name: 'Imprint' })).toHaveAttribute(
+  await expect(partnerMenu.getByRole('menuitem', { name: 'Imprint' })).toHaveAttribute(
     'href',
     'https://heiselanalytics.one/impressum',
   )
+  await page.keyboard.press('Escape')
+  await expect(partnerMenu).toBeHidden()
 
   const bounds = await credit.boundingBox()
   const visualBounds = await credit.locator('.canvas-branding-visual').boundingBox()
   const logoColumnBounds = await credit.locator('.canvas-branding-logos').boundingBox()
-  const qrBounds = await credit.locator('.canvas-branding-qr').boundingBox()
-  const partnerLinkTextBounds = await credit.getByRole('link', { name: 'Website' }).boundingBox()
+  const qrBounds = await page.locator('.canvas-top-right-overlay').boundingBox()
   const poweredByBounds = await credit.locator('.canvas-branding-partner span').boundingBox()
   const partnerLogoBounds = await credit.locator('.canvas-branding-partner img').boundingBox()
   const productRowBounds = await credit.locator('.canvas-branding-product').boundingBox()
@@ -1138,14 +1137,13 @@ test('shows the export branding on the plot canvas', async ({ page }, testInfo) 
   expect(visualBounds).not.toBeNull()
   expect(logoColumnBounds).not.toBeNull()
   expect(qrBounds).not.toBeNull()
-  expect(partnerLinkTextBounds).not.toBeNull()
   expect(poweredByBounds).not.toBeNull()
   expect(partnerLogoBounds).not.toBeNull()
   expect(productRowBounds).not.toBeNull()
   expect(productLogoBounds).not.toBeNull()
   expect(canvasBounds).not.toBeNull()
-  expect(visualBounds!.width / visualBounds!.height).toBeCloseTo(72 / 32, 1)
-  expect(Math.abs(logoColumnBounds!.height - qrBounds!.height)).toBeLessThan(1)
+  expect(visualBounds!.width / visualBounds!.height).toBeCloseTo(40 / 25, 1)
+  expect(Math.abs(visualBounds!.height - logoColumnBounds!.height)).toBeLessThan(1)
   expect(
     Math.abs(
       poweredByBounds!.y +
@@ -1153,14 +1151,18 @@ test('shows the export branding on the plot canvas', async ({ page }, testInfo) 
         (partnerLogoBounds!.y + partnerLogoBounds!.height),
     ),
   ).toBeLessThan(1)
-  expect(
-    qrBounds!.y + qrBounds!.height - (partnerLinkTextBounds!.y + partnerLinkTextBounds!.height),
-  ).toBeGreaterThan(4)
-  expect(canvasBounds!.x + canvasBounds!.width - (bounds!.x + bounds!.width)).toBeCloseTo(12, 0)
-  const fittedPlotHeight = (canvasBounds!.width * 1080) / 1920
-  const fittedPlotBottom =
-    canvasBounds!.y + Math.max(fittedPlotHeight, (canvasBounds!.height + fittedPlotHeight) / 2)
+  const fitScale = Math.min(canvasBounds!.width / 1920, canvasBounds!.height / 1080)
+  const fittedPlotWidth = 1920 * fitScale
+  const fittedPlotHeight = 1080 * fitScale
+  const fittedPlotRight =
+    canvasBounds!.x + (canvasBounds!.width + fittedPlotWidth) / 2
+  const fittedPlotTop =
+    canvasBounds!.y + (canvasBounds!.height - fittedPlotHeight) / 2
+  const fittedPlotBottom = fittedPlotTop + fittedPlotHeight
+  expect(fittedPlotRight - (bounds!.x + bounds!.width)).toBeCloseTo(12, 0)
   expect(fittedPlotBottom - (bounds!.y + bounds!.height)).toBeCloseTo(12, 0)
+  expect(fittedPlotRight - (qrBounds!.x + qrBounds!.width)).toBeCloseTo(12, 0)
+  expect(qrBounds!.y - fittedPlotTop).toBeCloseTo(12, 0)
 
   if (testInfo.project.name === 'desktop-chrome') {
     await page.mouse.move(
@@ -1193,7 +1195,8 @@ test('shows the export branding on the plot canvas', async ({ page }, testInfo) 
     await qrDialog.getByRole('button', { name: 'Close dialog' }).click()
   }
 
-  await credit.getByRole('button', { name: 'Information' }).click()
+  await partnerMenuButton.click()
+  await credit.getByRole('menuitem', { name: 'Information' }).click()
   await expect(page.getByRole('dialog')).toContainText('Help & information')
 })
 

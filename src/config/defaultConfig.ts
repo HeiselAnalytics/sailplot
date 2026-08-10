@@ -70,6 +70,7 @@ export const defaultSailPlotConfig: SailPlotConfig = {
   },
   links: {
     app: 'https://sailplot.app/',
+    qrCode: null,
     support: null,
     website: 'https://heiselanalytics.one/',
     privacy: null,

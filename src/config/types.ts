@@ -76,6 +76,8 @@ export interface SailPlotTexts {
 
 export interface SailPlotLinks {
   app: string | null
+  /** Optional fixed QR destination. Null encodes the current editable plot. */
+  qrCode: string | null
   support: string | null
   website: string | null
   privacy: string | null

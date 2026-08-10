@@ -753,16 +753,20 @@ h3 {
   -webkit-user-select: none;
 }
 
-.canvas-branding-anchor {
+.canvas-branding-anchor,
+.canvas-top-right-overlay {
   position: absolute;
   z-index: 6;
   pointer-events: none;
 }
 
 .canvas-branding {
+  position: relative;
   display: flex;
-  overflow: hidden;
+  width: 55.5556%;
+  overflow: visible;
   flex-direction: column;
+  margin-left: auto;
   border: 0;
   border-radius: 5px;
   background: rgb(255 255 255 / 86%);
@@ -773,130 +777,142 @@ h3 {
 }
 
 .canvas-branding-visual {
-  display: grid;
-  aspect-ratio: 72 / 32;
-  grid-template-columns: 40fr 32fr;
+  display: block;
+  aspect-ratio: 40 / 25;
 }
 
 .canvas-branding-logos {
+  --canvas-branding-logo-inset-block: 2.5%;
+  --canvas-branding-logo-inset-inline: 5%;
+
   display: grid;
   min-width: 0;
   height: 100%;
-  grid-template-rows: 1fr 1fr;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
 }
 
 .canvas-branding-product,
-.canvas-branding-partner,
-.canvas-branding-qr {
+.canvas-branding-partner {
   color: inherit;
   text-decoration: none;
 }
 
 .canvas-branding a.canvas-branding-product {
-  position: relative;
   display: flex;
+  grid-row: 2;
   min-width: 0;
-  align-items: flex-end;
+  min-height: 0;
+  align-items: center;
   justify-content: center;
-  padding: 4.5% 2% 1% 5%;
-  transform: translateY(-1px);
+  padding: var(--canvas-branding-logo-inset-block) var(--canvas-branding-logo-inset-inline);
 }
 
-.canvas-branding a.canvas-branding-product::after {
+.canvas-branding-product img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.canvas-branding-partner-section {
+  position: relative;
+  display: flex;
+  grid-row: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.canvas-branding-partner-section::after {
   position: absolute;
   right: 0;
-  bottom: -1px;
+  bottom: 0;
   left: 0;
   height: 1px;
   background: rgb(23 23 23 / 18%);
   content: '';
 }
 
-.canvas-branding-product img {
-  display: block;
-  width: 100%;
-  height: 90%;
-  object-fit: contain;
-}
-
-.canvas-branding-partner-section {
+.canvas-branding .canvas-branding-partner {
   display: grid;
+  width: 100%;
   min-width: 0;
   min-height: 0;
-  align-content: start;
-  grid-template-rows: auto auto;
-  transform: translateY(1px);
-}
-
-.canvas-branding a.canvas-branding-partner {
-  display: flex;
-  min-width: 0;
-  align-self: start;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 2.5%;
-  padding: 4% 2% 0 5%;
-  transform: translateY(2px);
+  align-content: center;
+  align-items: end;
+  grid-template-columns: minmax(max-content, 28%) minmax(0, 1fr);
+  gap: 4%;
+  padding: var(--canvas-branding-logo-inset-block) var(--canvas-branding-logo-inset-inline);
 }
 
 .canvas-branding-partner span {
-  flex: 0 0 30%;
   font-size: clamp(5px, 0.56vw, 8px);
   font-weight: 600;
   line-height: 1.05;
   text-align: left;
   white-space: nowrap;
-  transform: translateX(0);
 }
 
 .canvas-branding-partner img {
   display: block;
-  width: 65%;
+  width: 100%;
   height: auto;
+  max-height: 100%;
+  min-width: 0;
+  min-height: 0;
   object-fit: contain;
 }
 
-.canvas-branding-partner--logo-only img {
-  width: 100%;
-  max-width: none;
+.canvas-branding-partner:not(.canvas-branding-partner--logo-only) span {
+  transform: translateX(-1px);
+}
+
+.canvas-branding-partner:not(.canvas-branding-partner--logo-only) img {
   transform: translateX(1px);
 }
 
-.canvas-branding a.canvas-branding-partner--logo-only {
-  transform: translateY(-1px);
+.canvas-branding .canvas-branding-partner {
+  padding-right: calc(var(--canvas-branding-logo-inset-inline) + 4px);
+  padding-left: calc(var(--canvas-branding-logo-inset-inline) + 4px);
 }
 
-.canvas-branding-qr {
-  display: block;
-  min-width: 0;
+.canvas-branding .canvas-branding-partner--logo-only {
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr);
+  padding-left: calc(var(--canvas-branding-logo-inset-inline) + 3px);
+}
+
+.canvas-branding-partner--logo-only img {
   height: 100%;
-  background: #fff;
 }
 
-.canvas-branding-qr img {
+.canvas-plot-qr {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(23 23 23 / 12%);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.canvas-plot-qr img {
   display: block;
   width: 100%;
   height: 100%;
 }
 
-.canvas-branding nav {
-  display: flex;
-  width: calc(100% + 4px);
-  min-height: 14px;
-  align-items: center;
-  justify-content: flex-end;
-  gap: clamp(3px, 0.3vw, 5px);
-  padding: 1% 2% 0 5%;
-  color: var(--highlight);
-  font-size: clamp(6.9px, 0.6325vw, 9.2px);
-  font-weight: 600;
-  line-height: 1;
-  margin-left: -2px;
-  transform: translateY(5px);
+.canvas-plot-qr:hover {
+  box-shadow: 0 0 0 2px var(--highlight), 0 1px 4px rgb(23 23 23 / 12%);
 }
 
-.canvas-branding nav > span[aria-hidden='true'] {
-  margin-right: 3px;
+.canvas-plot-qr:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
 }
 
 .brand-credit-powered-by {
@@ -1222,8 +1238,8 @@ h3 {
   color: var(--highlight);
 }
 
-.canvas-branding a.canvas-branding-partner:hover,
-.canvas-branding a.canvas-branding-partner:active {
+.canvas-branding .canvas-branding-partner:hover,
+.canvas-branding .canvas-branding-partner:active {
   text-decoration: none;
 }
 
@@ -2118,7 +2134,7 @@ a.mobile-branding-partner:focus-visible {
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
-  transform: translateY(2px);
+  transform: translate(-1px, 1px);
 }
 
 .mobile-branding-partner img {
@@ -2128,7 +2144,7 @@ a.mobile-branding-partner:focus-visible {
   height: 31px;
   flex: 0 1 auto;
   object-fit: contain;
-  transform: translateY(2px);
+  transform: translate(1px, 2px);
 }
 
 .mobile-branding-partner--logo-only img {
@@ -2141,6 +2157,9 @@ a.mobile-branding-partner:focus-visible {
   width: 100%;
   aspect-ratio: 3.5 / 1;
   align-items: center;
+  box-sizing: border-box;
+  padding-right: 4px;
+  padding-left: 3px;
   transform: none;
 }
 
@@ -2162,7 +2181,8 @@ a.mobile-branding-partner:focus-visible {
   padding: 6px 10px;
 }
 
-.mobile-branding-menu-popover {
+.mobile-branding-menu-popover,
+.canvas-branding-menu-popover {
   position: absolute;
   z-index: 50;
   right: 0;
@@ -2178,7 +2198,9 @@ a.mobile-branding-partner:focus-visible {
 }
 
 .mobile-branding-menu-popover a,
-.mobile-branding-menu-popover button {
+.mobile-branding-menu-popover button,
+.canvas-branding-menu-popover a,
+.canvas-branding-menu-popover button {
   display: flex;
   min-height: 34px;
   align-items: center;
@@ -2194,8 +2216,11 @@ a.mobile-branding-partner:focus-visible {
 }
 
 .mobile-branding-menu-popover a:hover,
-.mobile-branding-menu-popover button:hover {
+.mobile-branding-menu-popover button:hover,
+.canvas-branding-menu-popover a:hover,
+.canvas-branding-menu-popover button:hover {
   background: color-mix(in srgb, var(--highlight) 18%, transparent);
+  text-decoration: none;
 }
 
 .mobile-properties {

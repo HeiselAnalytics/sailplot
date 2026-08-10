@@ -1318,16 +1318,18 @@ function ObjectGraphic(props: ObjectGraphicProps) {
 
 interface ScenarioCanvasProps {
   branding?: ReactNode
+  topRightOverlay?: ReactNode
 }
 
 const EDITOR_BRANDING_MAX_WIDTH = 341.55
 const EDITOR_BRANDING_COMPACT_WIDTH = 273.24
 const EDITOR_BRANDING_ASPECT_RATIO = 72 / 32
+const EDITOR_QR_WIDTH_RATIO = 32 / 72
 const EDITOR_BRANDING_PLOT_MARGIN = 12
 const EDITOR_BRANDING_VIEWPORT_MARGIN = 6
 
 export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(function ScenarioCanvas(
-  { branding },
+  { branding, topRightOverlay },
   ref,
 ) {
   const { t } = useI18n()
@@ -1363,7 +1365,12 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
   const inkColor = darkPlot ? DARK_PLOT_INK : LIGHT_PLOT_INK
   const outlineColor = darkPlot ? DARK_PLOT_OUTLINE : LIGHT_PLOT_INK
   const gridColor = darkPlot ? '#71808A' : '#BCCDD3'
-  const fitScale = Math.max(0.01, size.width / scenario.canvas.width)
+  const fitScale = Math.max(
+    0.01,
+    Math.min(size.width / scenario.canvas.width, size.height / scenario.canvas.height),
+  )
+  const fitX = Math.max(0, (size.width - scenario.canvas.width * fitScale) / 2)
+  const fitY = Math.max(0, (size.height - scenario.canvas.height * fitScale) / 2)
   const actualScale = fitScale * view.scale
   const brandingWidth = Math.max(
     1,
@@ -1374,7 +1381,9 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
     ),
   )
   const brandingHeight = measuredBrandingHeight || brandingWidth / EDITOR_BRANDING_ASPECT_RATIO
+  const topRightOverlaySize = brandingWidth * EDITOR_QR_WIDTH_RATIO
   const canvasRight = view.x + scenario.canvas.width * actualScale
+  const canvasTop = view.y
   const canvasBottom = view.y + scenario.canvas.height * actualScale
   const brandingRight = Math.min(
     Math.max(
@@ -1394,6 +1403,26 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
     Math.max(
       EDITOR_BRANDING_VIEWPORT_MARGIN,
       size.height - brandingHeight - EDITOR_BRANDING_VIEWPORT_MARGIN,
+    ),
+  )
+  const topRightOverlayRight = Math.min(
+    Math.max(
+      EDITOR_BRANDING_VIEWPORT_MARGIN,
+      size.width - canvasRight + EDITOR_BRANDING_PLOT_MARGIN,
+    ),
+    Math.max(
+      EDITOR_BRANDING_VIEWPORT_MARGIN,
+      size.width - topRightOverlaySize - EDITOR_BRANDING_VIEWPORT_MARGIN,
+    ),
+  )
+  const topRightOverlayTop = Math.min(
+    Math.max(
+      EDITOR_BRANDING_VIEWPORT_MARGIN,
+      canvasTop + EDITOR_BRANDING_PLOT_MARGIN,
+    ),
+    Math.max(
+      EDITOR_BRANDING_VIEWPORT_MARGIN,
+      size.height - topRightOverlaySize - EDITOR_BRANDING_VIEWPORT_MARGIN,
     ),
   )
   const layline = laylineVector(scenario.environment.laylineAngle, 500)
@@ -1489,8 +1518,8 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
 
   const fitToScreen = () => {
     const next = {
-      x: 0,
-      y: Math.max(0, (size.height - scenario.canvas.height * fitScale) / 2),
+      x: fitX,
+      y: fitY,
       scale: 1,
     }
     setView(next)
@@ -1501,8 +1530,8 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
     fitToScreen,
     resetView: () => {
       const next = {
-        x: 0,
-        y: Math.max(0, (size.height - scenario.canvas.height * fitScale) / 2),
+        x: fitX,
+        y: fitY,
         scale: 1,
       }
       setView(next)
@@ -1562,11 +1591,17 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
   }, [branding])
 
   useEffect(() => {
-    if (size.width && scenario.canvas.view.scale <= 1) fitToScreen()
+    if (size.width && size.height && scenario.canvas.view.scale <= 1) fitToScreen()
     else setView(scenario.canvas.view)
-    // Fit only when a project is first opened or the container gets its initial measurement.
+    // Keep a non-zoomed plot fully visible when the editor changes between layouts or sizes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scenario.metadata.id, size.width === 800])
+  }, [
+    scenario.metadata.id,
+    scenario.canvas.width,
+    scenario.canvas.height,
+    size.width,
+    size.height,
+  ])
 
   useEffect(() => {
     const stage = stageRef.current
@@ -1773,8 +1808,8 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
       scale === 1
         ? {
             scale,
-            x: 0,
-            y: Math.max(0, (size.height - scenario.canvas.height * fitScale) / 2),
+            x: fitX,
+            y: fitY,
           }
         : { scale, x: center.x - world.x * nextScale, y: center.y - world.y * nextScale }
     setView(next)
@@ -1936,8 +1971,8 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
       scale === 1
         ? {
             scale,
-            x: 0,
-            y: Math.max(0, (size.height - scenario.canvas.height * fitScale) / 2),
+            x: fitX,
+            y: fitY,
           }
         : {
             scale,
@@ -1965,8 +2000,8 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
             view.scale === 1
               ? {
                   ...view,
-                  x: 0,
-                  y: Math.max(0, (size.height - scenario.canvas.height * fitScale) / 2),
+                  x: fitX,
+                  y: fitY,
                 }
               : { ...view, x: event.target.x(), y: event.target.y() }
           setView(next)
@@ -2320,6 +2355,19 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
           style={{ width: brandingWidth, right: brandingRight, bottom: brandingBottom }}
         >
           {branding}
+        </div>
+      )}
+      {topRightOverlay && (
+        <div
+          className="canvas-top-right-overlay"
+          style={{
+            width: topRightOverlaySize,
+            height: topRightOverlaySize,
+            top: topRightOverlayTop,
+            right: topRightOverlayRight,
+          }}
+        >
+          {topRightOverlay}
         </div>
       )}
     </div>

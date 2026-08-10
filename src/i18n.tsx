@@ -21,6 +21,7 @@ const german: Record<string, string> = {
   Language: 'Sprache',
   Menu: 'Menü',
   'Licenses & Branding': 'Lizenzen & Branding',
+  'Suggest an improvement': 'Verbesserungsvorschlag',
   'Make your own SailPlot': 'Dein eigenes SailPlot',
   Instructions: 'Anleitung',
   Changelog: 'Changelog',
