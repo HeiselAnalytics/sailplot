@@ -40,6 +40,8 @@ interface ExportOverlayRect {
   height: number
 }
 
+type PdfPlotRect = ExportOverlayRect
+
 export interface RasterExportOverlayLayout {
   branding: ExportOverlayRect
   qrCode: ExportOverlayRect
@@ -79,24 +81,36 @@ export function calculateRasterExportOverlayLayout(
   }
 }
 
-export function calculatePdfExportOverlayLayout(watermarkBottomMm = 5): PdfExportOverlayLayout {
-  const boundedBrandingBottomMm = Math.min(
-    Math.max(5, watermarkBottomMm),
-    A4_LANDSCAPE_HEIGHT_MM - PDF_BRANDING_HEIGHT_MM,
+export function calculatePdfExportOverlayLayout(
+  plot: PdfPlotRect,
+  watermarkBottomMm = 5,
+): PdfExportOverlayLayout {
+  const scale = Math.min(
+    1,
+    plot.width / (PDF_BRANDING_WIDTH_MM + PDF_OVERLAY_MARGIN_MM * 2),
+    plot.height / (PDF_QR_SIZE_MM + PDF_BRANDING_HEIGHT_MM + PDF_OVERLAY_MARGIN_MM * 3),
   )
+  const margin = PDF_OVERLAY_MARGIN_MM * scale
+  const brandingWidth = PDF_BRANDING_WIDTH_MM * scale
+  const brandingHeight = PDF_BRANDING_HEIGHT_MM * scale
+  const qrSize = PDF_QR_SIZE_MM * scale
+  const plotRight = plot.x + plot.width
+  const plotBottom = plot.y + plot.height
+  const pageBrandingBottom = A4_LANDSCAPE_HEIGHT_MM - Math.max(5, watermarkBottomMm)
+  const brandingBottom = Math.min(plotBottom - margin, pageBrandingBottom)
 
   return {
     branding: {
-      x: A4_LANDSCAPE_WIDTH_MM - PDF_OVERLAY_MARGIN_MM - PDF_BRANDING_WIDTH_MM,
-      y: A4_LANDSCAPE_HEIGHT_MM - boundedBrandingBottomMm - PDF_BRANDING_HEIGHT_MM,
-      width: PDF_BRANDING_WIDTH_MM,
-      height: PDF_BRANDING_HEIGHT_MM,
+      x: plotRight - margin - brandingWidth,
+      y: Math.max(plot.y + margin, brandingBottom - brandingHeight),
+      width: brandingWidth,
+      height: brandingHeight,
     },
     qrCode: {
-      x: A4_LANDSCAPE_WIDTH_MM - PDF_OVERLAY_MARGIN_MM - PDF_QR_SIZE_MM,
-      y: PDF_OVERLAY_MARGIN_MM,
-      width: PDF_QR_SIZE_MM,
-      height: PDF_QR_SIZE_MM,
+      x: plotRight - margin - qrSize,
+      y: plot.y + margin,
+      width: qrSize,
+      height: qrSize,
     },
   }
 }
@@ -133,52 +147,63 @@ function drawSplitBranding(
   width: number,
   height: number,
   partnerLabel: string,
-  offsets: { dividerY?: number; partnerY?: number } = {},
 ) {
   const halfHeight = height / 2
-  const leftPadding = width * 0.05
-  const rightPadding = width * 0.02
-  const productLeftPadding = width * 0.05
+  const baseInlinePadding = width * 0.05
+  const editorFourPixelInset = width * (4 / 200)
+  const editorThreePixelInset = width * (3 / 200)
+  const partnerLeftPadding = baseInlinePadding + editorFourPixelInset
+  const partnerRightPadding = baseInlinePadding + editorFourPixelInset
+  const productLeftPadding = baseInlinePadding
+  const productRightPadding = baseInlinePadding
+  const blockPadding = height * 0.025
   const fontSize = Math.max(8, Math.round(height * 0.064))
-  const onePixelNudge = height / 120
+  const onePixelNudge = height / 100
 
   context.strokeStyle = 'rgba(23, 23, 23, 0.18)'
   context.lineWidth = Math.max(1, height * 0.006)
   context.beginPath()
-  context.moveTo(x + leftPadding, y + halfHeight + (offsets.dividerY ?? 0))
-  context.lineTo(x + width - rightPadding, y + halfHeight + (offsets.dividerY ?? 0))
+  context.moveTo(x, y + halfHeight)
+  context.lineTo(x + width, y + halfHeight)
   context.stroke()
 
-  const partnerY = y + onePixelNudge + height * 0.0132 + (offsets.partnerY ?? 0)
   const hasPartnerLabel = Boolean(partnerLabel.trim())
-  const logoWidth = width * (hasPartnerLabel ? 0.65 : 0.9)
+  const partnerContentX = x + partnerLeftPadding - (hasPartnerLabel ? onePixelNudge : 0)
+  const partnerContentWidth = width - partnerLeftPadding - partnerRightPadding
+  const labelColumnWidth = hasPartnerLabel ? partnerContentWidth * 0.28 : 0
+  const gap = hasPartnerLabel ? partnerContentWidth * 0.04 : 0
+  const logoX = hasPartnerLabel
+    ? partnerContentX + labelColumnWidth + gap + onePixelNudge
+    : x + baseInlinePadding + editorThreePixelInset
+  const logoWidth = hasPartnerLabel
+    ? partnerContentWidth - labelColumnWidth - gap
+    : width - baseInlinePadding * 2 - editorThreePixelInset
   context.fillStyle = '#171717'
   context.font = `600 ${fontSize}px Arial, sans-serif`
   context.textAlign = 'left'
   const analyticsBounds = drawContainedImage(
     context,
     analyticsLogo,
-    x + width - rightPadding - logoWidth,
-    partnerY + halfHeight * 0.05,
+    logoX,
+    y + blockPadding,
     logoWidth,
-    halfHeight * 0.75,
-    'start',
+    halfHeight - blockPadding * 2,
+    'center',
   )
   if (hasPartnerLabel) {
     context.textBaseline = 'bottom'
-    const labelX = x + leftPadding
     const labelBottom = analyticsBounds.y + analyticsBounds.height
-    context.fillText(partnerLabel, labelX, labelBottom)
+    context.fillText(partnerLabel, partnerContentX, labelBottom)
   }
 
   drawContainedImage(
     context,
     productLogo,
     x + productLeftPadding,
-    y + halfHeight - onePixelNudge,
-    width - productLeftPadding - rightPadding,
-    halfHeight * 0.98,
-    'end',
+    y + halfHeight + blockPadding,
+    width - productLeftPadding - productRightPadding,
+    halfHeight - blockPadding * 2,
+    'center',
   )
 }
 
@@ -271,7 +296,13 @@ export async function createA4PlotPdf(
   })
   const plotHeightMm = A4_LANDSCAPE_WIDTH_MM * (plot.naturalHeight / plot.naturalWidth)
   const plotTopMm = (A4_LANDSCAPE_HEIGHT_MM - plotHeightMm) / 2
-  const layout = calculatePdfExportOverlayLayout(options.watermarkBottomMm)
+  const plotRect = {
+    x: 0,
+    y: plotTopMm,
+    width: A4_LANDSCAPE_WIDTH_MM,
+    height: plotHeightMm,
+  }
+  const layout = calculatePdfExportOverlayLayout(plotRect, options.watermarkBottomMm)
 
   pdf.setProperties({ title: options.title })
   pdf.addImage(

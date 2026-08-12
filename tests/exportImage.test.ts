@@ -14,22 +14,29 @@ describe('export overlay layout', () => {
     expect(layout.branding.width / layout.branding.height).toBeCloseTo(40 / 25, 2)
   })
 
-  it('uses the same upper-right and lower-right arrangement in PDF exports', () => {
-    const layout = calculatePdfExportOverlayLayout()
+  it('keeps both PDF overlays inside the actual plot instead of the A4 margins', () => {
+    const plot = { x: 0, y: 21.5, width: 297, height: 167 }
+    const layout = calculatePdfExportOverlayLayout(plot)
 
-    expect(layout.qrCode.y).toBe(5)
+    expect(layout.qrCode.y).toBe(plot.y + 5)
     expect(layout.qrCode.x + layout.qrCode.width).toBeCloseTo(
       layout.branding.x + layout.branding.width,
     )
+    expect(layout.qrCode.y).toBeGreaterThanOrEqual(plot.y)
+    expect(layout.branding.y + layout.branding.height).toBeLessThanOrEqual(plot.y + plot.height)
     expect(layout.branding.y).toBeGreaterThan(layout.qrCode.y + layout.qrCode.height)
     expect(layout.branding.width / layout.branding.height).toBeCloseTo(40 / 25)
   })
 
-  it('only adjusts the PDF branding bottom offset', () => {
-    const defaultLayout = calculatePdfExportOverlayLayout()
-    const raisedBranding = calculatePdfExportOverlayLayout(12)
+  it('keeps PDF overlays inside a short plot by scaling both panels together', () => {
+    const plot = { x: 0, y: 61, width: 297, height: 88 }
+    const layout = calculatePdfExportOverlayLayout(plot)
 
-    expect(raisedBranding.branding.y).toBe(defaultLayout.branding.y - 7)
-    expect(raisedBranding.qrCode).toEqual(defaultLayout.qrCode)
+    expect(layout.qrCode.y).toBeGreaterThanOrEqual(plot.y)
+    expect(layout.qrCode.y + layout.qrCode.height).toBeLessThan(layout.branding.y)
+    expect(layout.branding.y + layout.branding.height).toBeLessThanOrEqual(plot.y + plot.height)
+    expect(layout.qrCode.x + layout.qrCode.width).toBeCloseTo(
+      layout.branding.x + layout.branding.width,
+    )
   })
 })
