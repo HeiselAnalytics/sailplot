@@ -11,11 +11,12 @@ const loadImage = (source: string) =>
 
 const A4_LANDSCAPE_WIDTH_MM = 297
 const A4_LANDSCAPE_HEIGHT_MM = 210
-const PDF_WATERMARK_WIDTH_MM = 91.08
-const PDF_WATERMARK_HEIGHT_MM = 40.48
-const PDF_WATERMARK_BRAND_WIDTH_MM = 50.6
-const PDF_WATERMARK_RIGHT_MM = 5
-const WATERMARK_BRAND_TO_QR_RATIO = PDF_WATERMARK_BRAND_WIDTH_MM / PDF_WATERMARK_HEIGHT_MM
+const PDF_QR_SIZE_MM = 40.48
+const PDF_BRANDING_WIDTH_MM = 50.6
+const PDF_BRANDING_HEIGHT_MM = 31.625
+const PDF_OVERLAY_MARGIN_MM = 5
+const EXPORT_BRANDING_ASPECT_RATIO = 40 / 25
+const EXPORT_BRANDING_TO_QR_WIDTH_RATIO = PDF_BRANDING_WIDTH_MM / PDF_QR_SIZE_MM
 
 interface ExportWatermarkOptions {
   plotUrl: string
@@ -30,6 +31,74 @@ interface PdfExportOptions extends ExportWatermarkOptions {
   analyticsUrl: string | null
   title: string
   watermarkBottomMm?: number
+}
+
+interface ExportOverlayRect {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export interface RasterExportOverlayLayout {
+  branding: ExportOverlayRect
+  qrCode: ExportOverlayRect
+  radius: number
+}
+
+export interface PdfExportOverlayLayout {
+  branding: ExportOverlayRect
+  qrCode: ExportOverlayRect
+}
+
+export function calculateRasterExportOverlayLayout(
+  canvasWidth: number,
+  canvasHeight: number,
+): RasterExportOverlayLayout {
+  const baseQrSize = Math.max(88, Math.round(Math.min(canvasWidth * 0.13, canvasHeight * 0.22)))
+  const qrSize = Math.round(baseQrSize * 1.265)
+  const brandingWidth = Math.round(qrSize * EXPORT_BRANDING_TO_QR_WIDTH_RATIO)
+  const brandingHeight = Math.round(brandingWidth / EXPORT_BRANDING_ASPECT_RATIO)
+  const margin = Math.max(16, Math.round(qrSize * 0.09))
+  const radius = Math.max(5, Math.round(qrSize * 0.033))
+
+  return {
+    branding: {
+      x: canvasWidth - brandingWidth - margin,
+      y: canvasHeight - brandingHeight - margin,
+      width: brandingWidth,
+      height: brandingHeight,
+    },
+    qrCode: {
+      x: canvasWidth - qrSize - margin,
+      y: margin,
+      width: qrSize,
+      height: qrSize,
+    },
+    radius,
+  }
+}
+
+export function calculatePdfExportOverlayLayout(watermarkBottomMm = 5): PdfExportOverlayLayout {
+  const boundedBrandingBottomMm = Math.min(
+    Math.max(5, watermarkBottomMm),
+    A4_LANDSCAPE_HEIGHT_MM - PDF_BRANDING_HEIGHT_MM,
+  )
+
+  return {
+    branding: {
+      x: A4_LANDSCAPE_WIDTH_MM - PDF_OVERLAY_MARGIN_MM - PDF_BRANDING_WIDTH_MM,
+      y: A4_LANDSCAPE_HEIGHT_MM - boundedBrandingBottomMm - PDF_BRANDING_HEIGHT_MM,
+      width: PDF_BRANDING_WIDTH_MM,
+      height: PDF_BRANDING_HEIGHT_MM,
+    },
+    qrCode: {
+      x: A4_LANDSCAPE_WIDTH_MM - PDF_OVERLAY_MARGIN_MM - PDF_QR_SIZE_MM,
+      y: PDF_OVERLAY_MARGIN_MM,
+      width: PDF_QR_SIZE_MM,
+      height: PDF_QR_SIZE_MM,
+    },
+  }
 }
 
 function drawContainedImage(
@@ -80,17 +149,7 @@ function drawSplitBranding(
   context.lineTo(x + width - rightPadding, y + halfHeight + (offsets.dividerY ?? 0))
   context.stroke()
 
-  drawContainedImage(
-    context,
-    productLogo,
-    x + productLeftPadding,
-    y - onePixelNudge,
-    width - productLeftPadding - rightPadding,
-    halfHeight * 0.98,
-    'end',
-  )
-
-  const partnerY = y + halfHeight + onePixelNudge + height * 0.0132 + (offsets.partnerY ?? 0)
+  const partnerY = y + onePixelNudge + height * 0.0132 + (offsets.partnerY ?? 0)
   const hasPartnerLabel = Boolean(partnerLabel.trim())
   const logoWidth = width * (hasPartnerLabel ? 0.65 : 0.9)
   context.fillStyle = '#171717'
@@ -111,34 +170,84 @@ function drawSplitBranding(
     const labelBottom = analyticsBounds.y + analyticsBounds.height
     context.fillText(partnerLabel, labelX, labelBottom)
   }
+
+  drawContainedImage(
+    context,
+    productLogo,
+    x + productLeftPadding,
+    y + halfHeight - onePixelNudge,
+    width - productLeftPadding - rightPadding,
+    halfHeight * 0.98,
+    'end',
+  )
 }
 
-function createPdfWatermark(
-  qrCode: HTMLImageElement,
+function drawRoundedPanel(
+  context: CanvasRenderingContext2D,
+  rect: ExportOverlayRect,
+  radius: number,
+  fillStyle: string,
+  drawContent: () => void,
+  shadow = false,
+) {
+  context.save()
+  if (shadow) {
+    context.shadowColor = 'rgba(23, 23, 23, 0.12)'
+    context.shadowBlur = Math.max(4, radius * 0.8)
+    context.shadowOffsetY = Math.max(1, radius * 0.2)
+  }
+  context.fillStyle = fillStyle
+  context.beginPath()
+  context.roundRect(rect.x, rect.y, rect.width, rect.height, radius)
+  context.fill()
+  context.shadowColor = 'transparent'
+  context.beginPath()
+  context.roundRect(rect.x, rect.y, rect.width, rect.height, radius)
+  context.clip()
+  drawContent()
+  context.restore()
+}
+
+function createPdfBrandingPanel(
   analyticsLogo: HTMLImageElement,
   productLogo: HTMLImageElement,
   partnerLabel: string,
 ): string {
-  // Twenty pixels per millimetre keeps the small logos and QR code sharp in print.
+  // Twenty pixels per millimetre keeps the small logos sharp in print.
   const canvas = document.createElement('canvas')
-  canvas.width = 1440
-  canvas.height = 640
+  canvas.width = 1012
+  canvas.height = 633
   const context = canvas.getContext('2d')
-  if (!context) throw new Error('Could not prepare the PDF watermark')
+  if (!context) throw new Error('Could not prepare the PDF branding')
 
-  context.save()
-  context.fillStyle = 'rgba(255, 255, 255, 0.86)'
-  context.beginPath()
-  context.roundRect(0, 0, canvas.width, canvas.height, 64)
-  context.fill()
-  context.clip()
-  drawSplitBranding(context, analyticsLogo, productLogo, 0, 0, 800, 640, partnerLabel, {
-    dividerY: 28,
-    partnerY: 43,
+  const panel = { x: 0, y: 0, width: canvas.width, height: canvas.height }
+  drawRoundedPanel(context, panel, 26, 'rgba(255, 255, 255, 0.86)', () => {
+    drawSplitBranding(
+      context,
+      analyticsLogo,
+      productLogo,
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+      partnerLabel,
+    )
   })
-  context.drawImage(qrCode, 800, 0, 640, 640)
-  context.restore()
 
+  return canvas.toDataURL('image/png')
+}
+
+function createPdfQrPanel(qrCode: HTMLImageElement): string {
+  const canvas = document.createElement('canvas')
+  canvas.width = 810
+  canvas.height = 810
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('Could not prepare the PDF QR code')
+
+  const panel = { x: 0, y: 0, width: canvas.width, height: canvas.height }
+  drawRoundedPanel(context, panel, 27, '#fff', () => {
+    context.drawImage(qrCode, 0, 0, canvas.width, canvas.height)
+  })
   return canvas.toDataURL('image/png')
 }
 
@@ -162,12 +271,7 @@ export async function createA4PlotPdf(
   })
   const plotHeightMm = A4_LANDSCAPE_WIDTH_MM * (plot.naturalHeight / plot.naturalWidth)
   const plotTopMm = (A4_LANDSCAPE_HEIGHT_MM - plotHeightMm) / 2
-  const boundedWatermarkBottomMm = Math.min(
-    Math.max(5, options.watermarkBottomMm ?? 5),
-    A4_LANDSCAPE_HEIGHT_MM - PDF_WATERMARK_HEIGHT_MM,
-  )
-  const watermarkX = A4_LANDSCAPE_WIDTH_MM - PDF_WATERMARK_RIGHT_MM - PDF_WATERMARK_WIDTH_MM
-  const watermarkY = A4_LANDSCAPE_HEIGHT_MM - boundedWatermarkBottomMm - PDF_WATERMARK_HEIGHT_MM
+  const layout = calculatePdfExportOverlayLayout(options.watermarkBottomMm)
 
   pdf.setProperties({ title: options.title })
   pdf.addImage(
@@ -181,37 +285,49 @@ export async function createA4PlotPdf(
     'FAST',
   )
   pdf.addImage(
-    createPdfWatermark(qrCode, analyticsLogo, productLogo, options.partnerLabel),
+    createPdfBrandingPanel(analyticsLogo, productLogo, options.partnerLabel),
     'PNG',
-    watermarkX,
-    watermarkY,
-    PDF_WATERMARK_WIDTH_MM,
-    PDF_WATERMARK_HEIGHT_MM,
+    layout.branding.x,
+    layout.branding.y,
+    layout.branding.width,
+    layout.branding.height,
+    undefined,
+    'FAST',
+  )
+  pdf.addImage(
+    createPdfQrPanel(qrCode),
+    'PNG',
+    layout.qrCode.x,
+    layout.qrCode.y,
+    layout.qrCode.width,
+    layout.qrCode.height,
     undefined,
     'FAST',
   )
 
   if (options.productUrl) {
-    pdf.link(watermarkX, watermarkY, PDF_WATERMARK_BRAND_WIDTH_MM, PDF_WATERMARK_HEIGHT_MM / 2, {
-      url: options.productUrl,
-    })
+    pdf.link(
+      layout.branding.x,
+      layout.branding.y + layout.branding.height / 2,
+      layout.branding.width,
+      layout.branding.height / 2,
+      {
+        url: options.productUrl,
+      },
+    )
   }
   if (options.analyticsUrl) {
     pdf.link(
-      watermarkX,
-      watermarkY + PDF_WATERMARK_HEIGHT_MM / 2,
-      PDF_WATERMARK_BRAND_WIDTH_MM,
-      PDF_WATERMARK_HEIGHT_MM / 2,
+      layout.branding.x,
+      layout.branding.y,
+      layout.branding.width,
+      layout.branding.height / 2,
       { url: options.analyticsUrl },
     )
   }
-  pdf.link(
-    watermarkX + PDF_WATERMARK_BRAND_WIDTH_MM,
-    watermarkY,
-    PDF_WATERMARK_WIDTH_MM - PDF_WATERMARK_BRAND_WIDTH_MM,
-    PDF_WATERMARK_HEIGHT_MM,
-    { url: options.plotUrl },
-  )
+  pdf.link(layout.qrCode.x, layout.qrCode.y, layout.qrCode.width, layout.qrCode.height, {
+    url: options.plotUrl,
+  })
 
   return pdf.output('blob')
 }
@@ -234,35 +350,42 @@ export async function addExportWatermark(
   if (!context) throw new Error('Could not prepare the watermarked export image')
 
   context.drawImage(plot, 0, 0)
-  const baseQrSize = Math.max(88, Math.round(Math.min(canvas.width * 0.13, canvas.height * 0.22)))
-  const qrSize = Math.round(baseQrSize * 1.265)
-  const brandWidth = Math.round(qrSize * WATERMARK_BRAND_TO_QR_RATIO)
-  const panelWidth = brandWidth + qrSize
-  const panelHeight = qrSize
-  const margin = Math.max(16, Math.round(qrSize * 0.09))
-  const panelX = canvas.width - panelWidth - margin
-  const panelY = canvas.height - panelHeight - margin
-  const panelRadius = Math.max(10, Math.round(qrSize * 0.1))
-  const qrX = panelX + brandWidth
+  const layout = calculateRasterExportOverlayLayout(canvas.width, canvas.height)
 
-  context.save()
-  context.fillStyle = 'rgba(255, 255, 255, 0.86)'
-  context.beginPath()
-  context.roundRect(panelX, panelY, panelWidth, panelHeight, panelRadius)
-  context.fill()
-  context.clip()
-  drawSplitBranding(
+  drawRoundedPanel(
     context,
-    analyticsLogo,
-    productLogo,
-    panelX,
-    panelY,
-    qrX - panelX,
-    panelHeight,
-    options.partnerLabel,
-    { dividerY: 28, partnerY: 43 },
+    layout.branding,
+    layout.radius,
+    'rgba(255, 255, 255, 0.86)',
+    () => {
+      drawSplitBranding(
+        context,
+        analyticsLogo,
+        productLogo,
+        layout.branding.x,
+        layout.branding.y,
+        layout.branding.width,
+        layout.branding.height,
+        options.partnerLabel,
+      )
+    },
+    true,
   )
-  context.drawImage(qrCode, qrX, panelY, qrSize, qrSize)
-  context.restore()
+  drawRoundedPanel(
+    context,
+    layout.qrCode,
+    layout.radius,
+    '#fff',
+    () => {
+      context.drawImage(
+        qrCode,
+        layout.qrCode.x,
+        layout.qrCode.y,
+        layout.qrCode.width,
+        layout.qrCode.height,
+      )
+    },
+    true,
+  )
   return canvas.toDataURL('image/png')
 }
