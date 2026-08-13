@@ -1,11 +1,10 @@
 import type { SailPlotConfig } from './types'
-import { SAILPLOT_AMBER } from '../lib/boatColors'
 import { START_FLAG_COLOR } from '../lib/scenario'
 import type { Scenario } from '../types/scenario'
 
-export const SAILPLOT_ORANGE = SAILPLOT_AMBER
-export const MARK_RED = '#D72638'
-export const MARK_ORANGE = '#F97316'
+export const SAILPLOT_ORANGE = START_FLAG_COLOR
+export const MARK_YELLOW = '#FFAA00'
+export const MARK_RED = '#9A031E'
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/iu
 
@@ -13,10 +12,10 @@ export function resolveMarkColor(config: SailPlotConfig): string {
   switch (config.objectColors.markColorMode) {
     case 'primary':
       return config.theme.light.primary
+    case 'yellow':
+      return MARK_YELLOW
     case 'red':
       return MARK_RED
-    case 'orange':
-      return MARK_ORANGE
     case 'custom':
       return config.objectColors.markCustomColor &&
         HEX_COLOR.test(config.objectColors.markCustomColor)
@@ -42,10 +41,7 @@ export function applyResolvedObjectColors(
   return {
     ...scenario,
     objects: scenario.objects.map((object) => {
-      if (
-        (object.type === 'mark' || object.type === 'gate') &&
-        object.color.toUpperCase() === SAILPLOT_ORANGE
-      ) {
+      if (object.type === 'mark' || object.type === 'gate') {
         return { ...object, color: markColor }
       }
       if (object.type === 'start-line') {

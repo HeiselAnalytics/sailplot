@@ -2,7 +2,7 @@ export type SailPlotLanguage = 'auto' | 'de' | 'en'
 export type SailPlotLanguageMode = 'de' | 'en' | 'both'
 export type SailPlotThemeMode = 'light' | 'dark' | 'system'
 export type SailPlotStartPage = 'editor' | 'home'
-export type SailPlotMarkColorMode = 'sailplot' | 'primary' | 'red' | 'orange' | 'custom'
+export type SailPlotMarkColorMode = 'sailplot' | 'primary' | 'yellow' | 'red' | 'custom'
 
 export interface SailPlotPartnerLink {
   label: string

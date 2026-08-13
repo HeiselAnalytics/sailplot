@@ -71,6 +71,8 @@ const german: Record<string, string> = {
   Information: 'Information',
   Website: 'Webseite',
   Imprint: 'Impressum',
+  'Operator legal notice': 'Impressum des Betreibers',
+  'Operator privacy': 'Datenschutz des Betreibers',
   'Open this plot': 'Diesen Plot öffnen',
   'QR code for this plot': 'QR-Code für diesen Plot',
   'Open menu': 'Menü öffnen',
@@ -143,6 +145,8 @@ const german: Record<string, string> = {
   'Help & information': 'Hilfe und Informationen',
   Help: 'Hilfe',
   Privacy: 'Datenschutz',
+  'SailPlot privacy': 'SailPlot-Datenschutz',
+  'SailPlot Legal Notice': 'SailPlot-Impressum',
   About: 'Über',
   License: 'Lizenz',
   'Build a static sailing explanation': 'Eine statische Segelerklärung erstellen',
@@ -497,12 +501,10 @@ export function resolveInitialLanguage(
   stored: string | null,
   browserLanguage: string,
 ): Language {
+  void browserLanguage
   if (config.localization.languageMode !== 'both') return config.localization.languageMode
   if (stored === 'de' || stored === 'en') return stored
-  if (config.defaults.language === 'de' || config.defaults.language === 'en') {
-    return config.defaults.language
-  }
-  return browserLanguage.toLowerCase().startsWith('de') ? 'de' : 'en'
+  return 'en'
 }
 
 const initialLanguage = (config: SailPlotConfig): Language => {

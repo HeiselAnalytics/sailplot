@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  MARK_ORANGE,
   MARK_RED,
+  MARK_YELLOW,
   resolveMarkColor,
   resolveStartLineFlagColor,
   SAILPLOT_ORANGE,
@@ -10,7 +10,7 @@ import { mergeSailPlotConfig } from '../src/config/mergeConfig'
 import { START_FLAG_COLOR } from '../src/lib/scenario'
 
 const configured = (
-  markColorMode: 'sailplot' | 'primary' | 'red' | 'orange' | 'custom',
+  markColorMode: 'sailplot' | 'primary' | 'yellow' | 'red' | 'custom',
   markCustomColor: string | null = null,
 ) =>
   mergeSailPlotConfig({
@@ -29,8 +29,8 @@ describe('configured object colors', () => {
   it('resolves every supported mark color mode centrally', () => {
     expect(resolveMarkColor(configured('sailplot'))).toBe(SAILPLOT_ORANGE)
     expect(resolveMarkColor(configured('primary'))).toBe('#0f766e')
+    expect(resolveMarkColor(configured('yellow'))).toBe(MARK_YELLOW)
     expect(resolveMarkColor(configured('red'))).toBe(MARK_RED)
-    expect(resolveMarkColor(configured('orange'))).toBe(MARK_ORANGE)
     expect(resolveMarkColor(configured('custom', '#663399'))).toBe('#663399')
   })
 

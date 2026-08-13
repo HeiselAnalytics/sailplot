@@ -62,6 +62,11 @@ function useConfiguredTheme(config: SailPlotConfig) {
   }, [config.theme.mode])
 
   useEffect(() => {
+    if (config.theme.mode === 'system') return
+    setTheme(config.theme.mode)
+  }, [config.theme.mode])
+
+  useEffect(() => {
     document.documentElement.dataset.theme = theme
     window.localStorage.setItem(storageKey, theme)
   }, [storageKey, theme])

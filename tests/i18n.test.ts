@@ -41,6 +41,6 @@ describe('translations', () => {
 
     expect(resolveInitialLanguage(germanOnly, 'en', 'en-GB')).toBe('de')
     expect(resolveInitialLanguage(both, 'en', 'de-CH')).toBe('en')
-    expect(resolveInitialLanguage(both, null, 'de-CH')).toBe('de')
+    expect(resolveInitialLanguage(both, null, 'de-CH')).toBe('en')
   })
 })

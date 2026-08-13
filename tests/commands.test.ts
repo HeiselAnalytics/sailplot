@@ -31,8 +31,8 @@ describe('command history', () => {
   it('applies configured mark and start-line colors to new and loaded default objects', () => {
     const scenario = createEmptyScenario()
     scenario.objects = [
-      createMark(100, 120, 1),
-      createGate(160, 120, 240, 120, 2),
+      { ...createMark(100, 120, 1), color: '#654321' },
+      { ...createGate(160, 120, 240, 120, 2), color: '#123456' },
       { ...createStartLine(100, 220, 500, 220, 3), startEndFlagColor: '#0f766e' },
     ]
     const store = useEditorStore.getState()

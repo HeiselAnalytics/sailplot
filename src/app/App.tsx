@@ -567,10 +567,7 @@ function MobileBrandingBar({
               aria-label={`${config.branding.partnerName}: ${t(singlePartnerLink.label)}`}
             >
               {config.branding.partnerLabel && <span>{config.branding.partnerLabel}</span>}
-              <img
-                src={config.branding.exportWatermarkLogo}
-                alt={config.branding.partnerName}
-              />
+              <img src={config.branding.exportWatermarkLogo} alt={config.branding.partnerName} />
             </a>
           ) : actionCount > 0 ? (
             <button
@@ -587,10 +584,7 @@ function MobileBrandingBar({
               }}
             >
               {config.branding.partnerLabel && <span>{config.branding.partnerLabel}</span>}
-              <img
-                src={config.branding.exportWatermarkLogo}
-                alt={config.branding.partnerName}
-              />
+              <img src={config.branding.exportWatermarkLogo} alt={config.branding.partnerName} />
             </button>
           ) : (
             <div className={partnerClassName}>
@@ -730,9 +724,7 @@ function CanvasBranding({
                     href={singlePartnerLink.url}
                     target={/^https?:/iu.test(singlePartnerLink.url) ? '_blank' : undefined}
                     rel={
-                      /^https?:/iu.test(singlePartnerLink.url)
-                        ? 'noopener noreferrer'
-                        : undefined
+                      /^https?:/iu.test(singlePartnerLink.url) ? 'noopener noreferrer' : undefined
                     }
                     aria-label={`${config.branding.partnerName}: ${t(singlePartnerLink.label)}`}
                   >
@@ -1671,6 +1663,7 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
     if (stored === 'light' || stored === 'dark') return stored
     return config.theme.mode
   })
+  const configuredThemeRef = useRef(config.theme.mode)
   const scenario = useEditorStore((state) => state.scenario)
   const selectedIds = useEditorStore((state) => state.selectedIds)
   useEffect(() => {
@@ -1744,8 +1737,17 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
     if (config.theme.mode !== 'system') return
     const media = window.matchMedia('(prefers-color-scheme: dark)')
     const update = () => setTheme(media.matches ? 'dark' : 'light')
+    update()
     media.addEventListener('change', update)
     return () => media.removeEventListener('change', update)
+  }, [config.theme.mode])
+
+  useEffect(() => {
+    const previousMode = configuredThemeRef.current
+    configuredThemeRef.current = config.theme.mode
+    if (previousMode === config.theme.mode) return
+    if (config.theme.mode === 'system') return
+    setTheme(config.theme.mode)
   }, [config.theme.mode])
 
   useEffect(() => {
