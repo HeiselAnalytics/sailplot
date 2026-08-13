@@ -12,6 +12,8 @@ import type {
 } from '../extensions/types'
 import { I18nProvider, useI18n } from '../i18n'
 import { SailPlotConfigProvider, useSailPlotConfig } from '../providers/SailPlotConfigProvider'
+import { createShareUrl } from '../services/scenarioCodec'
+import { useEditorStore } from '../stores/editorStore'
 import EditorApp from './App'
 
 export interface SailPlotAppProps {
@@ -191,18 +193,6 @@ function ConfiguredApplication({ extensions = {} }: { extensions?: SailPlotExten
     favicon.setAttribute('href', config.branding.favicon)
   }, [config.branding.favicon])
 
-  const navigate = (path: string) => {
-    const target = normalizePath(path)
-    window.history.pushState({}, '', `${basename}${target}${window.location.hash}`)
-    setCurrentPath(target)
-    extensions.onEvent?.({ type: 'navigation', path: target })
-  }
-  const context = useMemo<SailPlotExtensionContext>(
-    () => ({ config, currentPath, language, navigate }),
-    // navigate intentionally follows the active basename and extensions for this render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [basename, config, currentPath, extensions, language],
-  )
   const route = extensions.routes?.find(
     (candidate) => normalizePath(candidate.path) === currentPath,
   )
@@ -213,6 +203,22 @@ function ConfiguredApplication({ extensions = {} }: { extensions?: SailPlotExten
     currentPath === '/editor' ||
     (currentPath === '/' && config.defaults.startPage === 'editor') ||
     (!route && !showHome)
+  const navigate = (path: string) => {
+    const target = normalizePath(path)
+    const plotHash =
+      showEditor && target !== '/editor'
+        ? new URL(createShareUrl(useEditorStore.getState().scenario)).hash
+        : window.location.hash
+    window.history.pushState({}, '', `${basename}${target}${plotHash}`)
+    setCurrentPath(target)
+    extensions.onEvent?.({ type: 'navigation', path: target })
+  }
+  const context = useMemo<SailPlotExtensionContext>(
+    () => ({ config, currentPath, language, navigate }),
+    // navigate intentionally follows the active basename and extensions for this render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [basename, config, currentPath, extensions, language, showEditor],
+  )
 
   useEffect(() => {
     if (showEditor) return

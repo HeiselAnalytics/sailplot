@@ -8,7 +8,15 @@ import { SailPlotApp } from '../src/app/SailPlotApp'
 ).IS_REACT_ACT_ENVIRONMENT = true
 
 vi.mock('../src/app/App', () => ({
-  default: () => <div data-testid="editor">SailPlot editor</div>,
+  default: ({ extensionContext }: { extensionContext: { navigate: (path: string) => void } }) => (
+    <button
+      type="button"
+      data-testid="editor"
+      onClick={() => extensionContext.navigate('/improvement')}
+    >
+      SailPlot editor
+    </button>
+  ),
 }))
 
 let container: HTMLDivElement
@@ -92,5 +100,26 @@ describe('SailPlotApp', () => {
     )
     expect(container.querySelector('h1')?.textContent).toBe('Extra page')
     expect(window.location.pathname).toBe('/extra')
+  })
+
+  it('adds the current plot to the URL when navigating away from the editor', async () => {
+    window.history.replaceState({}, '', '/editor')
+    const Improvement = () => <h1>Improvement page</h1>
+    await render(
+      <SailPlotApp
+        extensions={{
+          routes: [{ path: '/improvement', component: Improvement }],
+          navigationItems: [{ id: 'improvement', label: 'Improvement', path: '/improvement' }],
+        }}
+      />,
+    )
+
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[data-testid="editor"]')?.click(),
+    )
+
+    expect(window.location.pathname).toBe('/improvement')
+    expect(window.location.hash).toMatch(/^#1/u)
+    expect(container.querySelector('h1')?.textContent).toBe('Improvement page')
   })
 })
