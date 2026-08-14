@@ -154,6 +154,8 @@ const german: Record<string, string> = {
   'Terms of Service': 'Nutzungsbedingungen',
   'Subscription & invoices': 'Abonnement & Rechnungen',
   'Subscription & Invoices': 'Abonnement & Rechnungen',
+  'Cancel Contract': 'Vertrag kündigen',
+  'Withdraw from Contract': 'Vertrag widerrufen',
   'SailPlot privacy': 'SailPlot-Datenschutz',
   'SailPlot Privacy': 'SailPlot-Datenschutz',
   'Refund Policy': 'Rückerstattungsrichtlinie',

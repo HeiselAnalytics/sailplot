@@ -21,6 +21,8 @@ describe('translations', () => {
     expect(translate('de', 'Legal Notice')).toBe('Impressum')
     expect(translate('de', 'Subscription & invoices')).toBe('Abonnement & Rechnungen')
     expect(translate('de', 'Subscription & Invoices')).toBe('Abonnement & Rechnungen')
+    expect(translate('de', 'Cancel Contract')).toBe('Vertrag kündigen')
+    expect(translate('de', 'Withdraw from Contract')).toBe('Vertrag widerrufen')
   })
 
   it('keeps English and unknown product data unchanged', () => {
