@@ -1065,7 +1065,7 @@ test('shows the export branding on the plot canvas', async ({ page }, testInfo) 
       'href',
       'https://heiselanalytics.one/',
     )
-    await expect(brandingMenu.getByRole('menuitem', { name: 'Imprint' })).toHaveAttribute(
+    await expect(brandingMenu.getByRole('menuitem', { name: 'Legal Notice' })).toHaveAttribute(
       'href',
       'https://heiselanalytics.one/impressum',
     )
@@ -1117,7 +1117,7 @@ test('shows the export branding on the plot canvas', async ({ page }, testInfo) 
     'href',
     'https://heiselanalytics.one/',
   )
-  await expect(partnerMenu.getByRole('menuitem', { name: 'Imprint' })).toHaveAttribute(
+  await expect(partnerMenu.getByRole('menuitem', { name: 'Legal Notice' })).toHaveAttribute(
     'href',
     'https://heiselanalytics.one/impressum',
   )
@@ -1154,10 +1154,8 @@ test('shows the export branding on the plot canvas', async ({ page }, testInfo) 
   const fitScale = Math.min(canvasBounds!.width / 1920, canvasBounds!.height / 1080)
   const fittedPlotWidth = 1920 * fitScale
   const fittedPlotHeight = 1080 * fitScale
-  const fittedPlotRight =
-    canvasBounds!.x + (canvasBounds!.width + fittedPlotWidth) / 2
-  const fittedPlotTop =
-    canvasBounds!.y + (canvasBounds!.height - fittedPlotHeight) / 2
+  const fittedPlotRight = canvasBounds!.x + (canvasBounds!.width + fittedPlotWidth) / 2
+  const fittedPlotTop = canvasBounds!.y + (canvasBounds!.height - fittedPlotHeight) / 2
   const fittedPlotBottom = fittedPlotTop + fittedPlotHeight
   expect(fittedPlotRight - (bounds!.x + bounds!.width)).toBeCloseTo(12, 0)
   expect(fittedPlotBottom - (bounds!.y + bounds!.height)).toBeCloseTo(12, 0)

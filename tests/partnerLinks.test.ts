@@ -8,7 +8,7 @@ describe('partner logo links', () => {
 
     expect(resolvePartnerLinks(config)).toEqual([
       { label: 'Website', url: 'https://heiselanalytics.one/' },
-      { label: 'Imprint', url: 'https://heiselanalytics.one/impressum' },
+      { label: 'Legal Notice', url: 'https://heiselanalytics.one/impressum' },
     ])
   })
 

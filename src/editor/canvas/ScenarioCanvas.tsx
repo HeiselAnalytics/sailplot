@@ -1416,10 +1416,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
     ),
   )
   const topRightOverlayTop = Math.min(
-    Math.max(
-      EDITOR_BRANDING_VIEWPORT_MARGIN,
-      canvasTop + EDITOR_BRANDING_PLOT_MARGIN,
-    ),
+    Math.max(EDITOR_BRANDING_VIEWPORT_MARGIN, canvasTop + EDITOR_BRANDING_PLOT_MARGIN),
     Math.max(
       EDITOR_BRANDING_VIEWPORT_MARGIN,
       size.height - topRightOverlaySize - EDITOR_BRANDING_VIEWPORT_MARGIN,
@@ -1595,13 +1592,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
     else setView(scenario.canvas.view)
     // Keep a non-zoomed plot fully visible when the editor changes between layouts or sizes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    scenario.metadata.id,
-    scenario.canvas.width,
-    scenario.canvas.height,
-    size.width,
-    size.height,
-  ])
+  }, [scenario.metadata.id, scenario.canvas.width, scenario.canvas.height, size.width, size.height])
 
   useEffect(() => {
     const stage = stageRef.current

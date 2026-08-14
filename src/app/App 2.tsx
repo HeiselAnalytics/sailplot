@@ -576,7 +576,7 @@ function CanvasBranding({
                   )}
                   {config.links.imprint && (
                     <a href={config.links.imprint} target="_blank" rel="noopener noreferrer">
-                      {t('Imprint')}
+                      {t('Legal Notice')}
                     </a>
                   )}
                 </nav>

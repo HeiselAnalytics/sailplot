@@ -15,6 +15,12 @@ describe('translations', () => {
     expect(translate('de', 'Add information')).toBe('Information hinzufügen')
     expect(translate('de', 'Wind strength')).toBe('Windstärke')
     expect(translate('de', 'Share')).toBe('Teilen')
+    expect(translate('de', 'Terms')).toBe('Nutzungsbedingungen')
+    expect(translate('de', 'Terms of service')).toBe('Nutzungsbedingungen')
+    expect(translate('de', 'Terms of Service')).toBe('Nutzungsbedingungen')
+    expect(translate('de', 'Legal Notice')).toBe('Impressum')
+    expect(translate('de', 'Subscription & invoices')).toBe('Abonnement & Rechnungen')
+    expect(translate('de', 'Subscription & Invoices')).toBe('Abonnement & Rechnungen')
   })
 
   it('keeps English and unknown product data unchanged', () => {

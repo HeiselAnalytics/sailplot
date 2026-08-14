@@ -5,6 +5,6 @@ export function resolvePartnerLinks(config: SailPlotConfig): SailPlotPartnerLink
 
   return [
     ...(config.links.website ? [{ label: 'Website', url: config.links.website }] : []),
-    ...(config.links.imprint ? [{ label: 'Imprint', url: config.links.imprint }] : []),
+    ...(config.links.imprint ? [{ label: 'Legal Notice', url: config.links.imprint }] : []),
   ]
 }
