@@ -136,6 +136,7 @@ h3 {
 
 .topbar {
   position: relative;
+  z-index: 90;
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
@@ -143,10 +144,6 @@ h3 {
   padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   background: var(--panel);
-}
-
-.app-shell[data-layout='compact'] .topbar {
-  z-index: 90;
 }
 
 .app-title {
