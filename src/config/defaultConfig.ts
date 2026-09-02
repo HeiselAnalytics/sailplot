@@ -59,7 +59,7 @@ export const defaultSailPlotConfig: SailPlotConfig = {
     welcomeText: 'Create and share static sailing plots without a backend.',
     footerText: 'Powered by Heisel Analytics',
     helpText:
-      'Add boats, marks, lines and notes from the tool panel. Select an object to edit its properties. This editor deliberately has no playback or sailing simulation.',
+      'Add boats, marks, lines and notes from the tool panel. Select an object to edit its properties. Use Player mode to replay numbered boat positions.',
     aboutText:
       'A new web-based implementation for creating static sailing and racing-rule diagrams. It is inspired by the historical BOATS application but is implemented from scratch and does not use the old application as a runtime dependency.',
     poweredByText: 'Powered by SailPlot',

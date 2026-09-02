@@ -175,8 +175,7 @@ test('makes the desktop tool and scene controls visibly interactive', async ({
   await boatLegendOff.click()
   await expect(boatLegendOff).toHaveAttribute('aria-pressed', 'true')
 
-  await toolsPanel.getByLabel('Grid size slider').fill('72')
-  await expect(toolsPanel.getByLabel('Grid size value')).toHaveValue('72')
+  await expect(toolsPanel.getByText('1 BL · ILCA', { exact: true })).toBeVisible()
   await toolsPanel.getByLabel('Grid visibility slider').fill('65')
   await expect(toolsPanel.getByLabel('Grid visibility value')).toHaveValue('65')
   const windSlider = toolsPanel.getByLabel('Wind direction slider')
@@ -203,25 +202,22 @@ test('makes the desktop tool and scene controls visibly interactive', async ({
   await expect(toolsPanel.getByText(/Current basis: ILCA/)).toBeVisible()
   await boatLengthBasis.selectOption('Optimist')
   await expect(boatLengthBasis).toHaveValue('Optimist')
-  for (const label of ['Grid size', 'Grid visibility', 'Wind direction', 'Layline angle']) {
+  await expect(toolsPanel.getByText('1 BL · Optimist', { exact: true })).toBeVisible()
+  for (const label of ['Grid visibility', 'Wind direction', 'Layline angle']) {
     const valueBox = await toolsPanel.getByLabel(`${label} value`).boundingBox()
     const sliderBox = await toolsPanel.getByLabel(`${label} slider`).boundingBox()
     expect(valueBox).not.toBeNull()
     expect(sliderBox).not.toBeNull()
     expect(sliderBox!.x).toBeGreaterThan(valueBox!.x)
   }
-  await expect(toolsPanel.getByLabel('Grid size value')).toHaveCSS('appearance', 'textfield')
   const windFieldBounds = await toolsPanel
     .getByLabel('Wind direction slider')
     .locator('xpath=ancestor::label[contains(@class, "scene-range-field")]')
     .boundingBox()
-  const gridSizeFieldBounds = await toolsPanel
-    .getByLabel('Grid size slider')
-    .locator('xpath=ancestor::label[contains(@class, "scene-range-field")]')
-    .boundingBox()
+  const gridSpacingFieldBounds = await toolsPanel.locator('.grid-spacing-field').boundingBox()
   expect(windFieldBounds).not.toBeNull()
-  expect(gridSizeFieldBounds).not.toBeNull()
-  expect(windFieldBounds!.y).toBeLessThan(gridSizeFieldBounds!.y)
+  expect(gridSpacingFieldBounds).not.toBeNull()
+  expect(gridSpacingFieldBounds!.y).toBeLessThan(windFieldBounds!.y)
   await expect(toolsPanel.getByText('Additional information', { exact: true })).toHaveCount(0)
   await expect(toolsPanel.getByText('Wind strength (general)', { exact: true })).toHaveCount(0)
   const boatNumbers = toolsPanel.getByRole('checkbox', { name: 'Show boat numbers' })
@@ -1897,6 +1893,45 @@ test('places consecutive boats as numbered chain positions', async ({ page }, te
   await expect(page.locator('button[aria-label="Open Hull color selector"]:visible')).toContainText(
     '#18324A',
   )
+})
+
+test('replays numbered boat positions with controls in place of the desktop toolbar', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome', 'Desktop player sidebar check')
+  await page.goto('/')
+  const playerMode = page.getByRole('button', { name: 'Player mode' })
+  await expect(playerMode).toBeDisabled()
+
+  await page.getByRole('button', { name: 'Boat', exact: true }).first().click()
+  const canvas = page.locator('canvas').first()
+  await canvas.click({ position: { x: 300, y: 280 } })
+  await canvas.click({ position: { x: 520, y: 190 } })
+  await expect(playerMode).toBeEnabled()
+  await playerMode.click()
+
+  await expect(page.locator('.app-shell')).toHaveAttribute('data-player-mode', 'true')
+  await expect(page.locator('.properties-panel')).toHaveCount(0)
+  const controls = page.getByRole('region', { name: 'Player controls' })
+  await expect(controls).toBeVisible()
+  await expect(page.locator('.tools-panel').getByRole('heading', { name: 'Player' })).toBeVisible()
+  await expect(page.locator('.tools-panel').getByRole('button', { name: 'Boat' })).toHaveCount(0)
+
+  const timeline = controls.getByRole('slider', { name: 'Playback timeline' })
+  await expect(timeline).toHaveValue('1')
+  await timeline.fill('1.5')
+  await expect(controls).toContainText('Position 1 → 2 of 2')
+  await controls.getByRole('button', { name: 'Previous position' }).click()
+  await expect(timeline).toHaveValue('1')
+  await controls.getByRole('button', { name: 'Play' }).click()
+  await expect(controls.getByRole('button', { name: 'Pause' })).toBeVisible()
+  await expect.poll(async () => Number(await timeline.inputValue())).toBeGreaterThan(1)
+  await controls.getByRole('button', { name: 'Pause' }).click()
+
+  await controls.getByRole('button', { name: 'Back to editor' }).click()
+  await expect(page.locator('.app-shell')).toHaveAttribute('data-player-mode', 'false')
+  await expect(page.locator('.properties-panel')).toBeVisible()
+  await expect(page.locator('.tools-panel').getByRole('button', { name: 'Boat' })).toBeVisible()
 })
 
 test('places a new boat close beside an existing hull', async ({ page }, testInfo) => {

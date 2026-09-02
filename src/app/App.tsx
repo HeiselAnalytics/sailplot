@@ -14,11 +14,15 @@ import {
   LayoutTemplate,
   Moon,
   MoveRight,
+  Pause,
+  Play,
   Plus,
   Redo2,
   Rows3,
   Settings,
   Share2,
+  SkipBack,
+  SkipForward,
   Sun,
   Trash2,
   Undo2,
@@ -78,6 +82,11 @@ import { useEditorStore } from '../stores/editorStore'
 import { SAILING_BOAT_CLASSES, type BoatClass, type BoatObject } from '../types/scenario'
 import type { SailPlotExtensionContext, SailPlotExtensions } from '../extensions/types'
 import { useSailPlotConfig } from '../providers/SailPlotConfigProvider'
+import {
+  hasPlayableBoatSequence,
+  playbackLastPosition,
+  PLAYBACK_SEGMENT_DURATION_MS,
+} from '../features/playback/playback'
 
 type Dialog = 'projects' | 'scenario' | 'settings' | 'help' | 'export' | 'qr' | null
 
@@ -403,6 +412,10 @@ function SceneSettings({ embedded = false }: { embedded?: boolean }) {
           </p>
         )}
       </div>
+      <div className="field grid-spacing-field">
+        <span>{t('Grid spacing')}</span>
+        <strong>{t('1 BL · {boatClass}', { boatClass: t(measurementBasis.boatClass) })}</strong>
+      </div>
       <SceneRangeField
         label={t('Wind direction')}
         min={-180}
@@ -411,14 +424,6 @@ function SceneSettings({ embedded = false }: { embedded?: boolean }) {
         unit="°"
         centered
         onChange={(windDirection) => updateEnvironment({ windDirection })}
-      />
-      <SceneRangeField
-        label={t('Grid size')}
-        min={8}
-        max={200}
-        value={scenario.canvas.grid.size}
-        unit="px"
-        onChange={(size) => updateCanvas({ grid: { ...scenario.canvas.grid, size } })}
       />
       <SceneRangeField
         label={t('Grid visibility')}
@@ -438,6 +443,100 @@ function SceneSettings({ embedded = false }: { embedded?: boolean }) {
         unit="°"
         onChange={(laylineAngle) => updateEnvironment({ laylineAngle })}
       />
+    </section>
+  )
+}
+
+function PlaybackControls({
+  compact = false,
+  playing,
+  position,
+  lastPosition,
+  onPlayingChange,
+  onPositionChange,
+  onExit,
+}: {
+  compact?: boolean
+  playing: boolean
+  position: number
+  lastPosition: number
+  onPlayingChange: (playing: boolean) => void
+  onPositionChange: (position: number) => void
+  onExit: () => void
+}) {
+  const { t } = useI18n()
+  const start = Math.max(1, Math.floor(position))
+  const end = Math.min(lastPosition, Math.ceil(position))
+  const positionLabel =
+    start === end
+      ? t('Position {position} of {count}', { position: start, count: lastPosition })
+      : t('Position {from} → {to} of {count}', { from: start, to: end, count: lastPosition })
+  const togglePlayback = () => {
+    if (!playing && position >= lastPosition) onPositionChange(1)
+    onPlayingChange(!playing)
+  }
+
+  return (
+    <section
+      className={`playback-controls ${compact ? 'playback-controls--compact' : ''}`}
+      aria-label={t('Player controls')}
+    >
+      {!compact && (
+        <div className="panel-header playback-panel-header">
+          <div>
+            <span className="eyebrow">{t('View')}</span>
+            <h2>{t('Player')}</h2>
+          </div>
+        </div>
+      )}
+      <div className="playback-transport" role="group" aria-label={t('Playback controls')}>
+        <IconButton
+          compact
+          icon={<SkipBack aria-hidden="true" />}
+          label={t('Previous position')}
+          disabled={position <= 1}
+          onClick={() => {
+            onPlayingChange(false)
+            onPositionChange(Math.max(1, Math.ceil(position) - 1))
+          }}
+        />
+        <IconButton
+          className="playback-primary-button"
+          compact
+          icon={playing ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
+          label={t(playing ? 'Pause' : 'Play')}
+          onClick={togglePlayback}
+        />
+        <IconButton
+          compact
+          icon={<SkipForward aria-hidden="true" />}
+          label={t('Next position')}
+          disabled={position >= lastPosition}
+          onClick={() => {
+            onPlayingChange(false)
+            onPositionChange(Math.min(lastPosition, Math.floor(position) + 1))
+          }}
+        />
+      </div>
+      <label className="playback-timeline">
+        <span>{positionLabel}</span>
+        <input
+          type="range"
+          min="1"
+          max={lastPosition}
+          step="0.01"
+          value={position}
+          aria-label={t('Playback timeline')}
+          onChange={(event) => {
+            onPlayingChange(false)
+            onPositionChange(Number(event.target.value))
+          }}
+        />
+      </label>
+      <button type="button" className="secondary-button playback-exit-button" onClick={onExit}>
+        <X aria-hidden="true" />
+        {t('Back to editor')}
+      </button>
     </section>
   )
 }
@@ -1651,6 +1750,9 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
   const canvasRef = useRef<CanvasHandle>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dialog, setDialog] = useState<Dialog>(null)
+  const [playerMode, setPlayerMode] = useState(false)
+  const [playbackPlaying, setPlaybackPlaying] = useState(false)
+  const [playbackPosition, setPlaybackPosition] = useState(1)
   const [isCompactViewport, setIsCompactViewport] = useState(
     () => window.matchMedia('(max-width: 980px)').matches,
   )
@@ -1666,6 +1768,11 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
   const configuredThemeRef = useRef(config.theme.mode)
   const scenario = useEditorStore((state) => state.scenario)
   const selectedIds = useEditorStore((state) => state.selectedIds)
+  const lastPlaybackPosition = useMemo(
+    () => playbackLastPosition(scenario.objects),
+    [scenario.objects],
+  )
+  const canPlay = useMemo(() => hasPlayableBoatSequence(scenario.objects), [scenario.objects])
   useEffect(() => {
     if (!config.theme.usePrimaryForBrandAccents) return
     const firstBoat = scenario.objects.find(
@@ -1713,12 +1820,38 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
   const setDocumentStatus = useEditorStore((state) => state.setDocumentStatus)
   const setLayoutPreference = useEditorStore((state) => state.setLayoutPreference)
   const setTool = useEditorStore((state) => state.setTool)
+  const select = useEditorStore((state) => state.select)
   const updateObjects = useEditorStore((state) => state.updateObjects)
   const deleteSelected = useEditorStore((state) => state.deleteSelected)
   const duplicateSelected = useEditorStore((state) => state.duplicateSelected)
   const undo = useEditorStore((state) => state.undo)
   const redo = useEditorStore((state) => state.redo)
   const selectionKey = selectedIds.join('|')
+
+  useEffect(() => {
+    setPlaybackPosition((current) => Math.min(lastPlaybackPosition, Math.max(1, current)))
+  }, [lastPlaybackPosition])
+
+  useEffect(() => {
+    if (!playerMode || !playbackPlaying || lastPlaybackPosition <= 1) return
+    let animationFrame = 0
+    let previousTime: number | undefined
+    const animate = (time: number) => {
+      if (previousTime === undefined) previousTime = time
+      const elapsed = time - previousTime
+      previousTime = time
+      setPlaybackPosition((current) =>
+        Math.min(lastPlaybackPosition, current + elapsed / PLAYBACK_SEGMENT_DURATION_MS),
+      )
+      animationFrame = window.requestAnimationFrame(animate)
+    }
+    animationFrame = window.requestAnimationFrame(animate)
+    return () => window.cancelAnimationFrame(animationFrame)
+  }, [lastPlaybackPosition, playbackPlaying, playerMode])
+
+  useEffect(() => {
+    if (playbackPlaying && playbackPosition >= lastPlaybackPosition) setPlaybackPlaying(false)
+  }, [lastPlaybackPosition, playbackPlaying, playbackPosition])
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -1771,6 +1904,27 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
     const handler = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement
       if (target.matches('input, textarea, select, [contenteditable="true"]')) return
+      if (playerMode) {
+        if (event.code === 'Space') {
+          event.preventDefault()
+          setPlaybackPlaying((current) => {
+            if (!current && playbackPosition >= lastPlaybackPosition) setPlaybackPosition(1)
+            return !current
+          })
+        } else if (event.key === 'ArrowLeft') {
+          event.preventDefault()
+          setPlaybackPlaying(false)
+          setPlaybackPosition(Math.max(1, Math.ceil(playbackPosition) - 1))
+        } else if (event.key === 'ArrowRight') {
+          event.preventDefault()
+          setPlaybackPlaying(false)
+          setPlaybackPosition(Math.min(lastPlaybackPosition, Math.floor(playbackPosition) + 1))
+        } else if (event.key === 'Escape') {
+          setPlaybackPlaying(false)
+          setPlayerMode(false)
+        }
+        return
+      }
       const command = event.metaKey || event.ctrlKey
       if (command && event.key.toLowerCase() === 'z') {
         event.preventDefault()
@@ -1811,7 +1965,18 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [deleteSelected, duplicateSelected, redo, scenario.objects, selectedIds, undo, updateObjects])
+  }, [
+    deleteSelected,
+    duplicateSelected,
+    lastPlaybackPosition,
+    playbackPosition,
+    playerMode,
+    redo,
+    scenario.objects,
+    selectedIds,
+    undo,
+    updateObjects,
+  ])
 
   const exportJson = () => {
     downloadBlob(
@@ -1920,10 +2085,26 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
         : 'Desktop layout',
   )
 
+  const enterPlayerMode = () => {
+    if (!canPlay) return
+    setTool('select')
+    select(null)
+    setDialog(null)
+    setPlaybackPlaying(false)
+    setPlaybackPosition(1)
+    setPlayerMode(true)
+  }
+
+  const exitPlayerMode = () => {
+    setPlaybackPlaying(false)
+    setPlayerMode(false)
+  }
+
   return (
     <div
       className="app-shell"
       data-layout={layoutPreference}
+      data-player-mode={playerMode}
       style={sailPlotThemeVariables(config.theme[theme], config)}
     >
       <header className="topbar">
@@ -2016,15 +2197,22 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
             compact
             icon={<Undo2 />}
             label={t('Undo')}
-            disabled={!history.length}
+            disabled={playerMode || !history.length}
             onClick={undo}
           />
           <IconButton
             compact
             icon={<Redo2 />}
             label={t('Redo')}
-            disabled={!future.length}
+            disabled={playerMode || !future.length}
             onClick={redo}
+          />
+          <IconButton
+            compact
+            icon={playerMode ? <X /> : <Play />}
+            label={t(playerMode ? 'Back to editor' : 'Player mode')}
+            disabled={!playerMode && !canPlay}
+            onClick={playerMode ? exitPlayerMode : enterPlayerMode}
           />
           <IconButton
             compact
@@ -2086,23 +2274,36 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
         />
       </header>
       <aside className="tools-panel">
-        <div className="panel-header panel-header--tools">
-          <div>
-            <span className="eyebrow">{t('Create')}</span>
-            <h2>{t('Tools')}</h2>
-          </div>
-          {activeTool !== 'select' && (
-            <IconButton
-              compact
-              className="tool-cancel-button"
-              icon={<X aria-hidden="true" />}
-              label={t('Return to Select')}
-              onClick={() => setTool('select')}
-            />
-          )}
-        </div>
-        <EditorToolbar />
-        <SceneSettings />
+        {playerMode ? (
+          <PlaybackControls
+            playing={playbackPlaying}
+            position={playbackPosition}
+            lastPosition={lastPlaybackPosition}
+            onPlayingChange={setPlaybackPlaying}
+            onPositionChange={setPlaybackPosition}
+            onExit={exitPlayerMode}
+          />
+        ) : (
+          <>
+            <div className="panel-header panel-header--tools">
+              <div>
+                <span className="eyebrow">{t('Create')}</span>
+                <h2>{t('Tools')}</h2>
+              </div>
+              {activeTool !== 'select' && (
+                <IconButton
+                  compact
+                  className="tool-cancel-button"
+                  icon={<X aria-hidden="true" />}
+                  label={t('Return to Select')}
+                  onClick={() => setTool('select')}
+                />
+              )}
+            </div>
+            <EditorToolbar />
+            <SceneSettings />
+          </>
+        )}
       </aside>
       <main className="canvas-area">
         <ScenarioCanvas
@@ -2121,19 +2322,24 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
               <CanvasQrCode onOpen={() => setDialog('qr')} />
             ) : undefined
           }
+          playbackPosition={playerMode ? playbackPosition : undefined}
         />
       </main>
-      <aside className="properties-panel">
-        <PropertiesPanel
-          emptyContent={
-            EmptySelectionContent ? <EmptySelectionContent {...extensionContext} /> : undefined
-          }
+      {!playerMode && (
+        <aside className="properties-panel">
+          <PropertiesPanel
+            emptyContent={
+              EmptySelectionContent ? <EmptySelectionContent {...extensionContext} /> : undefined
+            }
+          />
+        </aside>
+      )}
+      {!playerMode && (
+        <MobileProperties
+          key={selectionKey || 'no-selection'}
+          hasSelection={selectedIds.length > 0}
         />
-      </aside>
-      <MobileProperties
-        key={selectionKey || 'no-selection'}
-        hasSelection={selectedIds.length > 0}
-      />
+      )}
       {useCompactBranding && (
         <MobileBrandingBar
           onInfo={() => setDialog('help')}
@@ -2142,51 +2348,63 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
         />
       )}
       <footer className="mobile-toolbar">
-        <div className="mobile-toolbar-inner">
-          {activeTool !== 'select' && (
-            <IconButton
-              compact
-              className="tool-cancel-button mobile-tool-action-button"
-              icon={<X aria-hidden="true" />}
-              label={t('Return to Select')}
-              onClick={() => setTool('select')}
-            />
-          )}
-          {selectedIds.length > 0 && (
-            <IconButton
-              compact
-              className="tool-cancel-button mobile-tool-action-button"
-              icon={<Trash2 aria-hidden="true" />}
-              label={t('Delete selection')}
-              onClick={deleteSelected}
-            />
-          )}
-          <IconButton
+        {playerMode ? (
+          <PlaybackControls
             compact
-            className="mobile-tool-action-button mobile-settings-button"
-            icon={<Settings aria-hidden="true" />}
-            label={t('Scene settings')}
-            onClick={() => setDialog('settings')}
+            playing={playbackPlaying}
+            position={playbackPosition}
+            lastPosition={lastPlaybackPosition}
+            onPlayingChange={setPlaybackPlaying}
+            onPositionChange={setPlaybackPosition}
+            onExit={exitPlayerMode}
           />
-          <span className="mobile-toolbar-divider" aria-hidden="true" />
-          <EditorToolbar compact />
-          <div className="mobile-history" aria-label={t('History controls')}>
+        ) : (
+          <div className="mobile-toolbar-inner">
+            {activeTool !== 'select' && (
+              <IconButton
+                compact
+                className="tool-cancel-button mobile-tool-action-button"
+                icon={<X aria-hidden="true" />}
+                label={t('Return to Select')}
+                onClick={() => setTool('select')}
+              />
+            )}
+            {selectedIds.length > 0 && (
+              <IconButton
+                compact
+                className="tool-cancel-button mobile-tool-action-button"
+                icon={<Trash2 aria-hidden="true" />}
+                label={t('Delete selection')}
+                onClick={deleteSelected}
+              />
+            )}
             <IconButton
               compact
-              icon={<Undo2 />}
-              label={t('Undo')}
-              disabled={!history.length}
-              onClick={undo}
+              className="mobile-tool-action-button mobile-settings-button"
+              icon={<Settings aria-hidden="true" />}
+              label={t('Scene settings')}
+              onClick={() => setDialog('settings')}
             />
-            <IconButton
-              compact
-              icon={<Redo2 />}
-              label={t('Redo')}
-              disabled={!future.length}
-              onClick={redo}
-            />
+            <span className="mobile-toolbar-divider" aria-hidden="true" />
+            <EditorToolbar compact />
+            <div className="mobile-history" aria-label={t('History controls')}>
+              <IconButton
+                compact
+                icon={<Undo2 />}
+                label={t('Undo')}
+                disabled={!history.length}
+                onClick={undo}
+              />
+              <IconButton
+                compact
+                icon={<Redo2 />}
+                label={t('Redo')}
+                disabled={!future.length}
+                onClick={redo}
+              />
+            </div>
           </div>
-        </div>
+        )}
       </footer>
       <div className="statusbar">
         <span aria-live="polite">{localizeStatus(status)}</span>

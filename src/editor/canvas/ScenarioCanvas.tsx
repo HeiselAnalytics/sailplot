@@ -72,6 +72,7 @@ import {
   courseEndpointBoatAppearance,
   courseEndpointShowsSignalFlag,
 } from '../objects/courseEndpoints'
+import { objectsAtPlaybackPosition } from '../../features/playback/playback'
 
 export interface CanvasHandle {
   fitToScreen: () => void
@@ -1319,6 +1320,7 @@ function ObjectGraphic(props: ObjectGraphicProps) {
 interface ScenarioCanvasProps {
   branding?: ReactNode
   topRightOverlay?: ReactNode
+  playbackPosition?: number
 }
 
 const EDITOR_BRANDING_MAX_WIDTH = 341.55
@@ -1329,7 +1331,7 @@ const EDITOR_BRANDING_PLOT_MARGIN = 12
 const EDITOR_BRANDING_VIEWPORT_MARGIN = 6
 
 export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(function ScenarioCanvas(
-  { branding, topRightOverlay },
+  { branding, topRightOverlay, playbackPosition },
   ref,
 ) {
   const { t } = useI18n()
@@ -1429,6 +1431,8 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
         .length,
     [scenario.environment.measurementBoatClass, scenario.objects],
   )
+  const gridSize = zoneBoatLength
+  const isPlaybackMode = playbackPosition !== undefined
 
   const selectionCanScale = useMemo(
     () =>
@@ -1475,7 +1479,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
     () => [...scenario.objects].sort((a, b) => a.zIndex - b.zIndex),
     [scenario.objects],
   )
-  const displayObjects = useMemo(
+  const editorDisplayObjects = useMemo(
     () =>
       orderedObjects.map((object) =>
         dragPreview?.id === object.id
@@ -1483,6 +1487,13 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
           : object,
       ),
     [dragPreview, orderedObjects],
+  )
+  const displayObjects = useMemo(
+    () =>
+      isPlaybackMode
+        ? objectsAtPlaybackPosition(orderedObjects, playbackPosition)
+        : editorDisplayObjects,
+    [editorDisplayObjects, isPlaybackMode, orderedObjects, playbackPosition],
   )
   const boatTracks = useMemo(() => {
     const sequences = new Map<string, BoatObject[]>()
@@ -1598,7 +1609,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
     const stage = stageRef.current
     const transformer = transformerRef.current
     if (!stage || !transformer) return
-    const nodes = selectedIds
+    const nodes = (isPlaybackMode ? [] : selectedIds)
       .map((id) => {
         const object = scenario.objects.find((candidate) => candidate.id === id)
         return object?.type === 'mark' ||
@@ -1630,7 +1641,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
     })
     transformer.getLayer()?.batchDraw()
     return () => restoreMeasurements.forEach((restore) => restore())
-  }, [selectedIds, scenario.objects, selectionCanRotate])
+  }, [isPlaybackMode, selectedIds, scenario.objects, selectionCanRotate])
 
   useEffect(() => {
     const down = (event: KeyboardEvent) => event.code === 'Space' && setSpacePressed(true)
@@ -1662,6 +1673,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
   }
 
   const handlePointerDown = (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
+    if (isPlaybackMode) return
     const empty = event.target === event.target.getStage()
     const point = canvasPoint()
     if (!point || activeTool === 'pan' || spacePressed) return
@@ -1832,7 +1844,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
         draftToComplete.tool === 'finish-line') &&
       Math.hypot(x2 - x1, y2 - y1) < 32
     ) {
-      const halfSpan = scenario.canvas.grid.size * (draftToComplete.tool === 'gate' ? 3 : 5)
+      const halfSpan = gridSize * (draftToComplete.tool === 'gate' ? 3 : 5)
       const angle = (scenario.environment.windDirection * Math.PI) / 180
       const centerX = x1
       const centerY = y1
@@ -1984,7 +1996,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
         y={view.y}
         scaleX={actualScale}
         scaleY={actualScale}
-        draggable={activeTool === 'pan' || spacePressed}
+        draggable={!isPlaybackMode && (activeTool === 'pan' || spacePressed)}
         onDragEnd={(event) => {
           if (event.target !== stageRef.current) return
           const next =
@@ -2018,7 +2030,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
             <Grid
               width={scenario.canvas.width}
               height={scenario.canvas.height}
-              size={scenario.canvas.grid.size}
+              size={gridSize}
               opacity={scenario.canvas.grid.opacity}
               color={gridColor}
               laylineAngle={scenario.environment.laylineAngle}
@@ -2061,18 +2073,19 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
               }
               return []
             })}
-          {boatTracks.map(({ id, boats, path }) => (
-            <Path
-              key={`track-${id}`}
-              data={path}
-              stroke={boats[0].color}
-              strokeWidth={3}
-              opacity={0.52}
-              lineCap="round"
-              lineJoin="round"
-              listening={false}
-            />
-          ))}
+          {!isPlaybackMode &&
+            boatTracks.map(({ id, boats, path }) => (
+              <Path
+                key={`track-${id}`}
+                data={path}
+                stroke={boats[0].color}
+                strokeWidth={3}
+                opacity={0.52}
+                lineCap="round"
+                lineJoin="round"
+                listening={false}
+              />
+            ))}
           {scenario.environment.laylinesVisible &&
             displayObjects
               .filter((object) => object.type === 'mark')
@@ -2143,8 +2156,9 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
                 <ObjectGraphic
                   key={object.id}
                   object={renderedObject}
-                  selected={selectedIds.includes(object.id)}
+                  selected={!isPlaybackMode && selectedIds.includes(object.id)}
                   onSelect={(event) => {
+                    if (isPlaybackMode) return
                     event.cancelBubble = true
                     const canSelect =
                       activeTool === 'select' || (activeTool === 'boat' && object.type === 'boat')
@@ -2165,7 +2179,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
                             x: hasX ? next.x! : object.x,
                             y: hasY ? next.y! : object.y,
                           },
-                          scenario.canvas.grid.size,
+                          gridSize,
                           scenario.environment.laylineAngle,
                           scenario.environment.windDirection,
                         )
@@ -2180,7 +2194,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
                   windDirection={scenario.environment.windDirection}
                   laylineAngle={scenario.environment.laylineAngle}
                   zoneBoatLength={zoneBoatLength}
-                  boatNumbersVisible={scenario.canvas.boatNumbersVisible}
+                  boatNumbersVisible={!isPlaybackMode && scenario.canvas.boatNumbersVisible}
                   inkColor={inkColor}
                   outlineColor={outlineColor}
                   interactionScale={actualScale}
@@ -2196,7 +2210,8 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
               dark={darkPlot}
             />
           )}
-          {draft &&
+          {!isPlaybackMode &&
+            draft &&
             (draft.tool === 'rectangle' ? (
               <Group listening={false}>
                 <Rect
