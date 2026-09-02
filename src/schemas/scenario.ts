@@ -215,7 +215,7 @@ export const scenarioSchema = z
       infinite: z.boolean().default(false),
       background: z.string(),
       boatNumbersVisible: z.boolean().default(true),
-      boatLegendVisible: z.boolean().default(true),
+      boatLegendVisible: z.boolean().default(false),
       grid: z.object({
         visible: z.boolean(),
         size: z.number().positive(),

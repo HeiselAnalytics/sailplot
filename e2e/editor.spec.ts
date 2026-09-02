@@ -175,10 +175,10 @@ test('makes the desktop tool and scene controls visibly interactive', async ({
   const boatLegend = toolsPanel.getByRole('group', { name: 'Boat legend' })
   const boatLegendOn = boatLegend.getByRole('button', { name: 'On' })
   const boatLegendOff = boatLegend.getByRole('button', { name: 'Off' })
-  await expect(boatLegendOn).toHaveAttribute('aria-pressed', 'true')
-  await expect(boatLegendOff).toHaveAttribute('aria-pressed', 'false')
-  await boatLegendOff.click()
   await expect(boatLegendOff).toHaveAttribute('aria-pressed', 'true')
+  await expect(boatLegendOn).toHaveAttribute('aria-pressed', 'false')
+  await boatLegendOn.click()
+  await expect(boatLegendOn).toHaveAttribute('aria-pressed', 'true')
 
   await expect(toolsPanel.getByText('1 BL · ILCA', { exact: true })).toBeVisible()
   await toolsPanel.getByLabel('Grid visibility slider').fill('65')
@@ -257,7 +257,7 @@ test('keeps breathing room around German function buttons', async ({ page }, tes
   ).toBe(true)
 })
 
-test('shows the boat legend by default and toggles it from the scene sidebar', async ({
+test('hides the boat legend by default and toggles it from the scene sidebar', async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chrome', 'Desktop scene sidebar check')
@@ -266,21 +266,22 @@ test('shows the boat legend by default and toggles it from the scene sidebar', a
   const legendSwitch = toolsPanel.getByRole('group', { name: 'Boat legend' })
   const legendOn = legendSwitch.getByRole('button', { name: 'On' })
   const legendOff = legendSwitch.getByRole('button', { name: 'Off' })
-  await expect(legendOn).toHaveAttribute('aria-pressed', 'true')
+  await expect(legendOff).toHaveAttribute('aria-pressed', 'true')
 
   await toolsPanel.getByRole('button', { name: 'Boat', exact: true }).click()
   const canvas = page.locator('.editor-canvas canvas').first()
   await canvas.click({ position: { x: 260, y: 220 } })
-  const visibleLegend = await canvas.screenshot()
-
-  await legendOff.click()
-  await expect(legendOff).toHaveAttribute('aria-pressed', 'true')
-  await expect.poll(async () => (await canvas.screenshot()).equals(visibleLegend)).toBe(false)
+  const hiddenLegend = await canvas.screenshot()
 
   await legendOn.click()
   await expect(legendOn).toHaveAttribute('aria-pressed', 'true')
+  const visibleLegend = await canvas.screenshot()
+  expect(visibleLegend.equals(hiddenLegend)).toBe(false)
+
+  await legendOff.click()
+  await expect(legendOff).toHaveAttribute('aria-pressed', 'true')
   await expect
-    .poll(async () => countDifferentPixels(page, await canvas.screenshot(), visibleLegend))
+    .poll(async () => countDifferentPixels(page, await canvas.screenshot(), hiddenLegend))
     .toBeLessThanOrEqual(2)
 })
 

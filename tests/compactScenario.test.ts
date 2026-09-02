@@ -58,6 +58,16 @@ describe('minimal share payload', () => {
     ])
   })
 
+  it('preserves both boat legend states while new plots default to off', () => {
+    const hidden = createEmptyScenario()
+    expect(hidden.canvas.boatLegendVisible).toBe(false)
+    expect(expandCompactScenario(compactScenario(hidden)).canvas.boatLegendVisible).toBe(false)
+
+    const visible = createEmptyScenario()
+    visible.canvas.boatLegendVisible = true
+    expect(expandCompactScenario(compactScenario(visible)).canvas.boatLegendVisible).toBe(true)
+  })
+
   it('round-trips every object type and every non-default scene section', () => {
     const scenario = createEmptyScenario('Compact regatta')
     scenario.metadata.description = 'A detailed situation'

@@ -666,6 +666,9 @@ export function expandCompactScenario(value: unknown): Scenario {
   if (!Array.isArray(value) || value.length !== 4)
     throw new Error('The compact plot data is damaged.')
   const scenario = createEmptyScenario()
+  // Compact share format v1 was defined when the legend defaulted to on. Preserve
+  // that format's bit semantics even though new editor projects now default to off.
+  scenario.canvas.boatLegendVisible = true
   decodeMetadata(value[0] as CompactValue, scenario)
   decodeCanvas(value[1] as CompactValue, scenario)
   decodeEnvironment(value[2] as CompactValue, scenario)
