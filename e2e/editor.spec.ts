@@ -1882,7 +1882,7 @@ test('adds a grey Umpire boat with two independent official flag controls', asyn
   await expect
     .poll(() =>
       canvas.evaluate((element: HTMLCanvasElement) => {
-        const pixels = element.getContext('2d')!.getImageData(500, 270, 50, 40).data
+        const pixels = element.getContext('2d')!.getImageData(450, 240, 100, 70).data
         let red = 0
         for (let index = 0; index < pixels.length; index += 4) {
           if (pixels[index] === 215 && pixels[index + 1] === 38 && pixels[index + 2] === 56)
@@ -1898,7 +1898,7 @@ test('adds a grey Umpire boat with two independent official flag controls', asyn
   await expect
     .poll(() =>
       canvas.evaluate((element: HTMLCanvasElement) => {
-        const pixels = element.getContext('2d')!.getImageData(500, 270, 50, 40).data
+        const pixels = element.getContext('2d')!.getImageData(450, 240, 100, 70).data
         let amber = 0
         let green = 0
         for (let index = 0; index < pixels.length; index += 4) {

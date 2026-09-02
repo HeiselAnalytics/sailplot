@@ -437,8 +437,8 @@ function UmpireFlagFace({
   color?: string
   outlineColor: string
 }) {
-  const width = 28
-  const height = 28
+  const width = 30
+  const height = 20
   const solidColor =
     color ??
     (signal === 'red' || signal === 'yellow' || signal === 'blue' || signal === 'black'
@@ -464,12 +464,12 @@ function UmpireFlagFace({
         {signal === 'protest' && (
           <>
             <Rect width={width} height={height} fill={UMPIRE_FLAG_COLORS.yellow} />
-            {[-16, 0, 16, 32].map((offset) => (
+            {[-16, -4, 8, 20, 32].map((offset) => (
               <Line
                 key={offset}
                 points={[offset, 0, offset + height, height]}
                 stroke={UMPIRE_FLAG_COLORS.red}
-                strokeWidth={8}
+                strokeWidth={6}
               />
             ))}
           </>
@@ -492,20 +492,28 @@ function SupportBoatFlags({
   outlineColor: string
 }) {
   const flags = [
-    ...(boatFlagColor ? [{ id: 'boat', color: boatFlagColor }] : []),
-    ...(signal !== 'none' ? [{ id: 'signal', signal }] : []),
+    ...(boatFlagColor ? [{ id: 'boat', color: boatFlagColor, side: -1 as const }] : []),
+    ...(signal !== 'none' ? [{ id: 'signal', signal, side: 1 as const }] : []),
   ]
+  const poleLength = 35
 
   return (
     <Group name="support-boat-flags">
-      {flags.map((flag, index) => (
-        <Group key={flag.id} x={18 + index * 35} y={-40}>
-          <Line points={[0, 46, 0, 0]} stroke={inkColor} strokeWidth={2} />
-          <UmpireFlagFace
-            color={'color' in flag ? flag.color : undefined}
-            signal={'signal' in flag ? flag.signal : undefined}
-            outlineColor={outlineColor}
-          />
+      {flags.map((flag) => (
+        <Group
+          key={flag.id}
+          x={flag.side * 3.5}
+          y={-18}
+          rotation={flag.side * 45}
+        >
+          <Line points={[0, 0, 0, -poleLength]} stroke={inkColor} strokeWidth={2} />
+          <Group x={flag.side < 0 ? -30 : 0} y={-poleLength}>
+            <UmpireFlagFace
+              color={'color' in flag ? flag.color : undefined}
+              signal={'signal' in flag ? flag.signal : undefined}
+              outlineColor={outlineColor}
+            />
+          </Group>
         </Group>
       ))}
     </Group>
