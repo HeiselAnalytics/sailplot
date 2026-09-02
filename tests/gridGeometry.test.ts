@@ -4,6 +4,7 @@ import {
   laylineVector,
   markLaylineRotation,
   sailingGridSegments,
+  sailingGridSegmentsForBounds,
 } from '../src/editor/canvas/gridGeometry'
 
 describe('sailing grid geometry', () => {
@@ -38,6 +39,22 @@ describe('sailing grid geometry', () => {
       ),
     )
     expect(angles).toEqual(new Set([40]))
+  })
+
+  it('keeps the endless grid aligned when the visible bounds move beyond the base plot', () => {
+    const first = sailingGridSegmentsForBounds(-2400, 1600, 1920, 1080, 40, 45, 0)
+    const moved = sailingGridSegmentsForBounds(-2200, 1700, 1920, 1080, 40, 45, 0)
+    const lineOffsets = (segments: typeof first) =>
+      new Set(
+        segments.map(([x1, y1, x2, y2]) => {
+          const length = Math.hypot(x2 - x1, y2 - y1)
+          const normal = { x: -(y2 - y1) / length, y: (x2 - x1) / length }
+          return Math.round((normal.x * x1 + normal.y * y1) * 1000) / 1000
+        }),
+      )
+
+    expect(first.length).toBeGreaterThan(0)
+    expect([...lineOffsets(first)].some((offset) => lineOffsets(moved).has(offset))).toBe(true)
   })
 
   it('reverses mark laylines for a downwind mark', () => {

@@ -558,6 +558,20 @@ h3 {
   font-size: 12px;
 }
 
+.endless-plot-field {
+  gap: 2px;
+}
+
+.endless-plot-field .check-row {
+  min-height: 24px;
+}
+
+.endless-plot-help {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .tools-panel .scene-toggle-grid input[type='checkbox']:checked {
   accent-color: var(--highlight);
 }
@@ -3022,6 +3036,15 @@ a.mobile-branding-partner:focus-visible {
 
 .export-option--dynamic {
   border-style: dashed;
+}
+
+.export-option--disabled > .export-option-icon,
+.export-option--disabled > .export-option-copy .export-option-title {
+  opacity: 0.55;
+}
+
+.export-option--disabled > .export-option-copy > small {
+  color: var(--muted);
 }
 
 .player-export-settings {

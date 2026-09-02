@@ -109,3 +109,50 @@ export function sailingGridSegments(
 
   return segments
 }
+
+export function sailingGridSegmentsForBounds(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  size: number,
+  laylineAngle: number,
+  windDirection: number,
+): GridSegment[] {
+  const safeSize = Math.max(8, size)
+  const starboard = rotate(laylineVector(laylineAngle, 1), windDirection)
+  const portBase = laylineVector(laylineAngle, 1)
+  const port = rotate({ x: -portBase.x, y: portBase.y }, windDirection)
+  const determinant = Math.abs(starboard.x * port.y - starboard.y * port.x)
+  const directions = determinant < 0.01 ? [starboard] : [starboard, port]
+  const naturalSpacing = safeSize * determinant
+  const spacing = naturalSpacing < 1 ? safeSize : naturalSpacing
+  const center = { x: x + width / 2, y: y + height / 2 }
+  const extent = Math.hypot(width, height)
+  const estimatedLines = (directions.length * extent * 2) / spacing
+  const step = Math.max(1, Math.ceil(estimatedLines / 500))
+  const segments: GridSegment[] = []
+
+  for (const direction of directions) {
+    const normal = { x: -direction.y, y: direction.x }
+    const normalCenter = dot(normal, center)
+    const alongCenter = dot(direction, center)
+    const firstIndex = Math.floor((normalCenter - extent) / spacing)
+    const lastIndex = Math.ceil((normalCenter + extent) / spacing)
+    for (let index = firstIndex; index <= lastIndex; index += step) {
+      const offset = index * spacing
+      const lineCenter = {
+        x: normal.x * offset + direction.x * alongCenter,
+        y: normal.y * offset + direction.y * alongCenter,
+      }
+      segments.push([
+        lineCenter.x - direction.x * extent,
+        lineCenter.y - direction.y * extent,
+        lineCenter.x + direction.x * extent,
+        lineCenter.y + direction.y * extent,
+      ])
+    }
+  }
+
+  return segments
+}

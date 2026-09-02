@@ -212,6 +212,7 @@ export const scenarioSchema = z
     canvas: z.object({
       width: z.number().positive(),
       height: z.number().positive(),
+      infinite: z.boolean().default(false),
       background: z.string(),
       boatNumbersVisible: z.boolean().default(true),
       boatLegendVisible: z.boolean().default(true),

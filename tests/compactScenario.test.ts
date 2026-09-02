@@ -69,6 +69,7 @@ describe('minimal share payload', () => {
     scenario.canvas = {
       width: 1600,
       height: 900,
+      infinite: true,
       background: '#262626',
       boatNumbersVisible: false,
       boatLegendVisible: false,

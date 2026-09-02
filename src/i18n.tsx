@@ -42,6 +42,9 @@ const german: Record<string, string> = {
   'Show zones': 'Zonen anzeigen',
   'Show boat numbers': 'Bootsnummern anzeigen',
   'Boat legend': 'Bootslegende',
+  'Endless plot': 'Endlos-Plot',
+  'Removes the fixed plot edges so you can keep drawing in every direction.':
+    'Entfernt die festen Plot-Ränder, damit du in alle Richtungen weiterzeichnen kannst.',
   'Plot background': 'Plot-Hintergrund',
   Light: 'Hell',
   Dark: 'Dunkel',
@@ -254,6 +257,10 @@ const german: Record<string, string> = {
   'Download PDF': 'PDF herunterladen',
   'A4 landscape with a clickable plot QR watermark':
     'A4-Querformat mit klickbarem Plot-QR-Wasserzeichen',
+  'Unavailable with Endless plot. Turn it off in Scene settings to export an A4 PDF.':
+    'Mit Endlos-Plot nicht verfügbar. Deaktiviere ihn in den Szenen-Einstellungen, um ein A4-PDF zu exportieren.',
+  'PDF export is unavailable while Endless plot is enabled':
+    'Der PDF-Export ist nicht verfügbar, solange Endlos-Plot aktiviert ist',
   'This link is long and may not work in every app. Prefer JSON export for this project.':
     'Dieser Link ist lang und funktioniert möglicherweise nicht in jeder App. Für dieses Projekt ist der JSON-Export vorzuziehen.',
   'Open projects': 'Projekte öffnen',

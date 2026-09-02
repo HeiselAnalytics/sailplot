@@ -339,6 +339,7 @@ test('uses clear compact tool buttons without a separate Lee mark', async ({ pag
   await sceneSettings.click()
   const settingsDialog = page.getByRole('dialog', { name: 'Scene settings' })
   await expect(settingsDialog).toBeVisible()
+  await expect(settingsDialog.getByRole('checkbox', { name: 'Endless plot' })).toBeVisible()
   await expect(settingsDialog.getByLabel('Wind direction slider')).toBeVisible()
   await expect(settingsDialog.getByLabel('Grid visibility slider')).toBeVisible()
   await settingsDialog.getByRole('button', { name: 'Close dialog' }).click()
@@ -943,6 +944,46 @@ test('exports watermarked images, copies share URLs and downloads an A4 landscap
     .poll(() => reopenedPage.evaluate(() => sessionStorage.getItem('copied-export-url')))
     .toBe(copiedPlotUrl)
   await reopenedPage.close()
+})
+
+test('uses an endless drawing surface and disables PDF export with an explanation', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome', 'Desktop scene and canvas regression')
+  await page.goto('/')
+
+  const toolsPanel = page.locator('.tools-panel')
+  const endlessPlot = toolsPanel.getByRole('checkbox', { name: 'Endless plot' })
+  const plotBackground = toolsPanel.getByRole('group', { name: 'Plot background' })
+  await expect(endlessPlot).not.toBeChecked()
+  const endlessBounds = await endlessPlot
+    .locator('xpath=ancestor::div[contains(@class, "field")]')
+    .boundingBox()
+  const backgroundBounds = await plotBackground.boundingBox()
+  expect(endlessBounds).not.toBeNull()
+  expect(backgroundBounds).not.toBeNull()
+  expect(endlessBounds!.y).toBeLessThan(backgroundBounds!.y)
+
+  await endlessPlot.check()
+  const topLeftPlotPixel = await page
+    .locator('.editor-canvas canvas')
+    .first()
+    .evaluate((canvas: HTMLCanvasElement) => {
+      const context = canvas.getContext('2d')
+      return context ? Array.from(context.getImageData(4, 4, 1, 1).data) : []
+    })
+  expect(topLeftPlotPixel[3]).toBe(255)
+
+  await page.getByRole('button', { name: 'Export / Share' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Export & share' })
+  const pdfButton = dialog.getByRole('button', { name: 'Download PDF' })
+  await expect(pdfButton).toBeDisabled()
+  await expect(dialog.getByText(/Unavailable with Endless plot/)).toBeVisible()
+  await dialog.getByRole('button', { name: 'Close dialog' }).click()
+
+  await endlessPlot.uncheck()
+  await page.getByRole('button', { name: 'Export / Share' }).click()
+  await expect(page.getByRole('button', { name: 'Download PDF' })).toBeEnabled()
 })
 
 test('downloads the Player sequence as transparent GIF and MP4', async ({ page }, testInfo) => {
@@ -1833,7 +1874,19 @@ test('creates gate, start-line and finish-line layouts as single undoable action
   }
 
   await page.getByRole('button', { name: 'Finish line', exact: true }).click()
-  await canvas.click({ position: { x: 300, y: 280 } })
+  let desktopFinishEndpoint: { x: number; y: number } | null = null
+  if (testInfo.project.name === 'desktop-chrome') {
+    const canvasBounds = await canvas.boundingBox()
+    expect(canvasBounds).not.toBeNull()
+    const start = { x: canvasBounds!.x + 140, y: canvasBounds!.y + 450 }
+    desktopFinishEndpoint = { x: canvasBounds!.x + 340, y: canvasBounds!.y + 450 }
+    await page.mouse.move(start.x, start.y)
+    await page.mouse.down()
+    await page.mouse.move(desktopFinishEndpoint.x, desktopFinishEndpoint.y, { steps: 6 })
+    await page.mouse.up()
+  } else {
+    await canvas.click({ position: { x: 300, y: 280 } })
+  }
   await openMobileProperties(page)
   await expect(page.locator('.statusbar')).toContainText('2 objects')
   await expect(page.locator('.statusbar')).toContainText('Added finish line')
@@ -1888,17 +1941,13 @@ test('creates gate, start-line and finish-line layouts as single undoable action
       .locator('strong')
     const initialLength = await lengthValue.textContent()
     const initialAngle = await angleValue.textContent()
-    const canvasBounds = await canvas.boundingBox()
-    expect(canvasBounds).not.toBeNull()
-    const canvasScale = canvasBounds!.width / 1920
-    const endpoint = {
-      x: canvasBounds!.x + 300 + 200 * canvasScale,
-      y: canvasBounds!.y + 280,
-    }
+    expect(desktopFinishEndpoint).not.toBeNull()
 
-    await page.mouse.move(endpoint.x, endpoint.y)
+    await page.mouse.move(desktopFinishEndpoint!.x, desktopFinishEndpoint!.y)
     await page.mouse.down()
-    await page.mouse.move(endpoint.x + 48, endpoint.y - 52, { steps: 8 })
+    await page.mouse.move(desktopFinishEndpoint!.x + 48, desktopFinishEndpoint!.y - 52, {
+      steps: 8,
+    })
     await expect.poll(() => lengthValue.textContent()).not.toBe(initialLength)
     await expect.poll(() => angleValue.textContent()).not.toBe(initialAngle)
     await page.mouse.up()

@@ -125,6 +125,16 @@ describe('plot format', () => {
     )
   })
 
+  it('defaults legacy plots to a bounded canvas and preserves Endless plot', () => {
+    const legacy = createEmptyScenario()
+    delete (legacy.canvas as Partial<typeof legacy.canvas>).infinite
+    expect(parseScenarioJson(serializeScenario(legacy)).canvas.infinite).toBe(false)
+
+    const endless = createEmptyScenario()
+    endless.canvas.infinite = true
+    expect(parseScenarioJson(serializeScenario(endless)).canvas.infinite).toBe(true)
+  })
+
   it('creates mark zones as three boat lengths by default', () => {
     expect(createMark(100, 200)).toMatchObject({
       markNumber: '1',

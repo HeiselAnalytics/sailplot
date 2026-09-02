@@ -229,6 +229,7 @@ export function createEmptyScenario(title = 'Untitled plot'): Scenario {
     canvas: {
       width: 1920,
       height: 1080,
+      infinite: false,
       background: PLOT_BACKGROUNDS.light,
       boatNumbersVisible: true,
       boatLegendVisible: true,

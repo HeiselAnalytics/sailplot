@@ -212,6 +212,7 @@ function encodeCanvas(scenario: Scenario): CompactArray {
     { changed: false },
     { changed: false },
     { changed: !canvas.boatLegendVisible },
+    { changed: canvas.infinite },
   ])
 }
 
@@ -233,6 +234,7 @@ function decodeCanvas(value: CompactValue, scenario: Scenario) {
   if (hasBit(mask, 9)) asNumber(reader.take(), 'view y')
   if (hasBit(mask, 10)) asNumber(reader.take(), 'view scale')
   if (hasBit(mask, 11)) scenario.canvas.boatLegendVisible = false
+  if (hasBit(mask, 12)) scenario.canvas.infinite = true
   reader.finish()
 }
 

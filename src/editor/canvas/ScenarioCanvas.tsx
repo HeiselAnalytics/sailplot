@@ -65,6 +65,7 @@ import {
   laylineVector,
   markLaylineRotation,
   sailingGridSegments,
+  sailingGridSegmentsForBounds,
 } from './gridGeometry'
 import { pinTransformBoundsToNamedNode } from './rotationBounds'
 import {
@@ -146,6 +147,8 @@ const visiblePlotColor = (color: string, inkColor: string) =>
     : color
 
 function Grid({
+  x = 0,
+  y = 0,
   width,
   height,
   size,
@@ -153,7 +156,10 @@ function Grid({
   color,
   laylineAngle,
   windDirection,
+  infinite = false,
 }: {
+  x?: number
+  y?: number
   width: number
   height: number
   size: number
@@ -161,15 +167,19 @@ function Grid({
   color: string
   laylineAngle: number
   windDirection: number
+  infinite?: boolean
 }) {
   const segments = useMemo(
-    () => sailingGridSegments(width, height, size, laylineAngle, windDirection),
-    [height, laylineAngle, size, width, windDirection],
+    () =>
+      infinite
+        ? sailingGridSegmentsForBounds(x, y, width, height, size, laylineAngle, windDirection)
+        : sailingGridSegments(width, height, size, laylineAngle, windDirection),
+    [height, infinite, laylineAngle, size, width, windDirection, x, y],
   )
   return (
     <Group
-      clipX={0}
-      clipY={0}
+      clipX={x}
+      clipY={y}
       clipWidth={width}
       clipHeight={height}
       opacity={opacity}
@@ -1368,6 +1378,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
   const markColor = useEditorStore((state) => state.markColor)
   const startLineFlagColor = useEditorStore((state) => state.startLineFlagColor)
   const darkPlot = isDarkPlotBackground(scenario.canvas.background)
+  const infinitePlot = scenario.canvas.infinite
   const inkColor = darkPlot ? DARK_PLOT_INK : LIGHT_PLOT_INK
   const outlineColor = darkPlot ? DARK_PLOT_OUTLINE : LIGHT_PLOT_INK
   const gridColor = darkPlot ? '#71808A' : '#BCCDD3'
@@ -1378,6 +1389,21 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
   const fitX = Math.max(0, (size.width - scenario.canvas.width * fitScale) / 2)
   const fitY = Math.max(0, (size.height - scenario.canvas.height * fitScale) / 2)
   const actualScale = fitScale * view.scale
+  const visibleWorld = {
+    x: -view.x / actualScale,
+    y: -view.y / actualScale,
+    width: size.width / actualScale,
+    height: size.height / actualScale,
+  }
+  const infiniteOverscan = Math.max(visibleWorld.width, visibleWorld.height)
+  const renderedPlotBounds = infinitePlot
+    ? {
+        x: visibleWorld.x - infiniteOverscan,
+        y: visibleWorld.y - infiniteOverscan,
+        width: visibleWorld.width + infiniteOverscan * 2,
+        height: visibleWorld.height + infiniteOverscan * 2,
+      }
+    : { x: 0, y: 0, width: scenario.canvas.width, height: scenario.canvas.height }
   const brandingWidth = Math.max(
     1,
     Math.min(
@@ -1391,43 +1417,51 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
   const canvasRight = view.x + scenario.canvas.width * actualScale
   const canvasTop = view.y
   const canvasBottom = view.y + scenario.canvas.height * actualScale
-  const brandingRight = Math.min(
-    Math.max(
-      EDITOR_BRANDING_VIEWPORT_MARGIN,
-      size.width - canvasRight + EDITOR_BRANDING_PLOT_MARGIN,
-    ),
-    Math.max(
-      EDITOR_BRANDING_VIEWPORT_MARGIN,
-      size.width - brandingWidth - EDITOR_BRANDING_VIEWPORT_MARGIN,
-    ),
-  )
-  const brandingBottom = Math.min(
-    Math.max(
-      EDITOR_BRANDING_VIEWPORT_MARGIN,
-      size.height - canvasBottom + EDITOR_BRANDING_PLOT_MARGIN,
-    ),
-    Math.max(
-      EDITOR_BRANDING_VIEWPORT_MARGIN,
-      size.height - brandingHeight - EDITOR_BRANDING_VIEWPORT_MARGIN,
-    ),
-  )
-  const topRightOverlayRight = Math.min(
-    Math.max(
-      EDITOR_BRANDING_VIEWPORT_MARGIN,
-      size.width - canvasRight + EDITOR_BRANDING_PLOT_MARGIN,
-    ),
-    Math.max(
-      EDITOR_BRANDING_VIEWPORT_MARGIN,
-      size.width - topRightOverlaySize - EDITOR_BRANDING_VIEWPORT_MARGIN,
-    ),
-  )
-  const topRightOverlayTop = Math.min(
-    Math.max(EDITOR_BRANDING_VIEWPORT_MARGIN, canvasTop + EDITOR_BRANDING_PLOT_MARGIN),
-    Math.max(
-      EDITOR_BRANDING_VIEWPORT_MARGIN,
-      size.height - topRightOverlaySize - EDITOR_BRANDING_VIEWPORT_MARGIN,
-    ),
-  )
+  const brandingRight = infinitePlot
+    ? EDITOR_BRANDING_VIEWPORT_MARGIN
+    : Math.min(
+        Math.max(
+          EDITOR_BRANDING_VIEWPORT_MARGIN,
+          size.width - canvasRight + EDITOR_BRANDING_PLOT_MARGIN,
+        ),
+        Math.max(
+          EDITOR_BRANDING_VIEWPORT_MARGIN,
+          size.width - brandingWidth - EDITOR_BRANDING_VIEWPORT_MARGIN,
+        ),
+      )
+  const brandingBottom = infinitePlot
+    ? EDITOR_BRANDING_VIEWPORT_MARGIN
+    : Math.min(
+        Math.max(
+          EDITOR_BRANDING_VIEWPORT_MARGIN,
+          size.height - canvasBottom + EDITOR_BRANDING_PLOT_MARGIN,
+        ),
+        Math.max(
+          EDITOR_BRANDING_VIEWPORT_MARGIN,
+          size.height - brandingHeight - EDITOR_BRANDING_VIEWPORT_MARGIN,
+        ),
+      )
+  const topRightOverlayRight = infinitePlot
+    ? EDITOR_BRANDING_VIEWPORT_MARGIN
+    : Math.min(
+        Math.max(
+          EDITOR_BRANDING_VIEWPORT_MARGIN,
+          size.width - canvasRight + EDITOR_BRANDING_PLOT_MARGIN,
+        ),
+        Math.max(
+          EDITOR_BRANDING_VIEWPORT_MARGIN,
+          size.width - topRightOverlaySize - EDITOR_BRANDING_VIEWPORT_MARGIN,
+        ),
+      )
+  const topRightOverlayTop = infinitePlot
+    ? EDITOR_BRANDING_VIEWPORT_MARGIN
+    : Math.min(
+        Math.max(EDITOR_BRANDING_VIEWPORT_MARGIN, canvasTop + EDITOR_BRANDING_PLOT_MARGIN),
+        Math.max(
+          EDITOR_BRANDING_VIEWPORT_MARGIN,
+          size.height - topRightOverlaySize - EDITOR_BRANDING_VIEWPORT_MARGIN,
+        ),
+      )
   const layline = laylineVector(scenario.environment.laylineAngle, 500)
   const zoneBoatLength = useMemo(
     () =>
@@ -1571,6 +1605,12 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
       }
       transformer?.hide()
       if (transparent) background?.hide()
+      if (infinitePlot) {
+        const uri = stage.toDataURL({ pixelRatio, mimeType: 'image/png' })
+        background?.show()
+        transformer?.show()
+        return uri
+      }
       stage.position({ x: 0, y: 0 })
       stage.scale({ x: 1, y: 1 })
       stage.size({ width: scenario.canvas.width, height: scenario.canvas.height })
@@ -1614,7 +1654,14 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
     else setView(scenario.canvas.view)
     // Keep a non-zoomed plot fully visible when the editor changes between layouts or sizes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scenario.metadata.id, scenario.canvas.width, scenario.canvas.height, size.width, size.height])
+  }, [
+    scenario.metadata.id,
+    scenario.canvas.width,
+    scenario.canvas.height,
+    scenario.canvas.infinite,
+    size.width,
+    size.height,
+  ])
 
   useEffect(() => {
     const stage = stageRef.current
@@ -1819,7 +1866,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
     }
     const nextScale = fitScale * scale
     const next =
-      scale === 1
+      scale === 1 && !infinitePlot
         ? {
             scale,
             x: fitX,
@@ -1982,7 +2029,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
     const scale = Math.min(8, Math.max(1, direction > 0 ? view.scale * 1.08 : view.scale / 1.08))
     const nextScale = fitScale * scale
     const next =
-      scale === 1
+      scale === 1 && !infinitePlot
         ? {
             scale,
             x: fitX,
@@ -2011,7 +2058,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
         onDragEnd={(event) => {
           if (event.target !== stageRef.current) return
           const next =
-            view.scale === 1
+            view.scale === 1 && !infinitePlot
               ? {
                   ...view,
                   x: fitX,
@@ -2032,20 +2079,25 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
         <Layer>
           <Rect
             id="canvas-background"
-            width={scenario.canvas.width}
-            height={scenario.canvas.height}
+            x={renderedPlotBounds.x}
+            y={renderedPlotBounds.y}
+            width={renderedPlotBounds.width}
+            height={renderedPlotBounds.height}
             fill={scenario.canvas.background}
             listening={false}
           />
           {scenario.canvas.grid.visible && (
             <Grid
-              width={scenario.canvas.width}
-              height={scenario.canvas.height}
+              x={renderedPlotBounds.x}
+              y={renderedPlotBounds.y}
+              width={renderedPlotBounds.width}
+              height={renderedPlotBounds.height}
               size={gridSize}
               opacity={scenario.canvas.grid.opacity}
               color={gridColor}
               laylineAngle={scenario.environment.laylineAngle}
               windDirection={scenario.environment.windDirection}
+              infinite={infinitePlot}
             />
           )}
           {scenario.environment.zonesVisible &&

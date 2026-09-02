@@ -201,6 +201,7 @@ export interface Scenario {
   canvas: {
     width: number
     height: number
+    infinite: boolean
     background: string
     boatNumbersVisible: boolean
     boatLegendVisible: boolean

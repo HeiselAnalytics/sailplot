@@ -328,6 +328,19 @@ function SceneSettings({ embedded = false }: { embedded?: boolean }) {
           {t('Show boat numbers')}
         </label>
       </div>
+      <div className="field endless-plot-field">
+        <label className="check-row">
+          <input
+            type="checkbox"
+            checked={scenario.canvas.infinite}
+            onChange={(event) => updateCanvas({ infinite: event.target.checked })}
+          />
+          {t('Endless plot')}
+        </label>
+        <small className="endless-plot-help">
+          {t('Removes the fixed plot edges so you can keep drawing in every direction.')}
+        </small>
+      </div>
       <div className="field">
         <span>{t('Plot background')}</span>
         <div className="plot-background-switch" role="group" aria-label={t('Plot background')}>
@@ -1776,7 +1789,9 @@ function ExportDialog({
             {t('Open Player exports')}
           </button>
         </section>
-        <section className="export-option">
+        <section
+          className={`export-option${scenario.canvas.infinite ? ' export-option--disabled' : ''}`}
+        >
           <FileDown className="export-option-icon" aria-hidden="true" />
           <div className="export-option-copy">
             <div className="export-option-title">
@@ -1785,9 +1800,21 @@ function ExportDialog({
                 {t('Downloads the plot directly as an A4 landscape PDF.')}
               </ExportInfo>
             </div>
-            <small>{t('A4 landscape with a clickable plot QR watermark')}</small>
+            <small id="pdf-export-availability">
+              {t(
+                scenario.canvas.infinite
+                  ? 'Unavailable with Endless plot. Turn it off in Scene settings to export an A4 PDF.'
+                  : 'A4 landscape with a clickable plot QR watermark',
+              )}
+            </small>
           </div>
-          <button type="button" className="export-action-button" onClick={() => void onPdf()}>
+          <button
+            type="button"
+            className="export-action-button"
+            disabled={scenario.canvas.infinite}
+            aria-describedby="pdf-export-availability"
+            onClick={() => void onPdf()}
+          >
             {t('Download PDF')}
           </button>
         </section>
@@ -2235,6 +2262,10 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
     }
   }
   const exportPdf = async () => {
+    if (scenario.canvas.infinite) {
+      setStatus('PDF export is unavailable while Endless plot is enabled')
+      return
+    }
     const data = canvasRef.current?.exportPng(false, 2)
     if (!data) return
     try {
