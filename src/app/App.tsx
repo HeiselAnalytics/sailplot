@@ -93,7 +93,8 @@ import {
   PLAYBACK_SEGMENT_DURATION_MS,
 } from '../features/playback/playback'
 
-type Dialog = 'projects' | 'scenario' | 'settings' | 'help' | 'export' | 'qr' | null
+type Dialog =
+  'projects' | 'scenario' | 'settings' | 'help' | 'export' | 'animation-export' | 'qr' | null
 
 const triggerDownload = (url: string, filename: string) => {
   const anchor = document.createElement('a')
@@ -468,6 +469,7 @@ function PlaybackControls({
   onPositionChange,
   onSpeedChange,
   onTailsVisibleChange,
+  onExport,
   onExit,
 }: {
   compact?: boolean
@@ -480,6 +482,7 @@ function PlaybackControls({
   onPositionChange: (position: number) => void
   onSpeedChange: (speed: number) => void
   onTailsVisibleChange: (visible: boolean) => void
+  onExport: () => void
   onExit: () => void
 }) {
   const { t } = useI18n()
@@ -590,6 +593,16 @@ function PlaybackControls({
           </div>
         </div>
       </div>
+      <button
+        type="button"
+        className={`secondary-button playback-export-button ${compact ? 'playback-export-button--compact' : ''}`}
+        aria-label={compact ? t('Export animation') : undefined}
+        title={compact ? t('Export animation') : undefined}
+        onClick={onExport}
+      >
+        <Download aria-hidden="true" />
+        {!compact && t('Export animation')}
+      </button>
       <button
         type="button"
         className={`secondary-button playback-exit-button ${compact ? 'tool-cancel-button playback-exit-button--compact' : ''}`}
@@ -1638,7 +1651,7 @@ function ExportDialog({
   onClose,
   onJson,
   onPng,
-  onAnimation,
+  onOpenPlayerExports,
   onShare,
   onPdf,
   canAnimate,
@@ -1646,10 +1659,7 @@ function ExportDialog({
   onClose: () => void
   onJson: () => void
   onPng: (transparent?: boolean) => Promise<void>
-  onAnimation: (
-    format: AnimationExportFormat,
-    onProgress: (progress: number) => void,
-  ) => Promise<void>
+  onOpenPlayerExports: () => void
   onShare: () => Promise<boolean>
   onPdf: () => Promise<void>
   canAnimate: boolean
@@ -1660,27 +1670,12 @@ function ExportDialog({
   const shareLength = createShareUrl(scenario).length
   const [copied, setCopied] = useState(false)
   const [copying, setCopying] = useState(false)
-  const [animationExport, setAnimationExport] = useState<AnimationExportFormat | null>(null)
-  const [animationProgress, setAnimationProgress] = useState(0)
   const copyShareLink = async () => {
     setCopying(true)
     const success = await onShare()
     setCopying(false)
     setCopied(success)
   }
-  const exportAnimation = async (format: AnimationExportFormat) => {
-    setAnimationExport(format)
-    setAnimationProgress(0)
-    try {
-      await onAnimation(format, setAnimationProgress)
-    } finally {
-      setAnimationExport(null)
-      setAnimationProgress(0)
-    }
-  }
-  const progressLabel = t('Exporting {progress}%', {
-    progress: Math.round(animationProgress * 100),
-  })
   return (
     <Modal title={t('Export & share')} onClose={onClose}>
       <div className="export-list">
@@ -1761,55 +1756,16 @@ function ExportDialog({
             {t('Download transparent PNG')}
           </button>
         </section>
-        <section className="export-option">
+        <section className="export-option export-option--dynamic">
           <Play className="export-option-icon" aria-hidden="true" />
           <div className="export-option-copy">
             <div className="export-option-title">
-              <strong>{t('Animated GIF')}</strong>
-              <ExportInfo label={t('About animated GIF')}>
-                {t(
-                  'Exports the complete Player sequence as a looping GIF. The transparent variant omits the plot background.',
-                )}
-              </ExportInfo>
+              <strong>{t('Dynamic exports')}</strong>
             </div>
             <small>
               {t(
                 canAnimate
-                  ? 'Looping animation · standard or transparent'
-                  : 'Add at least two positions to a boat first',
-              )}
-            </small>
-          </div>
-          <div className="export-format-actions" role="group" aria-label={t('GIF format')}>
-            <button
-              type="button"
-              disabled={!canAnimate || animationExport !== null}
-              onClick={() => void exportAnimation('gif')}
-            >
-              {animationExport === 'gif' ? progressLabel : t('Download GIF')}
-            </button>
-            <button
-              type="button"
-              disabled={!canAnimate || animationExport !== null}
-              onClick={() => void exportAnimation('gif-transparent')}
-            >
-              {animationExport === 'gif-transparent' ? progressLabel : t('Transparent GIF')}
-            </button>
-          </div>
-        </section>
-        <section className="export-option">
-          <FileDown className="export-option-icon" aria-hidden="true" />
-          <div className="export-option-copy">
-            <div className="export-option-title">
-              <strong>{t('MP4 video')}</strong>
-              <ExportInfo label={t('About MP4 video')}>
-                {t('Exports the complete Player sequence as a high-quality MP4 video.')}
-              </ExportInfo>
-            </div>
-            <small>
-              {t(
-                canAnimate
-                  ? 'Smooth video with plot background'
+                  ? 'GIF and MP4 use the speed and boat-tail setting from the Player.'
                   : 'Add at least two positions to a boat first',
               )}
             </small>
@@ -1817,10 +1773,10 @@ function ExportDialog({
           <button
             type="button"
             className="export-action-button"
-            disabled={!canAnimate || animationExport !== null}
-            onClick={() => void exportAnimation('mp4')}
+            disabled={!canAnimate}
+            onClick={onOpenPlayerExports}
           >
-            {animationExport === 'mp4' ? progressLabel : t('Download MP4')}
+            {t('Open Player exports')}
           </button>
         </section>
         <section className="export-option">
@@ -1836,6 +1792,101 @@ function ExportDialog({
           </div>
           <button type="button" className="export-action-button" onClick={() => void onPdf()}>
             {t('Download PDF')}
+          </button>
+        </section>
+      </div>
+    </Modal>
+  )
+}
+
+function AnimationExportDialog({
+  onClose,
+  onAnimation,
+  speed,
+  tailsVisible,
+}: {
+  onClose: () => void
+  onAnimation: (
+    format: AnimationExportFormat,
+    onProgress: (progress: number) => void,
+  ) => Promise<void>
+  speed: number
+  tailsVisible: boolean
+}) {
+  const { t } = useI18n()
+  const [animationExport, setAnimationExport] = useState<AnimationExportFormat | null>(null)
+  const [animationProgress, setAnimationProgress] = useState(0)
+  const exportAnimation = async (format: AnimationExportFormat) => {
+    setAnimationExport(format)
+    setAnimationProgress(0)
+    try {
+      await onAnimation(format, setAnimationProgress)
+    } finally {
+      setAnimationExport(null)
+      setAnimationProgress(0)
+    }
+  }
+  const progressLabel = t('Exporting {progress}%', {
+    progress: Math.round(animationProgress * 100),
+  })
+
+  return (
+    <Modal title={t('Player exports')} onClose={onClose}>
+      <p className="player-export-settings">
+        {t('Speed {speed}× · Boat tails {tails}', {
+          speed,
+          tails: t(tailsVisible ? 'On' : 'Off'),
+        })}
+      </p>
+      <div className="export-list">
+        <section className="export-option">
+          <Play className="export-option-icon" aria-hidden="true" />
+          <div className="export-option-copy">
+            <div className="export-option-title">
+              <strong>{t('Animated GIF')}</strong>
+              <ExportInfo label={t('About animated GIF')}>
+                {t(
+                  'Exports the complete Player sequence as a looping GIF. The transparent variant omits the plot background.',
+                )}
+              </ExportInfo>
+            </div>
+            <small>{t('Looping animation · standard or transparent')}</small>
+          </div>
+          <div className="export-format-actions" role="group" aria-label={t('GIF format')}>
+            <button
+              type="button"
+              disabled={animationExport !== null}
+              onClick={() => void exportAnimation('gif')}
+            >
+              {animationExport === 'gif' ? progressLabel : t('Download GIF')}
+            </button>
+            <button
+              type="button"
+              disabled={animationExport !== null}
+              onClick={() => void exportAnimation('gif-transparent')}
+            >
+              {animationExport === 'gif-transparent' ? progressLabel : t('Transparent GIF')}
+            </button>
+          </div>
+        </section>
+        <section className="export-option">
+          <FileDown className="export-option-icon" aria-hidden="true" />
+          <div className="export-option-copy">
+            <div className="export-option-title">
+              <strong>{t('MP4 video')}</strong>
+              <ExportInfo label={t('About MP4 video')}>
+                {t('Exports the complete Player sequence as a high-quality MP4 video.')}
+              </ExportInfo>
+            </div>
+            <small>{t('Smooth video with plot background')}</small>
+          </div>
+          <button
+            type="button"
+            className="export-action-button"
+            disabled={animationExport !== null}
+            onClick={() => void exportAnimation('mp4')}
+          >
+            {animationExport === 'mp4' ? progressLabel : t('Download MP4')}
           </button>
         </section>
       </div>
@@ -2152,9 +2203,15 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
     try {
       const blob =
         format === 'mp4'
-          ? await createMp4Export({ lastPosition: lastPlaybackPosition, renderFrame, onProgress })
+          ? await createMp4Export({
+              lastPosition: lastPlaybackPosition,
+              speed: playbackSpeed,
+              renderFrame,
+              onProgress,
+            })
           : await createGifExport({
               lastPosition: lastPlaybackPosition,
+              speed: playbackSpeed,
               renderFrame,
               onProgress,
               transparent: format === 'gif-transparent',
@@ -2259,6 +2316,13 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
   const exitPlayerMode = () => {
     setPlaybackPlaying(false)
     setPlayerMode(false)
+  }
+
+  const openPlayerExports = () => {
+    if (!canPlay) return
+    if (!playerMode) enterPlayerMode()
+    setPlaybackPlaying(false)
+    setDialog('animation-export')
   }
 
   return (
@@ -2450,6 +2514,7 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
             onPositionChange={setPlaybackPosition}
             onSpeedChange={setPlaybackSpeed}
             onTailsVisibleChange={setPlaybackTailsVisible}
+            onExport={openPlayerExports}
             onExit={exitPlayerMode}
           />
         ) : (
@@ -2530,6 +2595,7 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
             onPositionChange={setPlaybackPosition}
             onSpeedChange={setPlaybackSpeed}
             onTailsVisibleChange={setPlaybackTailsVisible}
+            onExport={openPlayerExports}
             onExit={exitPlayerMode}
           />
         ) : (
@@ -2616,10 +2682,18 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
           onClose={() => setDialog(null)}
           onJson={exportJson}
           onPng={exportPng}
-          onAnimation={exportAnimation}
+          onOpenPlayerExports={openPlayerExports}
           onShare={share}
           onPdf={exportPdf}
           canAnimate={canPlay}
+        />
+      )}
+      {dialog === 'animation-export' && (
+        <AnimationExportDialog
+          onClose={() => setDialog(null)}
+          onAnimation={exportAnimation}
+          speed={playbackSpeed}
+          tailsVisible={playbackTailsVisible}
         />
       )}
       {dialog === 'qr' && <PlotQrDialog onClose={() => setDialog(null)} />}

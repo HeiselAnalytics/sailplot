@@ -849,12 +849,11 @@ test('exports watermarked images, copies share URLs and downloads an A4 landscap
     'Plot JSON',
     'PNG image',
     'Transparent PNG',
-    'Animated GIF',
-    'MP4 video',
+    'Dynamic exports',
     'PDF document',
   ])
   const infoButtons = dialog.locator('.export-info-button')
-  await expect(infoButtons).toHaveCount(7)
+  await expect(infoButtons).toHaveCount(5)
   await infoButtons.nth(2).hover()
   await expect(dialog.getByRole('tooltip').nth(2)).toContainText(
     'Exports the complete plot in high quality',
@@ -863,9 +862,7 @@ test('exports watermarked images, copies share URLs and downloads an A4 landscap
   const pngButton = dialog.getByRole('button', { name: 'Download PNG', exact: true })
   await expect(pngButton).toBeVisible()
   await expect(dialog.getByRole('button', { name: 'Download transparent PNG' })).toBeVisible()
-  await expect(dialog.getByRole('button', { name: 'Download GIF' })).toBeDisabled()
-  await expect(dialog.getByRole('button', { name: 'Transparent GIF' })).toBeDisabled()
-  await expect(dialog.getByRole('button', { name: 'Download MP4' })).toBeDisabled()
+  await expect(dialog.getByRole('button', { name: 'Open Player exports' })).toBeDisabled()
 
   const copyButton = dialog.locator('.export-copy-button')
   await expect(copyButton).toHaveAccessibleName('Copy URL with project')
@@ -956,9 +953,11 @@ test('downloads the Player sequence as transparent GIF and MP4', async ({ page }
   await canvas.click({ position: { x: 430, y: 290 } })
   await page.getByRole('button', { name: 'Export / Share' }).click()
 
-  const dialog = page.getByRole('dialog', { name: 'Export & share' })
+  const staticDialog = page.getByRole('dialog', { name: 'Export & share' })
+  await expect(staticDialog.getByText('Dynamic exports', { exact: true })).toBeVisible()
+  await expect(staticDialog.getByRole('button', { name: 'Open Player exports' })).toBeEnabled()
   const pngDownloadPromise = page.waitForEvent('download')
-  await dialog.getByRole('button', { name: 'Download transparent PNG' }).click()
+  await staticDialog.getByRole('button', { name: 'Download transparent PNG' }).click()
   const pngDownload = await pngDownloadPromise
   const pngPath = await pngDownload.path()
   const pngContents = await readFile(pngPath!)
@@ -974,6 +973,25 @@ test('downloads the Player sequence as transparent GIF and MP4', async ({ page }
     return context.getImageData(5, 5, 1, 1).data[3]
   }, pngContents.toString('base64'))
   expect(firstPngPixelAlpha).toBe(0)
+
+  await staticDialog.getByRole('button', { name: 'Open Player exports' }).click()
+  await expect(page.locator('.app-shell')).toHaveAttribute('data-player-mode', 'true')
+  let dialog = page.getByRole('dialog', { name: 'Player exports' })
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('button', { name: 'Close dialog' }).click()
+
+  const controls = page.getByRole('region', { name: 'Player controls' })
+  await controls
+    .getByRole('group', { name: 'Playback speed' })
+    .getByRole('button', { name: '2×' })
+    .click()
+  await controls
+    .getByRole('group', { name: 'Boat tails' })
+    .getByRole('button', { name: 'Off' })
+    .click()
+  await controls.getByRole('button', { name: 'Export animation' }).click()
+  dialog = page.getByRole('dialog', { name: 'Player exports' })
+  await expect(dialog).toContainText('Speed 2× · Boat tails Off')
 
   const gifDownloadPromise = page.waitForEvent('download', { timeout: 60_000 })
   await dialog.getByRole('button', { name: 'Transparent GIF' }).click()
@@ -1015,7 +1033,8 @@ test('downloads the Player sequence as transparent GIF and MP4', async ({ page }
     })
     return { duration: video.duration, width: video.videoWidth, height: video.videoHeight }
   }, mp4Contents.toString('base64'))
-  expect(mp4Metadata.duration).toBeGreaterThanOrEqual(1.5)
+  expect(mp4Metadata.duration).toBeGreaterThan(0.7)
+  expect(mp4Metadata.duration).toBeLessThan(0.9)
   expect(mp4Metadata.width % 2).toBe(0)
   expect(mp4Metadata.height % 2).toBe(0)
 })
@@ -1993,6 +2012,7 @@ test('replays numbered boat positions with controls in place of the desktop tool
   await expect(page.locator('.properties-panel')).toHaveCount(0)
   const controls = page.getByRole('region', { name: 'Player controls' })
   await expect(controls).toBeVisible()
+  await expect(controls.getByRole('button', { name: 'Export animation' })).toBeVisible()
   await expect(page.locator('.tools-panel').getByRole('heading', { name: 'Player' })).toBeVisible()
   await expect(page.locator('.tools-panel').getByRole('button', { name: 'Boat' })).toHaveCount(0)
 
@@ -2067,6 +2087,11 @@ test('keeps the mobile player beside the menu and its controls free of horizonta
   expect(toolbarSize.scrollWidth).toBeLessThanOrEqual(toolbarSize.clientWidth)
 
   const exit = controls.getByRole('button', { name: 'Back to editor' })
+  const exportAnimation = controls.getByRole('button', { name: 'Export animation' })
+  await expect(exportAnimation).toBeVisible()
+  const exportBounds = await exportAnimation.boundingBox()
+  expect(exportBounds).not.toBeNull()
+  expect(exportBounds!.width).toBeLessThanOrEqual(40)
   await expect(exit.locator('svg')).toBeVisible()
   await expect(exit).toHaveCSS('color', 'rgb(223, 63, 63)')
   const exitBounds = await exit.boundingBox()

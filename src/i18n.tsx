@@ -210,6 +210,13 @@ const german: Record<string, string> = {
     'Exportiert in hoher Qualität ohne Plot-Hintergrund und behält Branding und Plot-QR-Code bei.',
   'Canvas objects without a background': 'Objekte der Zeichenfläche ohne Hintergrund',
   'Animated GIF': 'Animiertes GIF',
+  'Dynamic exports': 'Dynamische Exporte',
+  'GIF and MP4 use the speed and boat-tail setting from the Player.':
+    'GIF und MP4 verwenden die Geschwindigkeit und Bootsspuren-Einstellung aus dem Player.',
+  'Open Player exports': 'Player-Exporte öffnen',
+  'Export animation': 'Animation exportieren',
+  'Player exports': 'Player-Exporte',
+  'Speed {speed}× · Boat tails {tails}': 'Geschwindigkeit {speed}× · Bootsspuren {tails}',
   'About animated GIF': 'Informationen zum animierten GIF',
   'Exports the complete Player sequence as a looping GIF. The transparent variant omits the plot background.':
     'Exportiert den vollständigen Player-Ablauf als wiederholtes GIF. Bei der transparenten Variante entfällt der Plot-Hintergrund.',

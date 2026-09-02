@@ -807,6 +807,28 @@ h3 {
   gap: 8px;
 }
 
+.playback-export-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-color: color-mix(in srgb, var(--highlight), var(--border) 45%);
+  background: color-mix(in srgb, var(--highlight), transparent 90%);
+}
+
+.playback-export-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.playback-export-button--compact {
+  width: 44px;
+  min-height: 44px;
+  flex: 0 0 44px;
+  padding: 0;
+}
+
 .playback-exit-button svg {
   width: 16px;
   height: 16px;
@@ -2971,6 +2993,20 @@ a.mobile-branding-partner:focus-visible {
   background: color-mix(in srgb, var(--highlight), transparent 91%);
 }
 
+.export-option--dynamic {
+  border-style: dashed;
+}
+
+.player-export-settings {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--highlight), transparent 90%);
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .export-option-icon {
   width: 20px;
   height: 20px;
@@ -3495,9 +3531,9 @@ a.mobile-branding-partner:focus-visible {
     width: 100%;
     min-width: 0;
     grid-template:
-      'transport timeline exit' 44px
-      'settings settings settings' 44px /
-      auto minmax(72px, 1fr) 44px;
+      'transport timeline export exit' 44px
+      'settings settings settings settings' 44px /
+      auto minmax(56px, 1fr) 40px 44px;
     align-items: center;
     gap: 4px 8px;
   }
@@ -3529,6 +3565,12 @@ a.mobile-branding-partner:focus-visible {
 
   .playback-controls--compact .playback-exit-button {
     grid-area: exit;
+  }
+
+  .playback-controls--compact .playback-export-button {
+    width: 40px;
+    min-height: 40px;
+    grid-area: export;
   }
 
   .app-shell[data-layout='desktop'] .mobile-properties[data-selected='true'] {

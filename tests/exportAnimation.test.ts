@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { animationPlaybackPositions } from '../src/lib/exportAnimation'
+import {
+  animationFrameDurationSeconds,
+  animationPlaybackPositions,
+} from '../src/lib/exportAnimation'
 
 describe('animationPlaybackPositions', () => {
   it('uses the same number of frames for every boat-position interval', () => {
@@ -13,5 +16,13 @@ describe('animationPlaybackPositions', () => {
 
   it('keeps a plot without a playable sequence on its first position', () => {
     expect(animationPlaybackPositions(1, 24)).toEqual([1])
+  })
+})
+
+describe('animationFrameDurationSeconds', () => {
+  it('uses the selected Player speed for export timing', () => {
+    expect(animationFrameDurationSeconds(24, 0.5)).toBeCloseTo(1 / 12)
+    expect(animationFrameDurationSeconds(24, 1)).toBeCloseTo(1 / 24)
+    expect(animationFrameDurationSeconds(24, 2)).toBeCloseTo(1 / 48)
   })
 })
