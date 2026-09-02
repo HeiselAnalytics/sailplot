@@ -25,16 +25,20 @@ describe('scenario playback', () => {
       heading: 70,
     }
 
-    expect(boatsAtPlaybackPosition([first, second, third], 1.5)[0]).toMatchObject({
-      x: 50,
-      y: 20,
-      heading: 0,
+    expect(boatsAtPlaybackPosition([first, second, third], 2)[0]).toMatchObject({
+      x: second.x,
+      y: second.y,
+      heading: second.heading,
     })
-    expect(boatsAtPlaybackPosition([first, second, third], 2.5)[0]).toMatchObject({
-      x: 250,
-      y: 70,
-      heading: 40,
+    expect(boatsAtPlaybackPosition([first, second, third], 3)[0]).toMatchObject({
+      x: third.x,
+      y: third.y,
+      heading: third.heading,
     })
+    expect(boatsAtPlaybackPosition([first, second, third], 1.5)[0].x).toBeGreaterThan(0)
+    expect(boatsAtPlaybackPosition([first, second, third], 1.5)[0].x).toBeLessThan(100)
+    expect(boatsAtPlaybackPosition([first, second, third], 2.5)[0].x).toBeGreaterThan(100)
+    expect(boatsAtPlaybackPosition([first, second, third], 2.5)[0].x).toBeLessThan(400)
   })
 
   it('moves sequences together and holds shorter sequences at their final position', () => {
@@ -66,6 +70,35 @@ describe('scenario playback', () => {
   it('uses the shortest path when interpolating headings', () => {
     expect(interpolateAngle(350, 10, 0.5)).toBe(0)
     expect(interpolateAngle(10, 350, 0.5)).toBe(0)
+  })
+
+  it('turns along the curved route instead of drifting sideways', () => {
+    const first = {
+      ...createBoat(0, 0),
+      sequenceId: 'natural-motion',
+      positionNumber: 1,
+      heading: 0,
+    }
+    const second = {
+      ...createBoat(100, -100),
+      sequenceId: 'natural-motion',
+      positionNumber: 2,
+      heading: 90,
+    }
+    const before = boatsAtPlaybackPosition([first, second], 1.499)[0]
+    const current = boatsAtPlaybackPosition([first, second], 1.5)[0]
+    const after = boatsAtPlaybackPosition([first, second], 1.501)[0]
+    const movementHeading =
+      ((((Math.atan2(after.x - before.x, -(after.y - before.y)) * 180) / Math.PI) % 360) + 360) %
+      360
+    const headingDifference = Math.abs(
+      ((((current.heading - movementHeading) % 360) + 540) % 360) - 180,
+    )
+
+    expect(current).toMatchObject({ x: expect.any(Number), y: expect.any(Number) })
+    expect(current.x).not.toBeCloseTo(50)
+    expect(current.y).not.toBeCloseTo(-50)
+    expect(headingDifference).toBeLessThan(0.2)
   })
 
   it('preserves the overlap line while a boat moves to its next position', () => {

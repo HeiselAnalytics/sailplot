@@ -1,11 +1,16 @@
 import type { BoatObject, ScenarioObject } from '../../types/scenario'
+import {
+  boatSequenceSegment,
+  constantSpeedCurveProgress,
+  headingForBoatSequenceTangent,
+  pointOnBoatSequenceSegment,
+  tangentOnBoatSequenceSegment,
+} from '../../editor/objects/boatSequenceGeometry'
 
 export const PLAYBACK_SEGMENT_DURATION_MS = 1500
 
 const clamp = (value: number, minimum: number, maximum: number) =>
   Math.min(maximum, Math.max(minimum, value))
-
-const interpolate = (from: number, to: number, progress: number) => from + (to - from) * progress
 
 export const interpolateAngle = (from: number, to: number, progress: number) => {
   const difference = ((((to - from) % 360) + 540) % 360) - 180
@@ -50,14 +55,27 @@ export const boatsAtPlaybackPosition = (
     const to = boats.find((boat) => boat.positionNumber >= position) ?? boats.at(-1)!
     const span = Math.max(1, to.positionNumber - from.positionNumber)
     const progress = from.id === to.id ? 0 : (position - from.positionNumber) / span
+    const segment = boatSequenceSegment(from, to)
+    const curveProgress = constantSpeedCurveProgress(segment, progress)
+    const point = pointOnBoatSequenceSegment(segment, curveProgress)
+    const tangent = tangentOnBoatSequenceSegment(segment, curveProgress)
+    const heading =
+      progress <= 0
+        ? from.heading
+        : progress >= 1
+          ? to.heading
+          : headingForBoatSequenceTangent(
+              tangent,
+              interpolateAngle(from.heading, to.heading, progress),
+            )
 
     return {
       ...(progress >= 1 ? to : from),
       id: boats[0].id,
-      x: interpolate(from.x, to.x, progress),
-      y: interpolate(from.y, to.y, progress),
-      heading: interpolateAngle(from.heading, to.heading, progress),
-      rotation: interpolateAngle(from.rotation, to.rotation, progress),
+      x: point.x,
+      y: point.y,
+      heading,
+      rotation: heading,
       locked: true,
       positionNumber: Math.min(maximum, Math.floor(position)),
     }

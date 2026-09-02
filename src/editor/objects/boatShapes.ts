@@ -4,6 +4,7 @@ import {
   type BoatObject,
   type ScenarioObject,
 } from '../../types/scenario'
+import { boatSequenceSegment } from './boatSequenceGeometry'
 
 export { COACHBOAT_BLUE } from '../../lib/boatColors'
 
@@ -711,30 +712,8 @@ export function boatSequencePath(boats: BoatObject[]): string {
   for (let index = 1; index < ordered.length; index += 1) {
     const previous = ordered[index - 1]
     const current = ordered[index]
-    const deltaX = current.x - previous.x
-    const deltaY = current.y - previous.y
-    const distance = Math.hypot(deltaX, deltaY)
-    const direction = ((((Math.atan2(deltaX, -deltaY) * 180) / Math.PI) % 360) + 360) % 360
-    const factor = (distance * 2) / 5
-    const previousAngle = (((direction - previous.heading) % 360) + 360) % 360
-    const currentAngle = (((direction - current.heading) % 360) + 360) % 360
-    const previousRadians = (previous.heading * Math.PI) / 180
-    const currentRadians = (current.heading * Math.PI) / 180
-    const firstControl =
-      previousAngle >= 90 && previousAngle <= 270
-        ? { x: previous.x, y: previous.y }
-        : {
-            x: previous.x + factor * Math.sin(previousRadians),
-            y: previous.y - factor * Math.cos(previousRadians),
-          }
-    const secondControl =
-      currentAngle >= 90 && currentAngle <= 270
-        ? { x: current.x, y: current.y }
-        : {
-            x: current.x - factor * Math.sin(currentRadians),
-            y: current.y + factor * Math.cos(currentRadians),
-          }
-    path += ` C ${firstControl.x} ${firstControl.y} ${secondControl.x} ${secondControl.y} ${current.x} ${current.y}`
+    const segment = boatSequenceSegment(previous, current)
+    path += ` C ${segment.firstControl.x} ${segment.firstControl.y} ${segment.secondControl.x} ${segment.secondControl.y} ${segment.end.x} ${segment.end.y}`
   }
   return path
 }
