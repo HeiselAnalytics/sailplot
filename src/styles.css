@@ -581,12 +581,6 @@ h3 {
   background: var(--panel);
 }
 
-.endless-plot-help {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.35;
-}
-
 .tools-panel .scene-toggle-grid input[type='checkbox']:checked {
   accent-color: var(--highlight);
 }

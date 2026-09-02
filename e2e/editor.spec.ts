@@ -1066,10 +1066,24 @@ test('uses an endless drawing surface and disables PDF export with an explanatio
 
   const toolsPanel = page.locator('.tools-panel')
   const endlessPlot = toolsPanel.getByRole('group', { name: 'Endless plot' })
+  const endlessInfo = toolsPanel.getByRole('button', { name: 'About Endless plot' })
   const endlessOn = endlessPlot.getByRole('button', { name: 'On' })
   const endlessOff = endlessPlot.getByRole('button', { name: 'Off' })
   const home = toolsPanel.getByRole('button', { name: 'Return to the central plot position' })
   const plotBackground = toolsPanel.getByRole('group', { name: 'Plot background' })
+  await expect(endlessInfo).toHaveAttribute('aria-expanded', 'false')
+  await expect(
+    toolsPanel.getByText(
+      'Removes fixed plot edges. When enabled, the wind indicator and boat legend can be moved freely.',
+    ),
+  ).toHaveCount(0)
+  await endlessInfo.click()
+  await expect(endlessInfo).toHaveAttribute('aria-expanded', 'true')
+  await expect(
+    toolsPanel.getByText(
+      'Removes fixed plot edges. When enabled, the wind indicator and boat legend can be moved freely.',
+    ),
+  ).toBeVisible()
   await expect(endlessOff).toHaveAttribute('aria-pressed', 'true')
   await expect(home).toBeVisible()
   await expect(home).toHaveCSS('border-top-width', '1px')

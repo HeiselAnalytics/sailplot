@@ -43,6 +43,7 @@ const german: Record<string, string> = {
   'Show boat numbers': 'Bootsnummern anzeigen',
   'Boat legend': 'Bootslegende',
   'Endless plot': 'Endlos-Plot',
+  'About Endless plot': 'Informationen zum Endlos-Plot',
   'Return to the central plot position': 'Zur zentralen Plot-Position zurückkehren',
   'Removes fixed plot edges. When enabled, the wind indicator and boat legend can be moved freely.':
     'Entfernt feste Plot-Ränder. Wenn aktiviert, lassen sich Windanzeige und Bootslegende frei verschieben.',

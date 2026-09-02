@@ -234,7 +234,9 @@ function SceneSettings({
   onResetView: () => void
 }) {
   const { t } = useI18n()
+  const [endlessInfoOpen, setEndlessInfoOpen] = useState(false)
   const [basisInfoOpen, setBasisInfoOpen] = useState(false)
+  const endlessInfoId = embedded ? 'compact-endless-plot-info' : 'endless-plot-info'
   const basisId = embedded ? 'compact-boat-length-basis' : 'boat-length-basis'
   const basisInfoId = `${basisId}-info`
   const scenario = useEditorStore((state) => state.scenario)
@@ -336,7 +338,20 @@ function SceneSettings({
         </label>
       </div>
       <div className="field endless-plot-field">
-        <span>{t('Endless plot')}</span>
+        <div className="field-label-row">
+          <span>{t('Endless plot')}</span>
+          <button
+            type="button"
+            className="field-info-button"
+            aria-label={t('About Endless plot')}
+            aria-expanded={endlessInfoOpen}
+            aria-controls={endlessInfoId}
+            title={t('About Endless plot')}
+            onClick={() => setEndlessInfoOpen((open) => !open)}
+          >
+            <Info aria-hidden="true" />
+          </button>
+        </div>
         <div className="endless-plot-control">
           <div
             className="plot-background-switch endless-plot-switch"
@@ -368,11 +383,13 @@ function SceneSettings({
             onClick={onResetView}
           />
         </div>
-        <small className="endless-plot-help">
-          {t(
-            'Removes fixed plot edges. When enabled, the wind indicator and boat legend can be moved freely.',
-          )}
-        </small>
+        {endlessInfoOpen && (
+          <p id={endlessInfoId} className="field-info" role="status">
+            {t(
+              'Removes fixed plot edges. When enabled, the wind indicator and boat legend can be moved freely.',
+            )}
+          </p>
+        )}
       </div>
       <div className="field">
         <span>{t('Plot background')}</span>
