@@ -1791,6 +1791,24 @@ test('uses boat lengths for mark zones and supports Lacustre', async ({ page }, 
   }
 })
 
+test('formats the default boat-length basis without floating-point noise', async ({
+  page,
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name !== 'desktop-chrome',
+    'The mark properties are directly visible in the desktop layout',
+  )
+
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Mark', exact: true }).first().click()
+  await page
+    .locator('canvas')
+    .first()
+    .click({ position: { x: 220, y: 160 } })
+
+  await expect(page.locator('.field-help:visible')).toHaveText('Default basis: ILCA (4.23 m).')
+})
+
 test('creates a numbered downwind mark from its own tool', async ({ page }, testInfo) => {
   test.skip(
     testInfo.project.name !== 'desktop-chrome',

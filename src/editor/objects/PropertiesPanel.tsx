@@ -543,12 +543,15 @@ function MarkFields({
   object: MarkObject
   update: (patch: Partial<MarkObject>) => void
 }) {
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const scenario = useEditorStore((state) => state.scenario)
   const zoneBasis = measurementBoatLengthBasis(
     scenario.objects,
     scenario.environment.measurementBoatClass,
   )
+  const hullLengthFormat = new Intl.NumberFormat(language === 'de' ? 'de-CH' : 'en', {
+    maximumFractionDigits: 2,
+  })
   const orientation = !object.laylinesVisible ? 'neutral' : object.downwind ? 'leeward' : 'windward'
   const orientations = [
     { value: 'windward', label: t('Windward') },
@@ -656,7 +659,7 @@ function MarkFields({
               ? 'Default basis'
               : 'Longest class',
         )}
-        : {t(zoneBasis.boatClass)} ({zoneBasis.hullLength / 10} m).
+        : {t(zoneBasis.boatClass)} ({hullLengthFormat.format(zoneBasis.hullLength / 10)} m).
       </p>
     </>
   )
