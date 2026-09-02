@@ -623,6 +623,10 @@ function BoatGraphic({
   const displayedBoatLength = profile.drawingLength * profile.displayScale
   const overlapLineLength = displayedBoatLength
   const overlapDirection = object.overlapIndicator === 'port' ? -1 : 1
+  const sailStrokeWidth = 1.6 / profile.displayScale
+  const sailDetailStrokeWidth = 1.15 / profile.displayScale
+  const primarySailFill = inkColor === DARK_PLOT_INK ? '#FFFFFF' : '#F8FAFC'
+  const secondarySailFill = inkColor === DARK_PLOT_INK ? '#E8EEF2' : '#E2E8EC'
   return (
     <Group
       id={`object-${object.id}`}
@@ -699,58 +703,97 @@ function BoatGraphic({
             }
           />
         )}
+        {boatNumbersVisible && (
+          <Group
+            name="boat-position-number"
+            x={profile.numberPos[0]}
+            y={profile.numberPos[1]}
+            scaleX={1 / profile.displayScale}
+            scaleY={1 / profile.displayScale}
+          >
+            <Circle radius={11} fill="#737373" stroke={inkColor} strokeWidth={1.5} />
+            <Text
+              text={String(object.positionNumber)}
+              x={-11}
+              y={-6.5}
+              width={22}
+              align="center"
+              fill="#ffffff"
+              fontSize={16}
+              fontStyle="bold"
+            />
+          </Group>
+        )}
         {profile.mast && object.mainsailVisible && profile.mainsailSize > 0 && (
-          <Group x={profile.mast[0]} y={profile.mast[1]} rotation={-sailAngle}>
+          <Group name="boat-sail" x={profile.mast[0]} y={profile.mast[1]} rotation={-sailAngle}>
             <Path
               data={curvedSailPath(
                 profile.mainsailSize,
                 sailSide(object.heading, windDirection, sailAngle),
                 mainsailStalled,
               )}
-              fill="#ffffff"
+              fill={primarySailFill}
               stroke={outlineColor}
-              strokeWidth={0.8}
-              opacity={0.94}
+              strokeWidth={sailStrokeWidth}
+              opacity={0.98}
+              lineJoin="round"
             />
             <Line
               points={[0, 0, 0, profile.mainsailSize]}
               stroke={outlineColor}
-              strokeWidth={0.65}
+              strokeWidth={sailDetailStrokeWidth}
             />
           </Group>
         )}
         {profile.jibTack && object.jibVisible && profile.jibSize > 0 && (
-          <Group x={profile.jibTack[0]} y={profile.jibTack[1]} rotation={-jibAngle}>
+          <Group
+            name="boat-sail"
+            x={profile.jibTack[0]}
+            y={profile.jibTack[1]}
+            rotation={-jibAngle}
+          >
             <Path
               data={curvedSailPath(
                 profile.jibSize,
                 sailSide(object.heading, windDirection, jibAngle),
                 jibStalled,
               )}
-              fill="#e5e5e5"
+              fill={secondarySailFill}
               stroke={outlineColor}
-              strokeWidth={0.7}
-              opacity={0.94}
+              strokeWidth={sailStrokeWidth}
+              opacity={0.98}
+              lineJoin="round"
             />
           </Group>
         )}
         {profile.jibTack && object.genoaVisible && (profile.genoaSize ?? 0) > 0 && (
-          <Group x={profile.jibTack[0]} y={profile.jibTack[1]} rotation={-jibAngle}>
+          <Group
+            name="boat-sail"
+            x={profile.jibTack[0]}
+            y={profile.jibTack[1]}
+            rotation={-jibAngle}
+          >
             <Path
               data={genoaPath(
                 profile.genoaSize ?? 0,
                 sailSide(object.heading, windDirection, jibAngle),
                 jibStalled,
               )}
-              fill="#F2F2F2"
+              fill={secondarySailFill}
               stroke={outlineColor}
-              strokeWidth={0.75}
-              opacity={0.94}
+              strokeWidth={sailStrokeWidth}
+              opacity={0.98}
+              lineJoin="round"
             />
           </Group>
         )}
         {profile.mast && object.spinnakerVisible && profile.spinnakerSize > 0 && (
-          <Group x={profile.mast[0]} y={profile.mast[1]} rotation={-spinnakerAngle}>
+          <Group
+            name="boat-sail"
+            x={profile.mast[0]}
+            y={profile.mast[1]}
+            rotation={-spinnakerAngle}
+          >
             <Path
               data={
                 spinnakerStalled
@@ -762,26 +805,27 @@ function BoatGraphic({
                   : spinnakerPath(profile.spinnakerSize, spinnakerSide, false)
               }
               rotation={spinnakerStalled ? 0 : spinPoleAngle - spinnakerSide * 90}
-              fill="#ffffff"
+              fill={primarySailFill}
               stroke={outlineColor}
-              strokeWidth={0.8}
-              opacity={0.94}
+              strokeWidth={sailStrokeWidth}
+              opacity={0.98}
+              lineJoin="round"
             />
             <Line
               points={[0, 0, 0, -profile.spinnakerSize]}
               stroke={outlineColor}
-              strokeWidth={0.75}
+              strokeWidth={sailDetailStrokeWidth}
               rotation={spinPoleAngle}
             />
           </Group>
         )}
         {profile.gennakerTack && object.gennakerVisible && profile.gennakerSize > 0 && (
-          <Group x={profile.gennakerTack[0]} y={profile.gennakerTack[1]}>
+          <Group name="boat-sail" x={profile.gennakerTack[0]} y={profile.gennakerTack[1]}>
             {profile.poleLength > 0 && (
               <Line
                 points={[0, 0, 0, profile.poleLength]}
                 stroke={outlineColor}
-                strokeWidth={0.8}
+                strokeWidth={sailDetailStrokeWidth}
               />
             )}
             <Path
@@ -790,10 +834,11 @@ function BoatGraphic({
                 sailSide(object.heading, windDirection, gennAngle),
                 gennakerStalled,
               )}
-              fill="#ffffff"
+              fill={primarySailFill}
               stroke={outlineColor}
-              strokeWidth={0.8}
-              opacity={0.9}
+              strokeWidth={sailStrokeWidth}
+              opacity={0.98}
+              lineJoin="round"
               rotation={-gennAngle}
             />
           </Group>
@@ -809,28 +854,6 @@ function BoatGraphic({
           opacity={0.78}
           listening={false}
         />
-      )}
-      {boatNumbersVisible && (
-        <>
-          <Circle
-            x={profile.numberPos[0] * profile.displayScale}
-            y={profile.numberPos[1] * profile.displayScale}
-            radius={11}
-            fill="#737373"
-            stroke={inkColor}
-            strokeWidth={1.5}
-          />
-          <Text
-            text={String(object.positionNumber)}
-            x={profile.numberPos[0] * profile.displayScale - 11}
-            y={profile.numberPos[1] * profile.displayScale - 6.5}
-            width={22}
-            align="center"
-            fill="#ffffff"
-            fontSize={16}
-            fontStyle="bold"
-          />
-        </>
       )}
     </Group>
   )
