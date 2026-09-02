@@ -74,3 +74,22 @@ export const objectsAtPlaybackPosition = (
       .map((object) => ({ ...object, locked: true })),
     ...boatsAtPlaybackPosition(objects, playbackPosition),
   ].sort((first, second) => first.zIndex - second.zIndex)
+
+export const boatTailsAtPlaybackPosition = (
+  objects: ScenarioObject[],
+  playbackPosition: number,
+) => {
+  const currentBoats = new Map(
+    boatsAtPlaybackPosition(objects, playbackPosition).map((boat) => [boat.sequenceId, boat]),
+  )
+  const sequences = new Map<string, BoatObject[]>()
+  for (const object of objects) {
+    if (object.type !== 'boat' || !object.visible || object.positionNumber >= playbackPosition)
+      continue
+    sequences.set(object.sequenceId, [...(sequences.get(object.sequenceId) ?? []), object])
+  }
+  for (const [sequenceId, boat] of currentBoats) {
+    sequences.set(sequenceId, [...(sequences.get(sequenceId) ?? []), boat])
+  }
+  return [...sequences.entries()].map(([id, boats]) => ({ id, boats }))
+}

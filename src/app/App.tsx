@@ -452,16 +452,24 @@ function PlaybackControls({
   playing,
   position,
   lastPosition,
+  speed,
+  tailsVisible,
   onPlayingChange,
   onPositionChange,
+  onSpeedChange,
+  onTailsVisibleChange,
   onExit,
 }: {
   compact?: boolean
   playing: boolean
   position: number
   lastPosition: number
+  speed: number
+  tailsVisible: boolean
   onPlayingChange: (playing: boolean) => void
   onPositionChange: (position: number) => void
+  onSpeedChange: (speed: number) => void
+  onTailsVisibleChange: (visible: boolean) => void
   onExit: () => void
 }) {
   const { t } = useI18n()
@@ -533,6 +541,45 @@ function PlaybackControls({
           }}
         />
       </label>
+      <div className="playback-settings">
+        <div className="field playback-speed-field">
+          <span>{t('Speed')}</span>
+          <div className="plot-background-switch" role="group" aria-label={t('Playback speed')}>
+            {[0.5, 1, 2].map((option) => (
+              <button
+                key={option}
+                type="button"
+                aria-pressed={speed === option}
+                className={speed === option ? 'is-active' : ''}
+                onClick={() => onSpeedChange(option)}
+              >
+                {option}×
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="field playback-tail-field">
+          <span>{t('Boat tails')}</span>
+          <div className="plot-background-switch" role="group" aria-label={t('Boat tails')}>
+            <button
+              type="button"
+              aria-pressed={tailsVisible}
+              className={tailsVisible ? 'is-active' : ''}
+              onClick={() => onTailsVisibleChange(true)}
+            >
+              {t('On')}
+            </button>
+            <button
+              type="button"
+              aria-pressed={!tailsVisible}
+              className={!tailsVisible ? 'is-active' : ''}
+              onClick={() => onTailsVisibleChange(false)}
+            >
+              {t('Off')}
+            </button>
+          </div>
+        </div>
+      </div>
       <button type="button" className="secondary-button playback-exit-button" onClick={onExit}>
         <X aria-hidden="true" />
         {t('Back to editor')}
@@ -1753,6 +1800,8 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
   const [playerMode, setPlayerMode] = useState(false)
   const [playbackPlaying, setPlaybackPlaying] = useState(false)
   const [playbackPosition, setPlaybackPosition] = useState(1)
+  const [playbackSpeed, setPlaybackSpeed] = useState(1)
+  const [playbackTailsVisible, setPlaybackTailsVisible] = useState(true)
   const [isCompactViewport, setIsCompactViewport] = useState(
     () => window.matchMedia('(max-width: 980px)').matches,
   )
@@ -1841,13 +1890,16 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
       const elapsed = time - previousTime
       previousTime = time
       setPlaybackPosition((current) =>
-        Math.min(lastPlaybackPosition, current + elapsed / PLAYBACK_SEGMENT_DURATION_MS),
+        Math.min(
+          lastPlaybackPosition,
+          current + (elapsed * playbackSpeed) / PLAYBACK_SEGMENT_DURATION_MS,
+        ),
       )
       animationFrame = window.requestAnimationFrame(animate)
     }
     animationFrame = window.requestAnimationFrame(animate)
     return () => window.cancelAnimationFrame(animationFrame)
-  }, [lastPlaybackPosition, playbackPlaying, playerMode])
+  }, [lastPlaybackPosition, playbackPlaying, playbackSpeed, playerMode])
 
   useEffect(() => {
     if (playbackPlaying && playbackPosition >= lastPlaybackPosition) setPlaybackPlaying(false)
@@ -2207,13 +2259,17 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
             disabled={playerMode || !future.length}
             onClick={redo}
           />
-          <IconButton
-            compact
-            icon={playerMode ? <X /> : <Play />}
-            label={t(playerMode ? 'Back to editor' : 'Player mode')}
+          <button
+            type="button"
+            className="player-mode-toggle"
+            aria-label={t(playerMode ? 'Back to editor' : 'Player mode')}
+            title={t(playerMode ? 'Back to editor' : 'Player mode')}
             disabled={!playerMode && !canPlay}
             onClick={playerMode ? exitPlayerMode : enterPlayerMode}
-          />
+          >
+            {playerMode ? <span aria-hidden="true">←</span> : <Play aria-hidden="true" />}
+            <span>{t(playerMode ? 'Back to editor' : 'Player')}</span>
+          </button>
           <IconButton
             compact
             icon={<ZoomIn />}
@@ -2279,8 +2335,12 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
             playing={playbackPlaying}
             position={playbackPosition}
             lastPosition={lastPlaybackPosition}
+            speed={playbackSpeed}
+            tailsVisible={playbackTailsVisible}
             onPlayingChange={setPlaybackPlaying}
             onPositionChange={setPlaybackPosition}
+            onSpeedChange={setPlaybackSpeed}
+            onTailsVisibleChange={setPlaybackTailsVisible}
             onExit={exitPlayerMode}
           />
         ) : (
@@ -2323,6 +2383,7 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
             ) : undefined
           }
           playbackPosition={playerMode ? playbackPosition : undefined}
+          playbackTailsVisible={playbackTailsVisible}
         />
       </main>
       {!playerMode && (
@@ -2354,8 +2415,12 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
             playing={playbackPlaying}
             position={playbackPosition}
             lastPosition={lastPlaybackPosition}
+            speed={playbackSpeed}
+            tailsVisible={playbackTailsVisible}
             onPlayingChange={setPlaybackPlaying}
             onPositionChange={setPlaybackPosition}
+            onSpeedChange={setPlaybackSpeed}
+            onTailsVisibleChange={setPlaybackTailsVisible}
             onExit={exitPlayerMode}
           />
         ) : (

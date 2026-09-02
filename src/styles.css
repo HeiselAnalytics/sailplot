@@ -788,6 +788,17 @@ h3 {
   accent-color: var(--button);
 }
 
+.playback-settings {
+  display: grid;
+  gap: 14px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.playback-speed-field .plot-background-switch {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .playback-exit-button {
   display: inline-flex;
   min-height: 40px;
@@ -820,6 +831,26 @@ h3 {
 .playback-controls--compact .playback-timeline {
   width: clamp(180px, 38vw, 360px);
   gap: 2px;
+}
+
+.playback-controls--compact .playback-settings {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+}
+
+.playback-controls--compact .playback-settings .field > span {
+  display: none;
+}
+
+.playback-controls--compact .playback-speed-field {
+  width: 132px;
+}
+
+.playback-controls--compact .playback-tail-field {
+  width: 84px;
 }
 
 .playback-controls--compact .playback-exit-button {
@@ -1207,7 +1238,8 @@ h3 {
   margin-left: auto;
 }
 
-.extension-editor-back {
+.extension-editor-back,
+.player-mode-toggle {
   display: inline-flex;
   min-height: 32px;
   align-items: center;
@@ -1222,12 +1254,31 @@ h3 {
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+}
+
+.extension-editor-back {
   margin-right: 24px;
 }
 
-.extension-editor-back:hover {
+.player-mode-toggle {
+  flex: 0 0 auto;
+}
+
+.player-mode-toggle svg {
+  width: 15px;
+  height: 15px;
+  fill: currentcolor;
+}
+
+.extension-editor-back:hover,
+.player-mode-toggle:hover:not(:disabled) {
   border-color: var(--highlight-hover);
   background: var(--interactive-hover-strong);
+}
+
+.player-mode-toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .extension-page-content {
@@ -3139,6 +3190,23 @@ a.mobile-branding-partner:focus-visible {
   }
 
   .topbar-actions--file .icon-button span {
+    display: none;
+  }
+}
+
+@media (min-width: 1121px) and (max-width: 1439px) {
+  .topbar-document {
+    max-width: min(44vw, calc(100vw - 880px), 560px);
+  }
+}
+
+@media (max-width: 1120px) {
+  .player-mode-toggle {
+    width: 40px;
+    padding: 0;
+  }
+
+  .player-mode-toggle > span:last-child {
     display: none;
   }
 }

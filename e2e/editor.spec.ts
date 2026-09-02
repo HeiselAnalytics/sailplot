@@ -1902,6 +1902,7 @@ test('replays numbered boat positions with controls in place of the desktop tool
   await page.goto('/')
   const playerMode = page.getByRole('button', { name: 'Player mode' })
   await expect(playerMode).toBeDisabled()
+  await expect(playerMode).toContainText('Player')
 
   await page.getByRole('button', { name: 'Boat', exact: true }).first().click()
   const canvas = page.locator('canvas').first()
@@ -1911,6 +1912,7 @@ test('replays numbered boat positions with controls in place of the desktop tool
   await playerMode.click()
 
   await expect(page.locator('.app-shell')).toHaveAttribute('data-player-mode', 'true')
+  await expect(page.locator('.player-mode-toggle')).toHaveAccessibleName('Back to editor')
   await expect(page.locator('.properties-panel')).toHaveCount(0)
   const controls = page.getByRole('region', { name: 'Player controls' })
   await expect(controls).toBeVisible()
@@ -1919,6 +1921,15 @@ test('replays numbered boat positions with controls in place of the desktop tool
 
   const timeline = controls.getByRole('slider', { name: 'Playback timeline' })
   await expect(timeline).toHaveValue('1')
+  const speed = controls.getByRole('group', { name: 'Playback speed' })
+  await expect(speed.getByRole('button', { name: '1×' })).toHaveAttribute('aria-pressed', 'true')
+  await speed.getByRole('button', { name: '2×' }).click()
+  await expect(speed.getByRole('button', { name: '2×' })).toHaveAttribute('aria-pressed', 'true')
+  const tails = controls.getByRole('group', { name: 'Boat tails' })
+  await expect(tails.getByRole('button', { name: 'On' })).toHaveAttribute('aria-pressed', 'true')
+  await tails.getByRole('button', { name: 'Off' }).click()
+  await expect(tails.getByRole('button', { name: 'Off' })).toHaveAttribute('aria-pressed', 'true')
+  await tails.getByRole('button', { name: 'On' }).click()
   await timeline.fill('1.5')
   await expect(controls).toContainText('Position 1 → 2 of 2')
   await controls.getByRole('button', { name: 'Previous position' }).click()

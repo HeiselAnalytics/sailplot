@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  boatTailsAtPlaybackPosition,
   boatsAtPlaybackPosition,
   hasPlayableBoatSequence,
   interpolateAngle,
@@ -65,5 +66,34 @@ describe('scenario playback', () => {
   it('uses the shortest path when interpolating headings', () => {
     expect(interpolateAngle(350, 10, 0.5)).toBe(0)
     expect(interpolateAngle(10, 350, 0.5)).toBe(0)
+  })
+
+  it('preserves the overlap line while a boat moves to its next position', () => {
+    const first = {
+      ...createBoat(0, 0),
+      sequenceId: 'overlap',
+      positionNumber: 1,
+      overlapIndicator: 'starboard' as const,
+    }
+    const second = {
+      ...createBoat(100, 0),
+      sequenceId: 'overlap',
+      positionNumber: 2,
+      overlapIndicator: 'none' as const,
+    }
+
+    expect(boatsAtPlaybackPosition([first, second], 1.5)[0].overlapIndicator).toBe('starboard')
+    expect(boatsAtPlaybackPosition([first, second], 2)[0].overlapIndicator).toBe('none')
+  })
+
+  it('builds a tail only through the current playback position', () => {
+    const first = { ...createBoat(0, 0), sequenceId: 'tail', positionNumber: 1 }
+    const second = { ...createBoat(100, 0), sequenceId: 'tail', positionNumber: 2 }
+    const third = { ...createBoat(300, 0), sequenceId: 'tail', positionNumber: 3 }
+
+    const [{ boats }] = boatTailsAtPlaybackPosition([first, second, third], 1.5)
+    expect(boats).toHaveLength(2)
+    expect(boats[0].x).toBe(0)
+    expect(boats[1].x).toBe(50)
   })
 })

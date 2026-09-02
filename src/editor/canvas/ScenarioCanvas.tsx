@@ -72,7 +72,10 @@ import {
   courseEndpointBoatAppearance,
   courseEndpointShowsSignalFlag,
 } from '../objects/courseEndpoints'
-import { objectsAtPlaybackPosition } from '../../features/playback/playback'
+import {
+  boatTailsAtPlaybackPosition,
+  objectsAtPlaybackPosition,
+} from '../../features/playback/playback'
 
 export interface CanvasHandle {
   fitToScreen: () => void
@@ -1321,6 +1324,7 @@ interface ScenarioCanvasProps {
   branding?: ReactNode
   topRightOverlay?: ReactNode
   playbackPosition?: number
+  playbackTailsVisible?: boolean
 }
 
 const EDITOR_BRANDING_MAX_WIDTH = 341.55
@@ -1331,7 +1335,7 @@ const EDITOR_BRANDING_PLOT_MARGIN = 12
 const EDITOR_BRANDING_VIEWPORT_MARGIN = 6
 
 export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(function ScenarioCanvas(
-  { branding, topRightOverlay, playbackPosition },
+  { branding, topRightOverlay, playbackPosition, playbackTailsVisible = true },
   ref,
 ) {
   const { t } = useI18n()
@@ -1496,6 +1500,13 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
     [editorDisplayObjects, isPlaybackMode, orderedObjects, playbackPosition],
   )
   const boatTracks = useMemo(() => {
+    if (isPlaybackMode) {
+      if (!playbackTailsVisible) return []
+      return boatTailsAtPlaybackPosition(orderedObjects, playbackPosition)
+        .map(({ id, boats }) => ({ id, boats, path: boatSequencePath(boats) }))
+        .filter(({ path }) => path)
+    }
+
     const sequences = new Map<string, BoatObject[]>()
     for (const object of displayObjects) {
       if (object.type !== 'boat' || !object.visible) continue
@@ -1504,7 +1515,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
     return [...sequences.entries()]
       .map(([id, boats]) => ({ id, boats, path: boatSequencePath(boats) }))
       .filter(({ path }) => path)
-  }, [displayObjects])
+  }, [displayObjects, isPlaybackMode, orderedObjects, playbackPosition, playbackTailsVisible])
   const boatLegendEntries = useMemo(() => {
     const entries = new Map<string, BoatObject>()
     for (const object of orderedObjects) {
@@ -2073,19 +2084,18 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
               }
               return []
             })}
-          {!isPlaybackMode &&
-            boatTracks.map(({ id, boats, path }) => (
-              <Path
-                key={`track-${id}`}
-                data={path}
-                stroke={boats[0].color}
-                strokeWidth={3}
-                opacity={0.52}
-                lineCap="round"
-                lineJoin="round"
-                listening={false}
-              />
-            ))}
+          {boatTracks.map(({ id, boats, path }) => (
+            <Path
+              key={`track-${id}`}
+              data={path}
+              stroke={boats[0].color}
+              strokeWidth={3}
+              opacity={isPlaybackMode ? 0.7 : 0.52}
+              lineCap="round"
+              lineJoin="round"
+              listening={false}
+            />
+          ))}
           {scenario.environment.laylinesVisible &&
             displayObjects
               .filter((object) => object.type === 'mark')
