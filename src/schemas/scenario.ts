@@ -1,5 +1,10 @@
 import { z } from 'zod'
-import { BOAT_CLASSES, isSupportBoatClass, type BoatClass } from '../types/scenario'
+import {
+  BOAT_CLASSES,
+  isSupportBoatClass,
+  UMPIRE_SIGNAL_FLAGS,
+  type BoatClass,
+} from '../types/scenario'
 
 const LEGACY_BOAT_CLASSES: Record<string, BoatClass> = {
   'ILCA / Laser': 'ILCA',
@@ -56,6 +61,8 @@ const boatSchema = baseObjectSchema.extend({
   sequenceId: z.string().optional(),
   positionNumber: z.number().int().positive().optional(),
   overlapIndicator: z.enum(['port', 'none', 'starboard']).default('none'),
+  boatFlagColor: z.string().nullable().default(null),
+  umpireSignalFlag: z.enum(UMPIRE_SIGNAL_FLAGS).default('none'),
   stateMarker: z.enum(['none', 'tack', 'gybe', 'head-to-wind', 'reverse', 'drift']).optional(),
 })
 

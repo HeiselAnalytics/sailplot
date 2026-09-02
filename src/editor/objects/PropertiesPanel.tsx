@@ -2,6 +2,8 @@ import { ArrowDown, ArrowUp, Copy, Lock, Trash2, Unlock } from 'lucide-react'
 import { IconButton } from '../../components/ui/IconButton'
 import {
   BOAT_CLASSES,
+  isSupportBoatClass,
+  type BoatClass,
   type BoatObject,
   type CourseEndpointType,
   type FinishLineObject,
@@ -9,12 +11,14 @@ import {
   type MarkObject,
   type ScenarioObject,
   type StartLineObject,
+  type UmpireSignalFlag,
 } from '../../types/scenario'
 import { normalizeHeading } from '../../lib/scenario'
 import {
   boatColorPaletteForBackground,
   COACHBOAT_BLUE,
   JURY_BOAT_GREY,
+  UMPIRE_BOAT_GREY,
   type ColorPalette,
 } from '../../lib/boatColors'
 import { SAILING_FLAG_COLOR_PALETTE } from '../../lib/flagColors'
@@ -36,6 +40,24 @@ import {
 } from './boatShapes'
 import { RecentColorPicker } from './RecentColorPicker'
 import { lineMetrics } from './lineMetrics'
+
+const DISPLAY_BOAT_CLASSES: readonly BoatClass[] = BOAT_CLASSES.flatMap((boatClass) =>
+  boatClass === 'Coachboat'
+    ? [boatClass, 'Umpire boat']
+    : boatClass === 'Umpire boat'
+      ? []
+      : [boatClass],
+)
+
+const UMPIRE_SIGNAL_OPTIONS: ReadonlyArray<{ value: UmpireSignalFlag; label: string }> = [
+  { value: 'none', label: 'No flag' },
+  { value: 'protest', label: 'Protest flag (Y)' },
+  { value: 'red', label: 'Red (penalty)' },
+  { value: 'green-white', label: 'Green and white (no penalty)' },
+  { value: 'yellow', label: 'Yellow' },
+  { value: 'blue', label: 'Blue' },
+  { value: 'black', label: 'Black (DSQ)' },
+]
 
 function Field({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -235,6 +257,7 @@ function BoatFields({
 }) {
   const { t } = useI18n()
   const environment = useEditorStore((state) => state.scenario.environment)
+  const plotObjects = useEditorStore((state) => state.scenario.objects)
   const plotBackground = useEditorStore((state) => state.scenario.canvas.background)
   const brandAccentColor = useEditorStore((state) => state.brandAccentColor)
   const hullPalette = boatColorPaletteForBackground(plotBackground, brandAccentColor)
@@ -244,6 +267,24 @@ function BoatFields({
   const hasGenoa = Boolean(profile.jibTack && profile.genoaSize)
   const hasSpinnaker = Boolean(profile.mast && profile.spinnakerSize)
   const hasGennaker = Boolean(profile.gennakerTack && profile.gennakerSize)
+  const supportsUmpireFlags = object.boatClass === 'Coachboat' || object.boatClass === 'Umpire boat'
+  const plotBoatColors = new Map<string, { color: string; labels: Set<string> }>()
+  for (const candidate of plotObjects) {
+    if (candidate.type !== 'boat' || isSupportBoatClass(candidate.boatClass)) continue
+    const key = candidate.color.toUpperCase()
+    const label = [t(candidate.boatClass), candidate.sailNumber || candidate.name]
+      .filter(Boolean)
+      .join(' · ')
+    const existing = plotBoatColors.get(key)
+    if (existing) existing.labels.add(label)
+    else plotBoatColors.set(key, { color: candidate.color, labels: new Set([label]) })
+  }
+  if (object.boatFlagColor && !plotBoatColors.has(object.boatFlagColor.toUpperCase())) {
+    plotBoatColors.set(object.boatFlagColor.toUpperCase(), {
+      color: object.boatFlagColor,
+      labels: new Set([t('Stored boat color')]),
+    })
+  }
   const downwindSailVisible = object.spinnakerVisible || object.gennakerVisible
   const angleLimits = sailAngleLimits(object.heading, environment.windDirection, object.tack)
   const automaticMain = automaticBoatMainsailAngle(
@@ -304,7 +345,7 @@ function BoatFields({
           value={object.boatClass}
           onChange={(event) => update({ boatClass: event.target.value as BoatObject['boatClass'] })}
         >
-          {BOAT_CLASSES.map((boatClass) => (
+          {DISPLAY_BOAT_CLASSES.map((boatClass) => (
             <option key={boatClass} value={boatClass}>
               {t(boatClass)}
             </option>
@@ -344,18 +385,25 @@ function BoatFields({
         value={object.overlapIndicator}
         onChange={(overlapIndicator) => update({ overlapIndicator })}
       />
-      {object.boatClass === 'Coachboat' || object.boatClass === 'Jury boat' ? (
+      {object.boatClass === 'Coachboat' ||
+      object.boatClass === 'Jury boat' ||
+      object.boatClass === 'Umpire boat' ? (
         <div className="field">
           <span>{t('Hull color')}</span>
           <div className="fixed-color-display" aria-label={t('Fixed support boat hull color')}>
             <span
               className="color-picker-preview"
               style={{
-                backgroundColor: object.boatClass === 'Jury boat' ? JURY_BOAT_GREY : COACHBOAT_BLUE,
+                backgroundColor:
+                  object.boatClass === 'Coachboat' ? COACHBOAT_BLUE : UMPIRE_BOAT_GREY,
               }}
             />
             <span className="color-picker-value">
-              {object.boatClass === 'Jury boat' ? JURY_BOAT_GREY : COACHBOAT_BLUE}
+              {object.boatClass === 'Coachboat'
+                ? COACHBOAT_BLUE
+                : object.boatClass === 'Jury boat'
+                  ? JURY_BOAT_GREY
+                  : UMPIRE_BOAT_GREY}
             </span>
             <span className="fixed-color-note">{t('Fixed')}</span>
           </div>
@@ -372,6 +420,40 @@ function BoatFields({
               : 'Heisel sailing palette'
           }
         />
+      )}
+      {supportsUmpireFlags && (
+        <section className="property-section" aria-labelledby={`umpire-flags-${object.id}`}>
+          <h3 id={`umpire-flags-${object.id}`} className="property-section-title">
+            {t('Umpire flags')}
+          </h3>
+          <Field label={t('Boat identification flag')}>
+            <select
+              value={object.boatFlagColor ?? ''}
+              onChange={(event) => update({ boatFlagColor: event.target.value || null })}
+            >
+              <option value="">{t('No flag')}</option>
+              {[...plotBoatColors.values()].map(({ color, labels }) => (
+                <option key={color.toUpperCase()} value={color}>
+                  {[...labels].join(' / ')} · {color.toUpperCase()}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={t('Umpire signal')}>
+            <select
+              value={object.umpireSignalFlag}
+              onChange={(event) =>
+                update({ umpireSignalFlag: event.target.value as UmpireSignalFlag })
+              }
+            >
+              {UMPIRE_SIGNAL_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {t(option.label)}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </section>
       )}
       <section className="property-section" aria-labelledby={`sails-${object.id}`}>
         <h3 id={`sails-${object.id}`} className="property-section-title">

@@ -399,6 +399,7 @@ export const BOAT_SHAPES: Record<BoatClass, BoatShapeProfile> = {
   Coachboat: profiles.vsr,
   'Jury boat': profiles.vsr,
   'Committee boat': profiles.committee,
+  'Umpire boat': profiles.vsr,
 }
 
 export interface ZoneBoatLengthBasis {

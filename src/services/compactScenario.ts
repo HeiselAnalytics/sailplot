@@ -1,5 +1,6 @@
 import {
   BOAT_CLASSES,
+  UMPIRE_SIGNAL_FLAGS,
   type BoatClass,
   type BoatObject,
   type CourseEndpointType,
@@ -389,6 +390,14 @@ function encodeObject(
           changed: object.stateMarker !== undefined && object.stateMarker !== 'none',
           value: STATE_MARKERS.indexOf(object.stateMarker ?? 'none'),
         },
+        {
+          changed: object.boatFlagColor !== null,
+          value: encodeColor(object.boatFlagColor ?? '#FFFFFF'),
+        },
+        {
+          changed: object.umpireSignalFlag !== 'none',
+          value: UMPIRE_SIGNAL_FLAGS.indexOf(object.umpireSignalFlag),
+        },
       ]),
     ]
   }
@@ -547,6 +556,9 @@ function decodeObject(
     if (hasBit(mask, 20))
       boat.overlapIndicator = enumAt(OVERLAP_INDICATORS, reader.take(), 'overlap indicator')
     if (hasBit(mask, 21)) boat.stateMarker = enumAt(STATE_MARKERS, reader.take(), 'state marker')
+    if (hasBit(mask, 22)) boat.boatFlagColor = decodeColor(reader.take())
+    if (hasBit(mask, 23))
+      boat.umpireSignalFlag = enumAt(UMPIRE_SIGNAL_FLAGS, reader.take(), 'umpire signal flag')
     if (!hasBit(baseMask, 0)) boat.rotation = boat.heading
     reader.finish()
     return boat

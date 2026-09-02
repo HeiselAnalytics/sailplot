@@ -8,6 +8,7 @@ import {
   START_FLAG_COLOR,
 } from '../src/lib/scenario'
 import { COACHBOAT_BLUE } from '../src/editor/objects/boatShapes'
+import { UMPIRE_BOAT_GREY } from '../src/lib/boatColors'
 import { useEditorStore } from '../src/stores/editorStore'
 
 describe('command history', () => {
@@ -393,5 +394,39 @@ describe('command history', () => {
         .scenario.objects.filter((object) => object.type === 'boat')
         .every((boat) => boat.color === COACHBOAT_BLUE),
     ).toBe(true)
+  })
+
+  it('uses a fixed grey Umpire boat and keeps its two flags position-specific', () => {
+    const first = createBoat(100, 200)
+    const second = { ...createBoat(180, 120), sequenceId: first.sequenceId, positionNumber: 2 }
+    useEditorStore.getState().addObject(first)
+    useEditorStore.getState().addObject(second)
+
+    useEditorStore
+      .getState()
+      .updateObject(first.id, { boatClass: 'Umpire boat' }, 'Changed boat class')
+    useEditorStore
+      .getState()
+      .updateObject(
+        first.id,
+        { boatFlagColor: '#FFAA00', umpireSignalFlag: 'green-white' },
+        'Set umpire flags',
+      )
+
+    const boats = useEditorStore
+      .getState()
+      .scenario.objects.filter((object) => object.type === 'boat')
+    expect(boats.find(({ id }) => id === first.id)).toMatchObject({
+      boatClass: 'Umpire boat',
+      color: UMPIRE_BOAT_GREY,
+      boatFlagColor: '#FFAA00',
+      umpireSignalFlag: 'green-white',
+    })
+    expect(boats.find(({ id }) => id === second.id)).toMatchObject({
+      boatClass: 'Umpire boat',
+      color: UMPIRE_BOAT_GREY,
+      boatFlagColor: null,
+      umpireSignalFlag: 'none',
+    })
   })
 })

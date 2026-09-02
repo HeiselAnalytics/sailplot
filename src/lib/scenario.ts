@@ -104,6 +104,8 @@ export function createBoat(
     sequenceId: createId(),
     positionNumber: 1,
     overlapIndicator: 'none',
+    boatFlagColor: null,
+    umpireSignalFlag: 'none',
     stateMarker: 'none',
   }
 }

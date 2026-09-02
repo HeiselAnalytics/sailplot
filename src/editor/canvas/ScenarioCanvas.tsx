@@ -60,7 +60,7 @@ import {
   spinnakerPath,
   tackForHeading,
 } from '../objects/boatShapes'
-import { JURY_BOAT_GREY } from '../../lib/boatColors'
+import { JURY_BOAT_GREY, UMPIRE_BOAT_GREY } from '../../lib/boatColors'
 import {
   courseLineLaylineGeometry,
   laylineVector,
@@ -419,6 +419,99 @@ function CoachboatHull({
   )
 }
 
+const UMPIRE_FLAG_COLORS = {
+  red: '#D72638',
+  yellow: '#FFD100',
+  blue: '#168DDD',
+  black: '#171717',
+  green: '#00843D',
+  white: '#FFFFFF',
+} as const
+
+function UmpireFlagFace({
+  signal,
+  color,
+  outlineColor,
+}: {
+  signal?: BoatObject['umpireSignalFlag']
+  color?: string
+  outlineColor: string
+}) {
+  const width = 28
+  const height = 28
+  const solidColor =
+    color ??
+    (signal === 'red' || signal === 'yellow' || signal === 'blue' || signal === 'black'
+      ? UMPIRE_FLAG_COLORS[signal]
+      : UMPIRE_FLAG_COLORS.white)
+
+  return (
+    <Group>
+      <Group clipX={0} clipY={0} clipWidth={width} clipHeight={height}>
+        <Rect width={width} height={height} fill={solidColor} />
+        {signal === 'green-white' && (
+          <>
+            <Rect width={width / 2} height={height / 2} fill={UMPIRE_FLAG_COLORS.green} />
+            <Rect
+              x={width / 2}
+              y={height / 2}
+              width={width / 2}
+              height={height / 2}
+              fill={UMPIRE_FLAG_COLORS.green}
+            />
+          </>
+        )}
+        {signal === 'protest' && (
+          <>
+            <Rect width={width} height={height} fill={UMPIRE_FLAG_COLORS.yellow} />
+            {[-16, 0, 16, 32].map((offset) => (
+              <Line
+                key={offset}
+                points={[offset, 0, offset + height, height]}
+                stroke={UMPIRE_FLAG_COLORS.red}
+                strokeWidth={8}
+              />
+            ))}
+          </>
+        )}
+      </Group>
+      <Rect width={width} height={height} stroke={outlineColor} strokeWidth={1.5} />
+    </Group>
+  )
+}
+
+function SupportBoatFlags({
+  boatFlagColor,
+  signal,
+  inkColor,
+  outlineColor,
+}: {
+  boatFlagColor: string | null
+  signal: BoatObject['umpireSignalFlag']
+  inkColor: string
+  outlineColor: string
+}) {
+  const flags = [
+    ...(boatFlagColor ? [{ id: 'boat', color: boatFlagColor }] : []),
+    ...(signal !== 'none' ? [{ id: 'signal', signal }] : []),
+  ]
+
+  return (
+    <Group name="support-boat-flags">
+      {flags.map((flag, index) => (
+        <Group key={flag.id} x={18 + index * 35} y={-40}>
+          <Line points={[0, 46, 0, 0]} stroke={inkColor} strokeWidth={2} />
+          <UmpireFlagFace
+            color={'color' in flag ? flag.color : undefined}
+            signal={'signal' in flag ? flag.signal : undefined}
+            outlineColor={outlineColor}
+          />
+        </Group>
+      ))}
+    </Group>
+  )
+}
+
 function BoatGraphic({
   object,
   selected,
@@ -575,8 +668,20 @@ function BoatGraphic({
           <CoachboatHull
             hullColor={hullColor}
             hullStroke={
-              object.boatClass === 'Jury boat' ? darkenHexColor(JURY_BOAT_GREY) : undefined
+              object.boatClass === 'Jury boat'
+                ? darkenHexColor(JURY_BOAT_GREY)
+                : object.boatClass === 'Umpire boat'
+                  ? darkenHexColor(UMPIRE_BOAT_GREY)
+                  : undefined
             }
+          />
+        )}
+        {(object.boatClass === 'Coachboat' || object.boatClass === 'Umpire boat') && (
+          <SupportBoatFlags
+            boatFlagColor={object.boatFlagColor}
+            signal={object.umpireSignalFlag}
+            inkColor={inkColor}
+            outlineColor={outlineColor}
           />
         )}
         {boatNumbersVisible && (

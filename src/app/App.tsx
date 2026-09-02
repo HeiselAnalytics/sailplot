@@ -470,7 +470,7 @@ function SceneSettings({
         {basisInfoOpen && (
           <p id={basisInfoId} className="field-info" role="status">
             {t(
-              'Default uses the longest sailing boat class in the plot. Committee, jury and coach boats are excluded. Current basis: {boatClass}.',
+              'Default uses the longest sailing boat class in the plot. Committee, jury, umpire and coach boats are excluded. Current basis: {boatClass}.',
               { boatClass: t(measurementBasis.boatClass) },
             )}
           </p>

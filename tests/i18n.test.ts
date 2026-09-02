@@ -23,6 +23,9 @@ describe('translations', () => {
     expect(translate('de', 'Subscription & Invoices')).toBe('Abonnement & Rechnungen')
     expect(translate('de', 'Cancel Contract')).toBe('Vertrag kündigen')
     expect(translate('de', 'Withdraw from Contract')).toBe('Vertrag widerrufen')
+    expect(translate('de', 'Umpire boat')).toBe('Umpireboot')
+    expect(translate('de', 'Protest flag (Y)')).toBe('Protestflagge (Y)')
+    expect(translate('de', 'Green and white (no penalty)')).toBe('Grün-Weiß (keine Strafe)')
   })
 
   it('keeps English and unknown product data unchanged', () => {

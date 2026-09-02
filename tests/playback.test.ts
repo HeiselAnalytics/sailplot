@@ -125,6 +125,32 @@ describe('scenario playback', () => {
     expect(boatsAtPlaybackPosition([first, second], 2)[0].overlapIndicator).toBe('none')
   })
 
+  it('changes Umpire flags at the configured boat position', () => {
+    const first = {
+      ...createBoat(0, 0, 1, 'Umpire boat'),
+      sequenceId: 'umpire',
+      positionNumber: 1,
+      boatFlagColor: '#FFAA00',
+      umpireSignalFlag: 'green-white' as const,
+    }
+    const second = {
+      ...createBoat(100, 0, 2, 'Umpire boat'),
+      sequenceId: 'umpire',
+      positionNumber: 2,
+      boatFlagColor: '#18324A',
+      umpireSignalFlag: 'red' as const,
+    }
+
+    expect(boatsAtPlaybackPosition([first, second], 1.5)[0]).toMatchObject({
+      boatFlagColor: '#FFAA00',
+      umpireSignalFlag: 'green-white',
+    })
+    expect(boatsAtPlaybackPosition([first, second], 2)[0]).toMatchObject({
+      boatFlagColor: '#18324A',
+      umpireSignalFlag: 'red',
+    })
+  })
+
   it('builds a tail only through the current playback position', () => {
     const first = { ...createBoat(0, 0), sequenceId: 'tail', positionNumber: 1 }
     const second = { ...createBoat(100, 0), sequenceId: 'tail', positionNumber: 2 }

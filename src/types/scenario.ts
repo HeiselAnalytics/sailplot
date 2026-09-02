@@ -12,6 +12,7 @@ export const BOAT_CLASSES = [
   'Coachboat',
   'Jury boat',
   'Committee boat',
+  'Umpire boat',
 ] as const
 
 export type BoatClass = (typeof BOAT_CLASSES)[number]
@@ -19,6 +20,7 @@ export const SUPPORT_BOAT_CLASSES = [
   'Coachboat',
   'Jury boat',
   'Committee boat',
+  'Umpire boat',
 ] as const satisfies readonly BoatClass[]
 export const isSupportBoatClass = (value: unknown) =>
   SUPPORT_BOAT_CLASSES.some((boatClass) => boatClass === value)
@@ -26,6 +28,16 @@ export const SAILING_BOAT_CLASSES: readonly BoatClass[] = BOAT_CLASSES.filter(
   (boatClass) => !isSupportBoatClass(boatClass),
 )
 export type Tack = 'port' | 'starboard'
+export const UMPIRE_SIGNAL_FLAGS = [
+  'none',
+  'protest',
+  'red',
+  'green-white',
+  'yellow',
+  'blue',
+  'black',
+] as const
+export type UmpireSignalFlag = (typeof UMPIRE_SIGNAL_FLAGS)[number]
 
 export interface BaseObject {
   id: string
@@ -75,6 +87,8 @@ export interface BoatObject extends BaseObject {
   sequenceId: string
   positionNumber: number
   overlapIndicator: 'port' | 'none' | 'starboard'
+  boatFlagColor: string | null
+  umpireSignalFlag: UmpireSignalFlag
   stateMarker?: 'none' | 'tack' | 'gybe' | 'head-to-wind' | 'reverse' | 'drift'
 }
 

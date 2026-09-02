@@ -377,6 +377,8 @@ describe('plot format', () => {
     delete legacyBoat.spinnakerTrim
     delete legacyBoat.mainsailTrim
     delete legacyBoat.overlapIndicator
+    delete legacyBoat.boatFlagColor
+    delete legacyBoat.umpireSignalFlag
     scenario.canvas.view.scale = 0.42
     scenario.objects = [legacyBoat as ReturnType<typeof createBoat>]
 
@@ -390,6 +392,8 @@ describe('plot format', () => {
       spinnakerTrim: 0,
       mainsailTrim: 0,
       overlapIndicator: 'none',
+      boatFlagColor: null,
+      umpireSignalFlag: 'none',
     })
     expect(parsed.objects[0].type === 'boat' && parsed.objects[0].sequenceId).toBeTruthy()
   })

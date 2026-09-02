@@ -1841,6 +1841,105 @@ test('formats the default boat-length basis without floating-point noise', async
   await expect(page.locator('.field-help:visible')).toHaveText('Default basis: ILCA (4.23 m).')
 })
 
+test('adds a grey Umpire boat with two independent official flag controls', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome', 'Desktop Umpire boat regression')
+  await page.goto('/')
+
+  const canvas = page.locator('.editor-canvas canvas').first()
+  const boatTool = page.locator('.tools-panel').getByRole('button', { name: 'Boat', exact: true })
+  await boatTool.click()
+  await canvas.click({ position: { x: 220, y: 200 } })
+  await boatTool.click()
+  await canvas.click({ position: { x: 360, y: 200 } })
+  await boatTool.click()
+  await canvas.click({ position: { x: 500, y: 300 } })
+
+  const properties = page.locator('.properties-panel')
+  await properties.getByRole('combobox', { name: 'Boat class' }).selectOption('Umpire boat')
+  await expect(properties.getByLabel('Fixed support boat hull color')).toContainText('#4B5563')
+
+  const boatFlag = properties.getByRole('combobox', { name: 'Boat identification flag' })
+  await expect(boatFlag.locator('option')).toHaveText([
+    'No flag',
+    'ILCA · #FFAA00',
+    'ILCA · #18324A',
+  ])
+  await boatFlag.selectOption('#FFAA00')
+
+  const signal = properties.getByRole('combobox', { name: 'Umpire signal' })
+  await expect(signal.locator('option')).toHaveText([
+    'No flag',
+    'Protest flag (Y)',
+    'Red (penalty)',
+    'Green and white (no penalty)',
+    'Yellow',
+    'Blue',
+    'Black (DSQ)',
+  ])
+  await signal.selectOption('protest')
+  await expect
+    .poll(() =>
+      canvas.evaluate((element: HTMLCanvasElement) => {
+        const pixels = element.getContext('2d')!.getImageData(500, 270, 50, 40).data
+        let red = 0
+        for (let index = 0; index < pixels.length; index += 4) {
+          if (pixels[index] === 215 && pixels[index + 1] === 38 && pixels[index + 2] === 56)
+            red += 1
+        }
+        return red > 8
+      }),
+    )
+    .toBe(true)
+  await signal.selectOption('green-white')
+  await expect(boatFlag).toHaveValue('#FFAA00')
+  await expect(signal).toHaveValue('green-white')
+  await expect
+    .poll(() =>
+      canvas.evaluate((element: HTMLCanvasElement) => {
+        const pixels = element.getContext('2d')!.getImageData(500, 270, 50, 40).data
+        let amber = 0
+        let green = 0
+        for (let index = 0; index < pixels.length; index += 4) {
+          if (pixels[index] === 255 && pixels[index + 1] === 170 && pixels[index + 2] === 0)
+            amber += 1
+          if (pixels[index] === 0 && pixels[index + 1] === 132 && pixels[index + 2] === 61)
+            green += 1
+        }
+        return { amber: amber > 8, green: green > 8 }
+      }),
+    )
+    .toEqual({ amber: true, green: true })
+
+  await properties.getByRole('combobox', { name: 'Boat class' }).selectOption('Coachboat')
+  await expect(properties.getByLabel('Fixed support boat hull color')).toContainText('#168DDD')
+  await expect(boatFlag).toHaveValue('#FFAA00')
+  await expect(signal).toHaveValue('green-white')
+})
+
+test('offers the Umpire boat flag controls in compact properties', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'iphone', 'Compact Umpire boat regression')
+  await page.goto('/')
+
+  const canvas = page.locator('.editor-canvas canvas').first()
+  const boatTool = page.locator('button[aria-label="Boat"]:visible')
+  await boatTool.click()
+  await canvas.click({ position: { x: 110, y: 180 } })
+  await boatTool.click()
+  await canvas.click({ position: { x: 260, y: 180 } })
+  await openMobileProperties(page)
+
+  const properties = page.locator('.mobile-properties:visible')
+  await properties.getByRole('combobox', { name: 'Boat class' }).selectOption('Umpire boat')
+  await expect(properties.getByLabel('Fixed support boat hull color')).toContainText('#4B5563')
+  await properties
+    .getByRole('combobox', { name: 'Boat identification flag' })
+    .selectOption('#FFAA00')
+  await properties.getByRole('combobox', { name: 'Umpire signal' }).selectOption('red')
+  await expect(properties.getByRole('combobox', { name: 'Umpire signal' })).toHaveValue('red')
+})
+
 test('creates a numbered downwind mark from its own tool', async ({ page }, testInfo) => {
   test.skip(
     testInfo.project.name !== 'desktop-chrome',
