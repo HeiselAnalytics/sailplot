@@ -626,10 +626,11 @@ test('creates lines and shapes by dragging or with two clicks and a shared edita
   await fillDialog.getByRole('button', { name: 'Use palette color Heisel amber #FFAA00' }).click()
   await expect(fillColor).toContainText('#FFAA00')
 
-  await page.mouse.move(canvasBounds!.x + 550, canvasBounds!.y + 300)
+  await page.mouse.move(canvasBounds!.x + 500, canvasBounds!.y + 200)
   await page.mouse.down()
-  await page.mouse.move(canvasBounds!.x + 580, canvasBounds!.y + 330)
+  await page.mouse.move(canvasBounds!.x + 500, canvasBounds!.y + 175)
   await page.mouse.up()
+  await expect(status).toContainText('Resized circle')
   const enlargedCircleRightAfter = await canvas.evaluate((element: HTMLCanvasElement) =>
     Array.from(element.getContext('2d')!.getImageData(575, 250, 1, 1).data),
   )
@@ -638,6 +639,69 @@ test('creates lines and shapes by dragging or with two clicks and a shared edita
   )
   expect(enlargedCircleRightAfter).not.toEqual(enlargedCircleRightBefore)
   expect(enlargedCircleBottomAfter).not.toEqual(enlargedCircleBottomBefore)
+})
+
+test('uses border-only selection for empty shapes and full-area selection for filled shapes', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome', 'Desktop shape hit-area regression')
+  await page.goto('/')
+  const canvas = page.locator('.editor-canvas canvas').first()
+  const canvasBounds = await canvas.boundingBox()
+  expect(canvasBounds).not.toBeNull()
+  const tools = page.locator('.tools-panel')
+  const properties = page.locator('.properties-panel')
+  const dragOnCanvas = async (start: { x: number; y: number }, end: { x: number; y: number }) => {
+    await page.mouse.move(canvasBounds!.x + start.x, canvasBounds!.y + start.y)
+    await page.mouse.down()
+    await page.mouse.move(canvasBounds!.x + end.x, canvasBounds!.y + end.y)
+    await page.mouse.up()
+  }
+  const fillSelectedShape = async () => {
+    await properties.getByRole('button', { name: 'Open Fill color selector' }).click()
+    await page
+      .getByRole('dialog', { name: 'Fill color colors' })
+      .getByRole('button', { name: 'Use palette color Heisel amber #FFAA00' })
+      .click()
+  }
+
+  await tools.getByRole('button', { name: 'Circle', exact: true }).click()
+  await dragOnCanvas({ x: 500, y: 250 }, { x: 550, y: 250 })
+  await expect(properties.getByRole('heading', { name: 'Circle', level: 2 })).toBeVisible()
+
+  await tools.getByRole('button', { name: 'Boat', exact: true }).click()
+  await canvas.click({ position: { x: 500, y: 250 } })
+  await expect(properties.getByRole('heading', { name: 'Boat', level: 2 })).toBeVisible()
+  await properties.getByRole('button', { name: 'Backward' }).click()
+
+  await tools.getByRole('button', { name: 'Select', exact: true }).click()
+  await canvas.click({ position: { x: 500, y: 250 } })
+  await expect(properties.getByRole('heading', { name: 'Boat', level: 2 })).toBeVisible()
+  await canvas.click({ position: { x: 550, y: 250 } })
+  await expect(properties.getByRole('heading', { name: 'Circle', level: 2 })).toBeVisible()
+  await fillSelectedShape()
+  await canvas.click({ position: { x: 80, y: 540 } })
+  await canvas.click({ position: { x: 500, y: 250 } })
+  await expect(properties.getByRole('heading', { name: 'Circle', level: 2 })).toBeVisible()
+
+  await tools.getByRole('button', { name: 'Rectangle', exact: true }).click()
+  await dragOnCanvas({ x: 290, y: 370 }, { x: 410, y: 470 })
+  await expect(properties.getByRole('heading', { name: 'Rectangle', level: 2 })).toBeVisible()
+
+  await tools.getByRole('button', { name: 'Boat', exact: true }).click()
+  await canvas.click({ position: { x: 350, y: 420 } })
+  await expect(properties.getByRole('heading', { name: 'Boat', level: 2 })).toBeVisible()
+  await properties.getByRole('button', { name: 'Backward' }).click()
+
+  await tools.getByRole('button', { name: 'Select', exact: true }).click()
+  await canvas.click({ position: { x: 350, y: 420 } })
+  await expect(properties.getByRole('heading', { name: 'Boat', level: 2 })).toBeVisible()
+  await canvas.click({ position: { x: 290, y: 420 } })
+  await expect(properties.getByRole('heading', { name: 'Rectangle', level: 2 })).toBeVisible()
+  await fillSelectedShape()
+  await canvas.click({ position: { x: 80, y: 540 } })
+  await canvas.click({ position: { x: 350, y: 420 } })
+  await expect(properties.getByRole('heading', { name: 'Rectangle', level: 2 })).toBeVisible()
 })
 
 test('keeps desktop logo spacing in compact layout', async ({ page }, testInfo) => {

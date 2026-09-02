@@ -91,6 +91,9 @@ type Point = { x: number; y: number }
 type DrawingDraft = { tool: EditorTool; start: Point; points: number[] }
 
 const touchHitStrokeWidth = (interactionScale: number) => 44 / Math.max(interactionScale, 0.01)
+const shapeHitStrokeWidth = (interactionScale: number, strokeWidth: number) =>
+  Math.max(strokeWidth, 24 / Math.max(interactionScale, 0.01))
+const shapeHasVisibleFill = (fill: string) => fill.trim().toLowerCase() !== 'transparent'
 
 const DRAWING_TOOLS: EditorTool[] = [
   'gate',
@@ -249,7 +252,7 @@ const endlessExportBounds = (scenario: Scenario, zoneBoatLength: number): PlotBo
     height: Math.max(1, Math.ceil(maxY) - Math.floor(minY)),
   }
 }
-const SHAPE_CORNER_ANCHORS = ['top-left', 'top-right', 'bottom-left', 'bottom-right']
+const RECTANGLE_CORNER_ANCHORS = ['top-left', 'top-right', 'bottom-left', 'bottom-right']
 const NON_SCALABLE_TYPES = new Set<ScenarioObject['type']>([
   'boat',
   'mark',
@@ -257,6 +260,7 @@ const NON_SCALABLE_TYPES = new Set<ScenarioObject['type']>([
   'start-line',
   'finish-line',
   'text',
+  'circle',
 ])
 
 const darkenHexColor = (color: string, factor = 0.76) => {
@@ -1342,7 +1346,16 @@ function TwoPointLineGraphic({
 }
 
 function ObjectGraphic(props: ObjectGraphicProps) {
-  const { object, selected, onSelect, onChange, onPreviewChange, inkColor } = props
+  const {
+    object,
+    selected,
+    onSelect,
+    onChange,
+    onPreviewChange,
+    inkColor,
+    interactionScale,
+    brandAccentColor,
+  } = props
   if (object.type === 'boat') return <BoatGraphic {...props} />
   if (object.type === 'mark') return <MarkGraphic {...props} />
   if (object.type === 'gate' || object.type === 'start-line' || object.type === 'finish-line')
@@ -1383,6 +1396,7 @@ function ObjectGraphic(props: ObjectGraphicProps) {
     )
   }
   if (object.type === 'rectangle') {
+    const hasVisibleFill = shapeHasVisibleFill(object.fill)
     return (
       <Rect
         id={`object-${object.id}`}
@@ -1390,9 +1404,21 @@ function ObjectGraphic(props: ObjectGraphicProps) {
         y={object.y}
         width={object.width}
         height={object.height}
-        fill={object.fill}
+        fill={hasVisibleFill ? object.fill : undefined}
+        fillEnabled={hasVisibleFill}
         stroke={visiblePlotColor(object.stroke, inkColor)}
         strokeWidth={object.strokeWidth}
+        hitStrokeWidth={shapeHitStrokeWidth(interactionScale, object.strokeWidth)}
+        hitFunc={
+          hasVisibleFill
+            ? undefined
+            : (context, shape) => {
+                context.beginPath()
+                context.rect(0, 0, object.width, object.height)
+                context.closePath()
+                context.strokeShape(shape)
+              }
+        }
         rotation={object.rotation}
         scaleX={object.scaleX}
         scaleY={object.scaleY}
@@ -1425,45 +1451,79 @@ function ObjectGraphic(props: ObjectGraphicProps) {
     )
   }
   if (object.type === 'circle') {
+    const radius =
+      (Math.max(object.width, object.height) / 2) *
+      Math.max(Math.abs(object.scaleX), Math.abs(object.scaleY))
+    const hasVisibleFill = shapeHasVisibleFill(object.fill)
+    const resizeCircle = (event: KonvaEventObject<DragEvent>, commit: boolean) => {
+      event.cancelBubble = true
+      const nextRadius = Math.max(
+        4,
+        Math.hypot(event.target.x() - object.x, event.target.y() - object.y),
+      )
+      event.target.position({ x: object.x, y: object.y - nextRadius })
+      const patch = {
+        width: nextRadius * 2,
+        height: nextRadius * 2,
+        scaleX: 1,
+        scaleY: 1,
+      }
+      if (commit) onChange(patch, 'Resized circle')
+      else onPreviewChange(patch)
+    }
     return (
-      <Circle
-        id={`object-${object.id}`}
-        x={object.x}
-        y={object.y}
-        radius={Math.max(object.width, object.height) / 2}
-        fill={object.fill}
-        stroke={visiblePlotColor(object.stroke, inkColor)}
-        strokeWidth={object.strokeWidth}
-        rotation={object.rotation}
-        scaleX={object.scaleX}
-        scaleY={object.scaleY}
-        opacity={object.opacity}
-        draggable={!object.locked}
-        onClick={onSelect}
-        onTap={onSelect}
-        onDragMove={(event) => onPreviewChange({ x: event.target.x(), y: event.target.y() })}
-        onDragEnd={(event) =>
-          onChange({ x: event.target.x(), y: event.target.y() }, 'Moved circle')
-        }
-        onTransformEnd={(event) => {
-          const node = event.target
-          const diameter =
-            Math.max(object.width, object.height) *
-            Math.max(Math.abs(node.scaleX()), Math.abs(node.scaleY()))
-          node.scale({ x: 1, y: 1 })
-          onChange(
-            {
-              x: node.x(),
-              y: node.y(),
-              width: Math.max(8, diameter),
-              height: Math.max(8, diameter),
-              scaleX: 1,
-              scaleY: 1,
-            },
-            'Resized circle',
-          )
-        }}
-      />
+      <>
+        <Circle
+          id={`object-${object.id}`}
+          x={object.x}
+          y={object.y}
+          radius={radius}
+          fill={hasVisibleFill ? object.fill : undefined}
+          fillEnabled={hasVisibleFill}
+          stroke={visiblePlotColor(object.stroke, inkColor)}
+          strokeWidth={object.strokeWidth}
+          hitStrokeWidth={shapeHitStrokeWidth(interactionScale, object.strokeWidth)}
+          hitFunc={
+            hasVisibleFill
+              ? undefined
+              : (context, shape) => {
+                  context.beginPath()
+                  context.arc(0, 0, radius, 0, Math.PI * 2, false)
+                  context.closePath()
+                  context.strokeShape(shape)
+                }
+          }
+          rotation={object.rotation}
+          opacity={object.opacity}
+          draggable={!object.locked}
+          onClick={onSelect}
+          onTap={onSelect}
+          onDragMove={(event) => onPreviewChange({ x: event.target.x(), y: event.target.y() })}
+          onDragEnd={(event) =>
+            onChange({ x: event.target.x(), y: event.target.y() }, 'Moved circle')
+          }
+        />
+        {selected && !object.locked && (
+          <Circle
+            x={object.x}
+            y={object.y - radius}
+            radius={8 / Math.max(interactionScale, 0.01)}
+            fill={brandAccentColor}
+            stroke={inkColor}
+            strokeWidth={2 / Math.max(interactionScale, 0.01)}
+            hitStrokeWidth={touchHitStrokeWidth(interactionScale)}
+            draggable
+            onMouseDown={(event) => {
+              event.cancelBubble = true
+            }}
+            onTouchStart={(event) => {
+              event.cancelBubble = true
+            }}
+            onDragMove={(event) => resizeCircle(event, false)}
+            onDragEnd={(event) => resizeCircle(event, true)}
+          />
+        )}
+      </>
     )
   }
   if (!('points' in object)) return null
@@ -1667,12 +1727,6 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
           object.type !== 'rectangle' &&
           object.type !== 'circle',
       ),
-    [scenario.objects, selectedIds],
-  )
-  const selectionIsCircle = useMemo(
-    () =>
-      selectedIds.length === 1 &&
-      scenario.objects.some((object) => object.id === selectedIds[0] && object.type === 'circle'),
     [scenario.objects, selectedIds],
   )
   const selectionIsRectangle = useMemo(
@@ -1924,7 +1978,8 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
           object?.type === 'start-line' ||
           object?.type === 'finish-line' ||
           object?.type === 'line' ||
-          object?.type === 'arrow'
+          object?.type === 'arrow' ||
+          object?.type === 'circle'
           ? null
           : stage.findOne(`#object-${id}`)
       })
@@ -2666,12 +2721,9 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
             borderEnabled={selectionCanRotate}
             resizeEnabled={selectionCanScale}
             enabledAnchors={
-              selectionIsCircle || selectionIsRectangle
-                ? SHAPE_CORNER_ANCHORS
-                : DEFAULT_TRANSFORM_ANCHORS
+              selectionIsRectangle ? RECTANGLE_CORNER_ANCHORS : DEFAULT_TRANSFORM_ANCHORS
             }
             keepRatio={!selectionIsRectangle}
-            centeredScaling={selectionIsCircle}
             anchorSize={18}
             borderStroke={inkColor}
             borderStrokeWidth={2}
