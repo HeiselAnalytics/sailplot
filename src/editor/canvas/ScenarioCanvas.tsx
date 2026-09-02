@@ -440,8 +440,8 @@ function BoatGraphic({
   const spinPoleAngle = spinnakerAngle - relative + spinPoleRotation
   const downwindAngleInSpinnaker = 180 - relative + spinnakerAngle
   const hullColor = selected ? darkenHexColor(object.color) : object.color
-  const sternY = (profile.kind === 'vsr' ? 40 : profile.length / 2) * profile.displayScale
-  const displayedBoatLength = (profile.kind === 'vsr' ? 86 : profile.length) * profile.displayScale
+  const sternY = (profile.kind === 'vsr' ? 40 : profile.drawingLength / 2) * profile.displayScale
+  const displayedBoatLength = profile.drawingLength * profile.displayScale
   const overlapLineLength = displayedBoatLength
   const overlapDirection = object.overlapIndicator === 'port' ? -1 : 1
   return (

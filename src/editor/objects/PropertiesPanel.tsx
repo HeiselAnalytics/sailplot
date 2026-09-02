@@ -656,7 +656,7 @@ function MarkFields({
               ? 'Default basis'
               : 'Longest class',
         )}
-        : {t(zoneBasis.boatClass)} ({zoneBasis.length / 10} m).
+        : {t(zoneBasis.boatClass)} ({zoneBasis.hullLength / 10} m).
       </p>
     </>
   )

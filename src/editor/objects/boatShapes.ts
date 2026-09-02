@@ -13,6 +13,8 @@ export interface BoatShapeProfile {
   displayScale: number
   /** Full-size hull length in canvas units (10 units = 1 metre). */
   length: number
+  /** Fore-to-aft extent of the drawn hull before displayScale is applied. */
+  drawingLength: number
   mast: [number, number] | null
   mainsailSize: number
   mainsailMaxAngle: number
@@ -42,6 +44,7 @@ const profiles = {
     hullPath: 'M 0 -50 C 20 0 18 13 10 50 L -10 50 C -18 13 -20 0 0 -50 Z',
     displayScale: 0.88,
     length: 100,
+    drawingLength: 100,
     mast: [0, -8.7],
     mainsailSize: 41.5,
     mainsailMaxAngle: 90,
@@ -65,6 +68,7 @@ const profiles = {
       'M 0 -20 C .3 -19.7 .3 -20 .7 -19.7 C 3.3 -14.3 6.7 -3.3 6.7 4.7 C 6.7 11 6.7 14.3 5 20 L -5 20 C -6.7 14.3 -6.7 11 -6.7 4.7 C -6.7 -3.3 -3.3 -14.3 -.7 -19.7 C -.3 -20 -.3 -19.7 0 -20 Z',
     displayScale: 1.72,
     length: 42.3,
+    drawingLength: 40,
     mast: [0, -8.7],
     mainsailSize: 24.2,
     mainsailMaxAngle: 90,
@@ -87,7 +91,8 @@ const profiles = {
     hullPath:
       'M 0 -11.5 C 1.5 -11.5 1.7 -11.3 2.9 -11.1 C 3.6 -9.4 5.6 -4 5.6 1.5 C 5.6 5.4 5 9 4.6 11.5 L -4.6 11.5 C -5 9 -5.6 5.4 -5.6 1.5 C -5.6 -4 -3.6 -9.4 -2.9 -11.1 C -1.7 -11.3 -1.5 -11.5 0 -11.5 Z',
     displayScale: 2.5,
-    length: 23.6,
+    length: 23,
+    drawingLength: 23,
     mast: [0, -6.9],
     mainsailSize: 16.5,
     mainsailMaxAngle: 90,
@@ -110,6 +115,7 @@ const profiles = {
       'M 0 -17 C 2.4 -17 2.8 -16 3.7 -14 C 4.6 -12 5.8 -6 5.8 -1 C 5.8 1 5.8 8 4.4 17 L -4.4 17 C -5.8 8 -5.8 1 -5.8 -1 C -5.8 -6 -4.6 -12 -3.7 -14 C -2.8 -16 -2.4 -17 0 -17 Z',
     displayScale: 1.95,
     length: 34,
+    drawingLength: 34,
     mast: [0, -6.5],
     mainsailSize: 23.5,
     mainsailMaxAngle: 90,
@@ -131,6 +137,7 @@ const profiles = {
       'M 0 -18.3 C 3.7 -14 7.6 -8 7.6 1.8 C 7.6 4.2 7.6 9.2 4.9 18.3 L -4.9 18.3 C -7.6 9.2 -7.6 4.2 -7.6 1.8 C -7.6 -8 -3.7 -14 0 -18.3 Z',
     displayScale: 1.8,
     length: 36.6,
+    drawingLength: 36.6,
     mast: [0, -6.5],
     mainsailSize: 21.8,
     mainsailMaxAngle: 90,
@@ -152,6 +159,7 @@ const profiles = {
       'M 0 -21 C 1.5 -21 8.15 -12.5 8.15 3.3 Q 8.15 11.5 5.7 20 Q 2.8 21 0 21 Q -2.8 21 -5.7 20 Q -8.15 11.5 -8.15 3.3 C -8.15 -12.5 -1.5 -21 0 -21 Z',
     displayScale: 1.58,
     length: 42,
+    drawingLength: 42,
     mast: [0, -7.1],
     mainsailSize: 24,
     mainsailMaxAngle: 90,
@@ -176,6 +184,7 @@ const profiles = {
       'M 0 -23.5 C .8 -23.5 8.5 -15 8.5 3.5 Q 8.5 12.5 5.8 23.5 L -5.8 23.5 Q -8.5 12.5 -8.5 3.5 C -8.5 -15 -.8 -23.5 0 -23.5 Z',
     displayScale: 1.48,
     length: 47,
+    drawingLength: 47,
     mast: [0, -7.5],
     mainsailSize: 26.5,
     mainsailMaxAngle: 90,
@@ -200,6 +209,7 @@ const profiles = {
       'M 0 -20.5 L -.5 -20.5 C -3.5 -10.25 -6.6 -1.1 -8.3 -.5 L -8.8 18 L -4.4 20.5 L 4.4 20.5 L 8.8 18 L 8.3 -.5 C 6.6 -1.1 3.5 -10.25 .5 -20.5 Z',
     displayScale: 1.62,
     length: 44.5,
+    drawingLength: 41,
     mast: [0, -3.4],
     mainsailSize: 20.5,
     mainsailMaxAngle: 85,
@@ -224,6 +234,7 @@ const profiles = {
       'M 0 -24 L -.5 -24 C -1.5 -23 -6.5 -5.5 -7.5 1.5 L -13.5 2.4 Q -14 2.5 -14 3 L -14 24 L -13.5 24 L -12.5 21 L -7.5 19 L -5 22 L 5 22 L 7.5 19 L 12.5 21 L 13.5 24 L 14 24 L 14 3 Q 14 2.5 13.5 2.4 L 7.5 1.5 C 6.5 -5.5 1.5 -23 .5 -24 Z',
     displayScale: 1.48,
     length: 49.9,
+    drawingLength: 48,
     mast: [0, -2.5],
     mainsailSize: 26.5,
     mainsailMaxAngle: 85,
@@ -248,6 +259,7 @@ const profiles = {
       'M 0 0 L 10.7 0 C 11.2 -11.7 12.2 -19.8 13.2 -30.5 C 14.7 -20.3 15.3 -6.1 15.3 6.1 C 15.3 13.7 14.7 20.8 14.7 30 C 13.7 30.5 12.7 30.5 10.7 30 L 10.7 23.9 L -10.7 23.9 L -10.7 30 C -12.7 30.5 -13.7 30.5 -14.7 30 C -14.7 20.8 -15.3 13.7 -15.3 6.1 C -15.3 -6.1 -14.7 -20.3 -13.2 -30.5 C -12.2 -19.8 -11.2 -11.7 -10.7 0 Z',
     displayScale: 1.25,
     length: 61,
+    drawingLength: 61,
     mast: [0, 0],
     mainsailSize: 30,
     mainsailMaxAngle: 80,
@@ -282,6 +294,7 @@ const profiles = {
 
     displayScale: 0.9,
     length: 57.5,
+    drawingLength: 86,
 
     mast: null,
     mainsailSize: 0,
@@ -304,6 +317,7 @@ const profiles = {
     hullPath: 'M 0 -50 C 30 -20 20 30 17 50 L -17 50 C -20 30 -30 -20 0 -50 Z',
     displayScale: 0.92,
     length: 100,
+    drawingLength: 100,
     mast: null,
     mainsailSize: 0,
     mainsailMaxAngle: 0,
@@ -325,6 +339,7 @@ const profiles = {
       'M 0 -11 C 2.7 -10.9 4.4 -9.2 4.7 -6 L 4.75 7.5 Q 4.7 9.6 4.28 11 L -4.28 11 Q -4.7 9.6 -4.75 7.5 L -4.7 -6 C -4.4 -9.2 -2.7 -10.9 0 -11 Z',
     displayScale: 1.6,
     length: 22,
+    drawingLength: 22,
     mast: [0, -4.5],
     mainsailSize: 15,
     mainsailMaxAngle: 85,
@@ -347,6 +362,7 @@ const profiles = {
       'M 0 -47.5 C 4 -46 9.05 -26 9.05 -2 C 9.05 21 6.5 40 4.5 47.5 L -4.5 47.5 C -6.5 40 -9.05 21 -9.05 -2 C -9.05 -26 -4 -46 0 -47.5 Z',
     displayScale: 0.94,
     length: 95,
+    drawingLength: 95,
     mast: [0, -7],
     mainsailSize: 36,
     mainsailMaxAngle: 90,
@@ -387,8 +403,21 @@ export const BOAT_SHAPES: Record<BoatClass, BoatShapeProfile> = {
 
 export interface ZoneBoatLengthBasis {
   boatClass: BoatClass
+  /** One displayed hull length in canvas units. */
   length: number
+  /** Published full-size hull length in canvas units (10 units = 1 metre). */
+  hullLength: number
   usesDefault: boolean
+}
+
+const boatLengthBasis = (boatClass: BoatClass, usesDefault: boolean): ZoneBoatLengthBasis => {
+  const profile = BOAT_SHAPES[boatClass]
+  return {
+    boatClass,
+    length: profile.drawingLength * profile.displayScale,
+    hullLength: profile.length,
+    usesDefault,
+  }
 }
 
 /**
@@ -401,21 +430,13 @@ export function longestBoatLengthBasis(objects: ScenarioObject[]): ZoneBoatLengt
       object.type === 'boat' && !isSupportBoatClass(object.boatClass),
   )
   if (!boats.length) {
-    return {
-      boatClass: 'ILCA',
-      length: BOAT_SHAPES.ILCA.length,
-      usesDefault: true,
-    }
+    return boatLengthBasis('ILCA', true)
   }
 
   const longest = boats.reduce((current, boat) =>
     BOAT_SHAPES[boat.boatClass].length > BOAT_SHAPES[current.boatClass].length ? boat : current,
   )
-  return {
-    boatClass: longest.boatClass,
-    length: BOAT_SHAPES[longest.boatClass].length,
-    usesDefault: false,
-  }
+  return boatLengthBasis(longest.boatClass, false)
 }
 
 export function measurementBoatLengthBasis(
@@ -423,11 +444,7 @@ export function measurementBoatLengthBasis(
   boatClass: BoatClass | null,
 ): ZoneBoatLengthBasis {
   if (!boatClass || isSupportBoatClass(boatClass)) return longestBoatLengthBasis(objects)
-  return {
-    boatClass,
-    length: BOAT_SHAPES[boatClass].length,
-    usesDefault: false,
-  }
+  return boatLengthBasis(boatClass, false)
 }
 
 export const relativeWindAngle = (heading: number, windDirection: number) =>

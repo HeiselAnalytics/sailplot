@@ -26,7 +26,7 @@ import {
 } from '../src/editor/objects/boatShapes'
 import { JURY_BOAT_GREY } from '../src/lib/boatColors'
 import { createBoat } from '../src/lib/scenario'
-import { BOAT_CLASSES } from '../src/types/scenario'
+import { BOAT_CLASSES, SAILING_BOAT_CLASSES } from '../src/types/scenario'
 
 describe('historical boat shape profiles', () => {
   it('provides a hull profile for every supported class', () => {
@@ -49,6 +49,7 @@ describe('historical boat shape profiles', () => {
       true,
     )
     expect(Object.values(BOAT_SHAPES).every((profile) => profile.length > 0)).toBe(true)
+    expect(Object.values(BOAT_SHAPES).every((profile) => profile.drawingLength > 0)).toBe(true)
   })
 
   it('keeps class-specific sail plans', () => {
@@ -119,30 +120,60 @@ describe('historical boat shape profiles', () => {
     const coachboat = createBoat(400, 200, 4, 'Coachboat')
     expect(longestBoatLengthBasis([])).toEqual({
       boatClass: 'ILCA',
-      length: 42.3,
+      length: 68.8,
+      hullLength: 42.3,
       usesDefault: true,
     })
     expect(longestBoatLengthBasis([laser, lacustre, committeeBoat])).toEqual({
       boatClass: 'Lacustre',
-      length: 95,
+      length: 89.3,
+      hullLength: 95,
       usesDefault: false,
     })
     expect(longestBoatLengthBasis([committeeBoat, coachboat])).toEqual({
       boatClass: 'ILCA',
-      length: 42.3,
+      length: 68.8,
+      hullLength: 42.3,
       usesDefault: true,
     })
     expect(measurementBoatLengthBasis([laser, lacustre], 'Optimist')).toEqual({
       boatClass: 'Optimist',
-      length: BOAT_SHAPES.Optimist.length,
+      length: 57.5,
+      hullLength: 23,
       usesDefault: false,
     })
     expect(measurementBoatLengthBasis([lacustre, committeeBoat], 'Committee boat')).toEqual({
       boatClass: 'Lacustre',
-      length: 95,
+      length: 89.3,
+      hullLength: 95,
       usesDefault: false,
     })
   })
+
+  it.each(SAILING_BOAT_CLASSES)(
+    'uses exactly one displayed %s hull length for one BL',
+    (boatClass) => {
+      const expectedDisplayedHullLengths: Partial<Record<(typeof BOAT_CLASSES)[number], number>> = {
+        Optimist: 57.5,
+        ILCA: 68.8,
+        'Generic keelboat': 88,
+        Lacustre: 89.3,
+        Tornado: 76.25,
+        '420': 66.36,
+        '470': 69.56,
+        '29er': 66.42,
+        '49er': 71.04,
+        Windsurf: 35.2,
+      }
+      const profile = BOAT_SHAPES[boatClass]
+      const basis = measurementBoatLengthBasis([], boatClass)
+
+      expect(basis.length).toBeCloseTo(expectedDisplayedHullLengths[boatClass]!, 8)
+      expect(basis.length).toBeCloseTo(profile.drawingLength * profile.displayScale, 8)
+      expect(basis.hullLength).toBe(profile.length)
+      expect(3 * basis.length).toBeCloseTo(3 * profile.drawingLength * profile.displayScale, 8)
+    },
+  )
 })
 
 describe('wind-relative sails', () => {
