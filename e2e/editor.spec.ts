@@ -339,7 +339,7 @@ test('uses clear compact tool buttons without a separate Lee mark', async ({ pag
   await sceneSettings.click()
   const settingsDialog = page.getByRole('dialog', { name: 'Scene settings' })
   await expect(settingsDialog).toBeVisible()
-  await expect(settingsDialog.getByRole('checkbox', { name: 'Endless plot' })).toBeVisible()
+  await expect(settingsDialog.getByRole('switch', { name: 'Endless plot' })).toBeVisible()
   await expect(settingsDialog.getByLabel('Wind direction slider')).toBeVisible()
   await expect(settingsDialog.getByLabel('Grid visibility slider')).toBeVisible()
   await settingsDialog.getByRole('button', { name: 'Close dialog' }).click()
@@ -953,9 +953,11 @@ test('uses an endless drawing surface and disables PDF export with an explanatio
   await page.goto('/')
 
   const toolsPanel = page.locator('.tools-panel')
-  const endlessPlot = toolsPanel.getByRole('checkbox', { name: 'Endless plot' })
+  const endlessPlot = toolsPanel.getByRole('switch', { name: 'Endless plot' })
+  const home = toolsPanel.getByRole('button', { name: 'Return to the central plot position' })
   const plotBackground = toolsPanel.getByRole('group', { name: 'Plot background' })
   await expect(endlessPlot).not.toBeChecked()
+  await expect(home).toBeVisible()
   const endlessBounds = await endlessPlot
     .locator('xpath=ancestor::div[contains(@class, "field")]')
     .boundingBox()
@@ -974,8 +976,54 @@ test('uses an endless drawing surface and disables PDF export with an explanatio
     })
   expect(topLeftPlotPixel[3]).toBe(255)
 
+  const canvas = page.locator('.editor-canvas canvas').first()
+  const canvasBounds = await canvas.boundingBox()
+  expect(canvasBounds).not.toBeNull()
+  await page.mouse.move(
+    canvasBounds!.x + canvasBounds!.width / 2,
+    canvasBounds!.y + canvasBounds!.height / 2,
+  )
+  for (let step = 0; step < 34; step += 1) await page.mouse.wheel(0, 120)
+  await expect(page.locator('.statusbar')).toContainText('10%')
+
+  await toolsPanel.getByRole('button', { name: 'Pan' }).click()
+  await page.mouse.move(
+    canvasBounds!.x + canvasBounds!.width / 2,
+    canvasBounds!.y + canvasBounds!.height / 2,
+  )
+  await page.mouse.down()
+  await page.mouse.move(
+    canvasBounds!.x + canvasBounds!.width - 40,
+    canvasBounds!.y + canvasBounds!.height / 2,
+    { steps: 6 },
+  )
+  await page.mouse.up()
+  const pannedPlotPixel = await canvas.evaluate((element: HTMLCanvasElement) => {
+    const context = element.getContext('2d')
+    return context ? Array.from(context.getImageData(4, 4, 1, 1).data) : []
+  })
+  expect(pannedPlotPixel[3]).toBe(255)
+
+  await toolsPanel.getByRole('button', { name: 'Boat', exact: true }).click()
+  await canvas.click({ position: { x: 30, y: canvasBounds!.height / 2 } })
+  await home.click()
+  await expect(page.locator('.statusbar')).toContainText('100%')
+
   await page.getByRole('button', { name: 'Export / Share' }).click()
   const dialog = page.getByRole('dialog', { name: 'Export & share' })
+  const pngDownloadPromise = page.waitForEvent('download')
+  await dialog.getByRole('button', { name: 'Download PNG', exact: true }).click()
+  const pngDownload = await pngDownloadPromise
+  const pngPath = await pngDownload.path()
+  const pngContents = await readFile(pngPath!)
+  const exportedWidth = await page.evaluate(async (base64) => {
+    const image = new Image()
+    image.src = `data:image/png;base64,${base64}`
+    await image.decode()
+    return image.naturalWidth
+  }, pngContents.toString('base64'))
+  expect(exportedWidth).toBeGreaterThan(3840)
+
   const pdfButton = dialog.getByRole('button', { name: 'Download PDF' })
   await expect(pdfButton).toBeDisabled()
   await expect(dialog.getByText(/Unavailable with Endless plot/)).toBeVisible()

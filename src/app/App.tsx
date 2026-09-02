@@ -9,6 +9,7 @@ import {
   FileJson,
   FolderOpen,
   HelpCircle,
+  Home,
   ImageDown,
   Info,
   LayoutTemplate,
@@ -225,7 +226,13 @@ function SceneRangeField({
   )
 }
 
-function SceneSettings({ embedded = false }: { embedded?: boolean }) {
+function SceneSettings({
+  embedded = false,
+  onResetView,
+}: {
+  embedded?: boolean
+  onResetView: () => void
+}) {
   const { t } = useI18n()
   const [basisInfoOpen, setBasisInfoOpen] = useState(false)
   const basisId = embedded ? 'compact-boat-length-basis' : 'boat-length-basis'
@@ -329,14 +336,27 @@ function SceneSettings({ embedded = false }: { embedded?: boolean }) {
         </label>
       </div>
       <div className="field endless-plot-field">
-        <label className="check-row">
-          <input
-            type="checkbox"
-            checked={scenario.canvas.infinite}
-            onChange={(event) => updateCanvas({ infinite: event.target.checked })}
+        <div className="endless-plot-control">
+          <label className="endless-plot-switch">
+            <input
+              type="checkbox"
+              role="switch"
+              checked={scenario.canvas.infinite}
+              onChange={(event) => updateCanvas({ infinite: event.target.checked })}
+            />
+            <span className="endless-plot-switch-track" aria-hidden="true">
+              <span />
+            </span>
+            <span>{t('Endless plot')}</span>
+          </label>
+          <IconButton
+            compact
+            className="endless-plot-home-button"
+            icon={<Home aria-hidden="true" />}
+            label={t('Return to the central plot position')}
+            onClick={onResetView}
           />
-          {t('Endless plot')}
-        </label>
+        </div>
         <small className="endless-plot-help">
           {t('Removes the fixed plot edges so you can keep drawing in every direction.')}
         </small>
@@ -2565,7 +2585,7 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
               )}
             </div>
             <EditorToolbar />
-            <SceneSettings />
+            <SceneSettings onResetView={() => canvasRef.current?.resetView()} />
           </>
         )}
       </aside>
@@ -2697,7 +2717,7 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
       {dialog === 'scenario' && <ScenarioDialog onClose={() => setDialog(null)} />}
       {dialog === 'settings' && (
         <Modal title={t('Scene settings')} onClose={() => setDialog(null)}>
-          <SceneSettings embedded />
+          <SceneSettings embedded onResetView={() => canvasRef.current?.resetView()} />
         </Modal>
       )}
       {dialog === 'help' && config.ui.help && (

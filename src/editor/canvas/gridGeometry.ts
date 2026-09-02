@@ -88,14 +88,12 @@ export function sailingGridSegments(
   const naturalSpacing = safeSize * determinant
   const spacing = naturalSpacing < 1 ? safeSize : naturalSpacing
   const extent = Math.hypot(width, height)
-  const estimatedLines = (directions.length * extent * 2) / spacing
-  const step = Math.max(1, Math.ceil(estimatedLines / 500))
   const segments: GridSegment[] = []
 
   for (const direction of directions) {
     const normal = { x: -direction.y, y: direction.x }
     const limit = Math.ceil(extent / spacing)
-    for (let index = -limit; index <= limit; index += step) {
+    for (let index = -limit; index <= limit; index += 1) {
       const offset = index * spacing
       const origin = { x: normal.x * offset, y: normal.y * offset }
       segments.push([
@@ -129,8 +127,6 @@ export function sailingGridSegmentsForBounds(
   const spacing = naturalSpacing < 1 ? safeSize : naturalSpacing
   const center = { x: x + width / 2, y: y + height / 2 }
   const extent = Math.hypot(width, height)
-  const estimatedLines = (directions.length * extent * 2) / spacing
-  const step = Math.max(1, Math.ceil(estimatedLines / 500))
   const segments: GridSegment[] = []
 
   for (const direction of directions) {
@@ -139,7 +135,7 @@ export function sailingGridSegmentsForBounds(
     const alongCenter = dot(direction, center)
     const firstIndex = Math.floor((normalCenter - extent) / spacing)
     const lastIndex = Math.ceil((normalCenter + extent) / spacing)
-    for (let index = firstIndex; index <= lastIndex; index += step) {
+    for (let index = firstIndex; index <= lastIndex; index += 1) {
       const offset = index * spacing
       const lineCenter = {
         x: normal.x * offset + direction.x * alongCenter,

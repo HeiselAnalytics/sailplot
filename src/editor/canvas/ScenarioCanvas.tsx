@@ -15,11 +15,12 @@ import {
   Line,
   Path,
   Rect,
+  Shape,
   Stage,
   Text,
   Transformer,
 } from 'react-konva'
-import type Konva from 'konva'
+import Konva from 'konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import {
   createFinishLine,
@@ -37,6 +38,7 @@ import type {
   EditorTool,
   LineObject,
   MarkObject,
+  Scenario,
   ScenarioObject,
 } from '../../types/scenario'
 import {
@@ -113,6 +115,110 @@ const DEFAULT_TRANSFORM_ANCHORS = [
   'bottom-center',
   'bottom-right',
 ]
+
+interface PlotBounds {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+const transformObjectPoint = (object: ScenarioObject, x: number, y: number): Point => {
+  const angle = (object.rotation * Math.PI) / 180
+  const scaledX = x * object.scaleX
+  const scaledY = y * object.scaleY
+  return {
+    x: object.x + scaledX * Math.cos(angle) - scaledY * Math.sin(angle),
+    y: object.y + scaledX * Math.sin(angle) + scaledY * Math.cos(angle),
+  }
+}
+
+const endlessExportBounds = (scenario: Scenario, zoneBoatLength: number): PlotBounds => {
+  let minX = 0
+  let minY = 0
+  let maxX = scenario.canvas.width
+  let maxY = scenario.canvas.height
+  const include = (x: number, y: number, padding = 0) => {
+    minX = Math.min(minX, x - padding)
+    minY = Math.min(minY, y - padding)
+    maxX = Math.max(maxX, x + padding)
+    maxY = Math.max(maxY, y + padding)
+  }
+
+  for (const object of scenario.objects) {
+    if (!object.visible) continue
+    if (object.type === 'boat') {
+      include(object.x, object.y, 180)
+      continue
+    }
+    if (object.type === 'mark') {
+      const zoneRadius =
+        scenario.environment.zonesVisible && object.zoneVisible
+          ? object.zoneRadius * zoneBoatLength
+          : 0
+      const laylineRadius = scenario.environment.laylinesVisible && object.laylinesVisible ? 520 : 0
+      include(object.x, object.y, Math.max(72, zoneRadius + 4, laylineRadius))
+      continue
+    }
+    if (object.type === 'gate' || object.type === 'start-line' || object.type === 'finish-line') {
+      const endpointPadding =
+        object.type === 'gate' && scenario.environment.zonesVisible && object.zoneVisible
+          ? object.zoneRadius * zoneBoatLength + 4
+          : object.type !== 'gate' && (object.laylinesVisible || object.laylineAreaVisible)
+            ? 520
+            : 72
+      include(object.x + object.endAX, object.y + object.endAY, endpointPadding)
+      include(object.x + object.endBX, object.y + object.endBY, endpointPadding)
+      continue
+    }
+    if (object.type === 'text') {
+      const lines = object.text.split('\n')
+      const width = Math.max(16, ...lines.map((line) => line.length * object.fontSize * 0.68)) + 16
+      const height = Math.max(1, lines.length) * object.fontSize * 1.25 + 16
+      for (const [x, y] of [
+        [0, 0],
+        [width, 0],
+        [width, height],
+        [0, height],
+      ]) {
+        const point = transformObjectPoint(object, x, y)
+        include(point.x, point.y, 4)
+      }
+      continue
+    }
+    if (object.type === 'rectangle') {
+      for (const [x, y] of [
+        [0, 0],
+        [object.width, 0],
+        [object.width, object.height],
+        [0, object.height],
+      ]) {
+        const point = transformObjectPoint(object, x, y)
+        include(point.x, point.y, object.strokeWidth + 2)
+      }
+      continue
+    }
+    if (object.type === 'circle') {
+      const radius =
+        (Math.max(object.width, object.height) / 2) *
+        Math.max(Math.abs(object.scaleX), Math.abs(object.scaleY))
+      include(object.x, object.y, radius + object.strokeWidth + 2)
+      continue
+    }
+    if (!('points' in object)) continue
+    for (let index = 0; index + 1 < object.points.length; index += 2) {
+      const point = transformObjectPoint(object, object.points[index], object.points[index + 1])
+      include(point.x, point.y, object.strokeWidth + (object.type === 'arrow' ? 16 : 4))
+    }
+  }
+
+  return {
+    x: Math.floor(minX),
+    y: Math.floor(minY),
+    width: Math.max(1, Math.ceil(maxX) - Math.floor(minX)),
+    height: Math.max(1, Math.ceil(maxY) - Math.floor(minY)),
+  }
+}
 const SHAPE_CORNER_ANCHORS = ['top-left', 'top-right', 'bottom-left', 'bottom-right']
 const NON_SCALABLE_TYPES = new Set<ScenarioObject['type']>([
   'boat',
@@ -147,6 +253,7 @@ const visiblePlotColor = (color: string, inkColor: string) =>
     : color
 
 function Grid({
+  id,
   x = 0,
   y = 0,
   width,
@@ -158,6 +265,7 @@ function Grid({
   windDirection,
   infinite = false,
 }: {
+  id?: string
   x?: number
   y?: number
   width: number
@@ -178,6 +286,7 @@ function Grid({
   )
   return (
     <Group
+      id={id}
       clipX={x}
       clipY={y}
       clipWidth={width}
@@ -185,16 +294,21 @@ function Grid({
       opacity={opacity}
       listening={false}
     >
-      {segments.map((points, index) => (
-        <Line
-          key={index}
-          points={points}
-          stroke={color}
-          strokeWidth={1.2}
-          dash={[4, 7]}
-          listening={false}
-        />
-      ))}
+      <Shape
+        sceneFunc={(context, shape) => {
+          context.beginPath()
+          for (const [x1, y1, x2, y2] of segments) {
+            context.moveTo(x1, y1)
+            context.lineTo(x2, y2)
+          }
+          context.fillStrokeShape(shape)
+        }}
+        stroke={color}
+        strokeWidth={1.2}
+        dash={[4, 7]}
+        perfectDrawEnabled={false}
+        listening={false}
+      />
     </Group>
   )
 }
@@ -1395,7 +1509,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
     width: size.width / actualScale,
     height: size.height / actualScale,
   }
-  const infiniteOverscan = Math.max(visibleWorld.width, visibleWorld.height)
+  const infiniteOverscan = Math.max(visibleWorld.width, visibleWorld.height) * 0.5
   const renderedPlotBounds = infinitePlot
     ? {
         x: visibleWorld.x - infiniteOverscan,
@@ -1595,6 +1709,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
       if (!stage) return ''
       const transformer = transformerRef.current
       const background = stage.findOne('#canvas-background')
+      const canvasGrid = stage.findOne('#canvas-grid')
       const previous = {
         x: stage.x(),
         y: stage.y(),
@@ -1602,14 +1717,91 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
         scaleY: stage.scaleY(),
         width: stage.width(),
         height: stage.height(),
+        background: background
+          ? {
+              x: background.x(),
+              y: background.y(),
+              width: background.width(),
+              height: background.height(),
+              visible: background.visible(),
+            }
+          : null,
       }
       transformer?.hide()
       if (transparent) background?.hide()
       if (infinitePlot) {
-        const uri = stage.toDataURL({ pixelRatio, mimeType: 'image/png' })
-        background?.show()
-        transformer?.show()
-        return uri
+        const bounds = endlessExportBounds(scenario, zoneBoatLength)
+        const maximumDimension = 8192
+        const maximumPixels = 32_000_000
+        const exportScale = Math.min(
+          pixelRatio,
+          maximumDimension / bounds.width,
+          maximumDimension / bounds.height,
+          Math.sqrt(maximumPixels / (bounds.width * bounds.height)),
+        )
+        const outputWidth = Math.max(1, Math.ceil(bounds.width * exportScale))
+        const outputHeight = Math.max(1, Math.ceil(bounds.height * exportScale))
+        const layer = background?.getLayer()
+        const exportGrid: Konva.Group | null = scenario.canvas.grid.visible
+          ? new Konva.Group({
+              clipX: bounds.x,
+              clipY: bounds.y,
+              clipWidth: bounds.width,
+              clipHeight: bounds.height,
+              opacity: scenario.canvas.grid.opacity,
+              listening: false,
+            })
+          : null
+
+        try {
+          canvasGrid?.hide()
+          background?.setAttrs(bounds)
+          if (exportGrid && layer) {
+            const gridSegments = sailingGridSegmentsForBounds(
+              bounds.x,
+              bounds.y,
+              bounds.width,
+              bounds.height,
+              gridSize,
+              scenario.environment.laylineAngle,
+              scenario.environment.windDirection,
+            )
+            exportGrid.add(
+              new Konva.Shape({
+                sceneFunc: (context, shape) => {
+                  context.beginPath()
+                  for (const [x1, y1, x2, y2] of gridSegments) {
+                    context.moveTo(x1, y1)
+                    context.lineTo(x2, y2)
+                  }
+                  context.fillStrokeShape(shape)
+                },
+                stroke: gridColor,
+                strokeWidth: 1.2,
+                dash: [4, 7],
+                perfectDrawEnabled: false,
+                listening: false,
+              }),
+            )
+            layer.add(exportGrid)
+            exportGrid.moveToBottom()
+            background?.moveToBottom()
+          }
+          stage.position({ x: -bounds.x * exportScale, y: -bounds.y * exportScale })
+          stage.scale({ x: exportScale, y: exportScale })
+          stage.size({ width: outputWidth, height: outputHeight })
+          stage.draw()
+          return stage.toDataURL({ pixelRatio: 1, mimeType: 'image/png' })
+        } finally {
+          exportGrid?.destroy()
+          canvasGrid?.show()
+          stage.position({ x: previous.x, y: previous.y })
+          stage.scale({ x: previous.scaleX, y: previous.scaleY })
+          stage.size({ width: previous.width, height: previous.height })
+          if (background && previous.background) background.setAttrs(previous.background)
+          transformer?.show()
+          stage.draw()
+        }
       }
       stage.position({ x: 0, y: 0 })
       stage.scale({ x: 1, y: 1 })
@@ -1618,7 +1810,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
       stage.position({ x: previous.x, y: previous.y })
       stage.scale({ x: previous.scaleX, y: previous.scaleY })
       stage.size({ width: previous.width, height: previous.height })
-      background?.show()
+      if (background && previous.background) background.visible(previous.background.visible)
       transformer?.show()
       return uri
     },
@@ -1856,9 +2048,10 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
       x: (first.clientX + second.clientX) / 2 - rect.left,
       y: (first.clientY + second.clientY) / 2 - rect.top,
     }
+    const minimumScale = infinitePlot ? 0.1 : 1
     const scale = Math.min(
       8,
-      Math.max(1, view.scale * (distance / Math.max(1, touchGesture.current.distance))),
+      Math.max(minimumScale, view.scale * (distance / Math.max(1, touchGesture.current.distance))),
     )
     const world = {
       x: (touchGesture.current.center.x - view.x) / actualScale,
@@ -2026,7 +2219,11 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
       y: (pointer.y - view.y) / actualScale,
     }
     const direction = event.evt.deltaY > 0 ? -1 : 1
-    const scale = Math.min(8, Math.max(1, direction > 0 ? view.scale * 1.08 : view.scale / 1.08))
+    const minimumScale = infinitePlot ? 0.1 : 1
+    const scale = Math.min(
+      8,
+      Math.max(minimumScale, direction > 0 ? view.scale * 1.08 : view.scale / 1.08),
+    )
     const nextScale = fitScale * scale
     const next =
       scale === 1 && !infinitePlot
@@ -2055,6 +2252,10 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
         scaleX={actualScale}
         scaleY={actualScale}
         draggable={!isPlaybackMode && (activeTool === 'pan' || spacePressed)}
+        onDragMove={(event) => {
+          if (!infinitePlot || event.target !== stageRef.current) return
+          setView((current) => ({ ...current, x: event.target.x(), y: event.target.y() }))
+        }}
         onDragEnd={(event) => {
           if (event.target !== stageRef.current) return
           const next =
@@ -2088,6 +2289,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
           />
           {scenario.canvas.grid.visible && (
             <Grid
+              id="canvas-grid"
               x={renderedPlotBounds.x}
               y={renderedPlotBounds.y}
               width={renderedPlotBounds.width}

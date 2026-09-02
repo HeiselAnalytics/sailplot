@@ -57,6 +57,22 @@ describe('sailing grid geometry', () => {
     expect([...lineOffsets(first)].some((offset) => lineOffsets(moved).has(offset))).toBe(true)
   })
 
+  it('keeps every 1 BL grid line when an endless plot is zoomed far out', () => {
+    const segments = sailingGridSegmentsForBounds(-10_000, -10_000, 20_000, 20_000, 40, 45, 0)
+    const offsets = segments
+      .filter(([x1, , x2]) => x2 > x1)
+      .map(([x1, y1, x2, y2]) => {
+        const length = Math.hypot(x2 - x1, y2 - y1)
+        return (-(y2 - y1) * x1 + (x2 - x1) * y1) / length
+      })
+      .sort((left, right) => left - right)
+    const smallestSpacing = Math.min(
+      ...offsets.slice(1).map((offset, index) => offset - offsets[index]),
+    )
+
+    expect(smallestSpacing).toBeCloseTo(40)
+  })
+
   it('reverses mark laylines for a downwind mark', () => {
     expect(markLaylineRotation(0, false)).toBe(0)
     expect(markLaylineRotation(0, true)).toBe(180)
