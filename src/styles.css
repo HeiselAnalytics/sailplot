@@ -764,7 +764,7 @@ h3 {
 .playback-primary-button {
   border-color: var(--button);
   background: var(--button);
-  color: var(--button-foreground);
+  color: var(--button-text);
 }
 
 .playback-primary-button:hover:not(:disabled) {
