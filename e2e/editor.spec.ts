@@ -285,6 +285,53 @@ test('hides the boat legend by default and toggles it from the scene sidebar', a
     .toBeLessThanOrEqual(2)
 })
 
+test('lets endless plots freely place the wind indicator and boat legend', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome', 'Desktop canvas drag regression')
+  await page.goto('/')
+  const toolsPanel = page.locator('.tools-panel')
+  await toolsPanel
+    .getByRole('group', { name: 'Endless plot' })
+    .getByRole('button', { name: 'On' })
+    .click()
+  await toolsPanel.getByRole('button', { name: 'Boat', exact: true }).click()
+  const canvas = page.locator('.editor-canvas canvas').first()
+  const bounds = await canvas.boundingBox()
+  expect(bounds).not.toBeNull()
+  await canvas.click({ position: { x: bounds!.width / 2, y: bounds!.height / 2 } })
+  await toolsPanel
+    .getByRole('group', { name: 'Boat legend' })
+    .getByRole('button', { name: 'On' })
+    .click()
+  await toolsPanel.getByRole('button', { name: 'Select', exact: true }).click()
+
+  const fitScale = Math.min(bounds!.width / 1920, bounds!.height / 1080)
+  const fitX = Math.max(0, (bounds!.width - 1920 * fitScale) / 2)
+  const fitY = Math.max(0, (bounds!.height - 1080 * fitScale) / 2)
+  const dragWorldPoint = async (x: number, y: number, deltaX: number, deltaY: number) => {
+    const startX = bounds!.x + fitX + x * fitScale
+    const startY = bounds!.y + fitY + y * fitScale
+    await page.mouse.move(startX, startY)
+    await page.mouse.down()
+    await page.mouse.move(startX + deltaX, startY + deltaY, { steps: 6 })
+    await page.mouse.up()
+  }
+  await dragWorldPoint(120, 130, 170, 75)
+  await dragWorldPoint(24 + 80, 944 + 40, 280, -170)
+
+  await page.getByRole('button', { name: 'Export / Share' }).click()
+  const downloadPromise = page.waitForEvent('download')
+  await page.getByRole('dialog').getByRole('button', { name: 'Download JSON' }).click()
+  const download = await downloadPromise
+  const downloadedPath = await download.path()
+  const exported = JSON.parse(await readFile(downloadedPath!, 'utf8'))
+  expect(exported.canvas.windIndicatorPosition).not.toBeNull()
+  expect(exported.canvas.boatLegendPosition).not.toBeNull()
+  expect(Math.abs(exported.canvas.windIndicatorPosition.x - 120)).toBeGreaterThan(100)
+  expect(Math.abs(exported.canvas.boatLegendPosition.y - 944)).toBeGreaterThan(100)
+})
+
 test('uses a dedicated boat palette for the dark plot', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chrome', 'Desktop sidebar is hidden in compact mode')
   await page.goto('/')
@@ -340,7 +387,7 @@ test('uses clear compact tool buttons without a separate Lee mark', async ({ pag
   await sceneSettings.click()
   const settingsDialog = page.getByRole('dialog', { name: 'Scene settings' })
   await expect(settingsDialog).toBeVisible()
-  await expect(settingsDialog.getByRole('switch', { name: 'Endless plot' })).toBeVisible()
+  await expect(settingsDialog.getByRole('group', { name: 'Endless plot' })).toBeVisible()
   await expect(settingsDialog.getByLabel('Wind direction slider')).toBeVisible()
   await expect(settingsDialog.getByLabel('Grid visibility slider')).toBeVisible()
   await settingsDialog.getByRole('button', { name: 'Close dialog' }).click()
@@ -954,11 +1001,14 @@ test('uses an endless drawing surface and disables PDF export with an explanatio
   await page.goto('/')
 
   const toolsPanel = page.locator('.tools-panel')
-  const endlessPlot = toolsPanel.getByRole('switch', { name: 'Endless plot' })
+  const endlessPlot = toolsPanel.getByRole('group', { name: 'Endless plot' })
+  const endlessOn = endlessPlot.getByRole('button', { name: 'On' })
+  const endlessOff = endlessPlot.getByRole('button', { name: 'Off' })
   const home = toolsPanel.getByRole('button', { name: 'Return to the central plot position' })
   const plotBackground = toolsPanel.getByRole('group', { name: 'Plot background' })
-  await expect(endlessPlot).not.toBeChecked()
+  await expect(endlessOff).toHaveAttribute('aria-pressed', 'true')
   await expect(home).toBeVisible()
+  await expect(home).toHaveCSS('border-top-width', '1px')
   const endlessBounds = await endlessPlot
     .locator('xpath=ancestor::div[contains(@class, "field")]')
     .boundingBox()
@@ -966,8 +1016,14 @@ test('uses an endless drawing surface and disables PDF export with an explanatio
   expect(endlessBounds).not.toBeNull()
   expect(backgroundBounds).not.toBeNull()
   expect(endlessBounds!.y).toBeLessThan(backgroundBounds!.y)
+  const switchBounds = await endlessPlot.boundingBox()
+  const homeBounds = await home.boundingBox()
+  expect(switchBounds).not.toBeNull()
+  expect(homeBounds).not.toBeNull()
+  expect(homeBounds!.x).toBeGreaterThan(switchBounds!.x + switchBounds!.width)
 
-  await endlessPlot.check()
+  await endlessOn.click()
+  await expect(endlessOn).toHaveAttribute('aria-pressed', 'true')
   const topLeftPlotPixel = await page
     .locator('.editor-canvas canvas')
     .first()
@@ -1030,7 +1086,7 @@ test('uses an endless drawing surface and disables PDF export with an explanatio
   await expect(dialog.getByText(/Unavailable with Endless plot/)).toBeVisible()
   await dialog.getByRole('button', { name: 'Close dialog' }).click()
 
-  await endlessPlot.uncheck()
+  await endlessOff.click()
   await page.getByRole('button', { name: 'Export / Share' }).click()
   await expect(page.getByRole('button', { name: 'Download PDF' })).toBeEnabled()
 })

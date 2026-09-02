@@ -216,6 +216,14 @@ export const scenarioSchema = z
       background: z.string(),
       boatNumbersVisible: z.boolean().default(true),
       boatLegendVisible: z.boolean().default(false),
+      windIndicatorPosition: z
+        .object({ x: z.number().finite(), y: z.number().finite() })
+        .nullable()
+        .default(null),
+      boatLegendPosition: z
+        .object({ x: z.number().finite(), y: z.number().finite() })
+        .nullable()
+        .default(null),
       grid: z.object({
         visible: z.boolean(),
         size: z.number().positive(),

@@ -44,8 +44,8 @@ const german: Record<string, string> = {
   'Boat legend': 'Bootslegende',
   'Endless plot': 'Endlos-Plot',
   'Return to the central plot position': 'Zur zentralen Plot-Position zurückkehren',
-  'Removes the fixed plot edges so you can keep drawing in every direction.':
-    'Entfernt die festen Plot-Ränder, damit du in alle Richtungen weiterzeichnen kannst.',
+  'Removes fixed plot edges. When enabled, the wind indicator and boat legend can be moved freely.':
+    'Entfernt feste Plot-Ränder. Wenn aktiviert, lassen sich Windanzeige und Bootslegende frei verschieben.',
   'Plot background': 'Plot-Hintergrund',
   Light: 'Hell',
   Dark: 'Dunkel',

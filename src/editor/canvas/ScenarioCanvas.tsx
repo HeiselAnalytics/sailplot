@@ -123,6 +123,18 @@ interface PlotBounds {
   height: number
 }
 
+const BOAT_LEGEND_ROW_HEIGHT = 48
+const BOAT_LEGEND_COLUMN_WIDTH = 300
+
+const boatLegendLayoutForCount = (entryCount: number, canvasHeight: number) => {
+  const maximumRows = Math.max(1, Math.floor((canvasHeight - 112) / BOAT_LEGEND_ROW_HEIGHT))
+  const rowCount = Math.min(maximumRows, entryCount)
+  const columnCount = Math.ceil(entryCount / maximumRows)
+  const width = columnCount * BOAT_LEGEND_COLUMN_WIDTH + 32
+  const height = 64 + rowCount * BOAT_LEGEND_ROW_HEIGHT
+  return { width, height, x: 24, y: Math.max(24, canvasHeight - height - 24) }
+}
+
 const transformObjectPoint = (object: ScenarioObject, x: number, y: number): Point => {
   const angle = (object.rotation * Math.PI) / 180
   const scaledX = x * object.scaleX
@@ -209,6 +221,24 @@ const endlessExportBounds = (scenario: Scenario, zoneBoatLength: number): PlotBo
     for (let index = 0; index + 1 < object.points.length; index += 2) {
       const point = transformObjectPoint(object, object.points[index], object.points[index + 1])
       include(point.x, point.y, object.strokeWidth + (object.type === 'arrow' ? 16 : 4))
+    }
+  }
+
+  if (scenario.environment.windVisible) {
+    const position = scenario.canvas.windIndicatorPosition ?? { x: 120, y: 130 }
+    include(position.x, position.y, 120)
+  }
+  if (scenario.canvas.boatLegendVisible) {
+    const entryCount = new Set(
+      scenario.objects
+        .filter((object): object is BoatObject => object.type === 'boat' && object.visible)
+        .map((object) => object.sequenceId),
+    ).size
+    if (entryCount > 0) {
+      const layout = boatLegendLayoutForCount(entryCount, scenario.canvas.height)
+      const position = scenario.canvas.boatLegendPosition ?? { x: layout.x, y: layout.y }
+      include(position.x, position.y)
+      include(position.x + layout.width, position.y + layout.height)
     }
   }
 
@@ -325,27 +355,45 @@ function BoatLegend({
   entries,
   canvasHeight,
   dark,
+  position,
+  draggable = false,
+  onPositionChange,
 }: {
   entries: BoatLegendEntry[]
   canvasHeight: number
   dark: boolean
+  position?: Point | null
+  draggable?: boolean
+  onPositionChange?: (position: Point) => void
 }) {
   const { t } = useI18n()
   if (!entries.length) return null
-  const rowHeight = 48
-  const columnWidth = 300
-  const maximumRows = Math.max(1, Math.floor((canvasHeight - 112) / rowHeight))
-  const rowCount = Math.min(maximumRows, entries.length)
-  const columnCount = Math.ceil(entries.length / maximumRows)
-  const width = columnCount * columnWidth + 32
-  const height = 64 + rowCount * rowHeight
-  const x = 24
-  const y = Math.max(24, canvasHeight - height - 24)
+  const {
+    width,
+    height,
+    x: defaultX,
+    y: defaultY,
+  } = boatLegendLayoutForCount(entries.length, canvasHeight)
+  const maximumRows = Math.max(1, Math.floor((canvasHeight - 112) / BOAT_LEGEND_ROW_HEIGHT))
+  const x = position?.x ?? defaultX
+  const y = position?.y ?? defaultY
   const ink = dark ? DARK_PLOT_INK : LIGHT_PLOT_INK
   const mutedInk = dark ? '#C8D0D4' : '#5F6B70'
 
   return (
-    <Group x={x} y={y} listening={false}>
+    <Group
+      x={x}
+      y={y}
+      draggable={draggable}
+      listening={draggable}
+      onMouseDown={(event) => {
+        if (draggable) event.cancelBubble = true
+      }}
+      onTouchStart={(event) => {
+        if (draggable) event.cancelBubble = true
+      }}
+      onDragEnd={(event) => onPositionChange?.({ x: event.target.x(), y: event.target.y() })}
+    >
       <Rect
         width={width}
         height={height}
@@ -377,7 +425,11 @@ function BoatLegend({
         const primary = [entry.sailNumber, entry.name].filter(Boolean).join(' · ')
         const secondary = primary ? t(entry.boatClass) : ''
         return (
-          <Group key={entry.sequenceId} x={16 + column * columnWidth} y={56 + row * rowHeight}>
+          <Group
+            key={entry.sequenceId}
+            x={16 + column * BOAT_LEGEND_COLUMN_WIDTH}
+            y={56 + row * BOAT_LEGEND_ROW_HEIGHT}
+          >
             <Rect
               x={0}
               y={3}
@@ -391,7 +443,7 @@ function BoatLegend({
             <Text
               x={38}
               y={secondary ? 0 : 5}
-              width={columnWidth - 50}
+              width={BOAT_LEGEND_COLUMN_WIDTH - 50}
               height={secondary ? undefined : 26}
               verticalAlign={secondary ? 'top' : 'middle'}
               text={primary || t(entry.boatClass)}
@@ -405,7 +457,7 @@ function BoatLegend({
               <Text
                 x={38}
                 y={23}
-                width={columnWidth - 50}
+                width={BOAT_LEGEND_COLUMN_WIDTH - 50}
                 text={secondary}
                 fill={mutedInk}
                 fontSize={13}
@@ -1585,6 +1637,11 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
   )
   const gridSize = zoneBoatLength
   const isPlaybackMode = playbackPosition !== undefined
+  const overlaysAreDraggable = infinitePlot && !isPlaybackMode
+  const windIndicatorPosition =
+    infinitePlot && scenario.canvas.windIndicatorPosition
+      ? scenario.canvas.windIndicatorPosition
+      : { x: 120, y: 130 }
 
   const selectionCanScale = useMemo(
     () =>
@@ -2380,7 +2437,26 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
                 </Group>
               ))}
           {scenario.environment.windVisible && (
-            <Group x={120} y={130} listening={false}>
+            <Group
+              x={windIndicatorPosition.x}
+              y={windIndicatorPosition.y}
+              draggable={overlaysAreDraggable}
+              listening={overlaysAreDraggable}
+              onMouseDown={(event) => {
+                if (overlaysAreDraggable) event.cancelBubble = true
+              }}
+              onTouchStart={(event) => {
+                if (overlaysAreDraggable) event.cancelBubble = true
+              }}
+              onDragEnd={(event) =>
+                updateCanvas({
+                  windIndicatorPosition: { x: event.target.x(), y: event.target.y() },
+                })
+              }
+            >
+              {overlaysAreDraggable && (
+                <Rect x={-80} y={-116} width={160} height={204} fill="rgba(0,0,0,0.001)" />
+              )}
               <Group rotation={scenario.environment.windDirection}>
                 <Circle
                   x={0}
@@ -2456,6 +2532,9 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
               entries={boatLegendEntries}
               canvasHeight={scenario.canvas.height}
               dark={darkPlot}
+              position={infinitePlot ? scenario.canvas.boatLegendPosition : null}
+              draggable={overlaysAreDraggable}
+              onPositionChange={(boatLegendPosition) => updateCanvas({ boatLegendPosition })}
             />
           )}
           {!isPlaybackMode &&

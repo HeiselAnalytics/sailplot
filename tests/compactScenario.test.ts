@@ -83,6 +83,8 @@ describe('minimal share payload', () => {
       background: '#262626',
       boatNumbersVisible: false,
       boatLegendVisible: false,
+      windIndicatorPosition: { x: -140, y: 275 },
+      boatLegendPosition: { x: 1100, y: -320 },
       grid: { visible: false, size: 32, opacity: 0.4 },
       view: { x: 25, y: -10, scale: 1.5 },
     }

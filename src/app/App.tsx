@@ -336,19 +336,30 @@ function SceneSettings({
         </label>
       </div>
       <div className="field endless-plot-field">
+        <span>{t('Endless plot')}</span>
         <div className="endless-plot-control">
-          <label className="endless-plot-switch">
-            <input
-              type="checkbox"
-              role="switch"
-              checked={scenario.canvas.infinite}
-              onChange={(event) => updateCanvas({ infinite: event.target.checked })}
-            />
-            <span className="endless-plot-switch-track" aria-hidden="true">
-              <span />
-            </span>
-            <span>{t('Endless plot')}</span>
-          </label>
+          <div
+            className="plot-background-switch endless-plot-switch"
+            role="group"
+            aria-label={t('Endless plot')}
+          >
+            <button
+              type="button"
+              aria-pressed={scenario.canvas.infinite}
+              className={scenario.canvas.infinite ? 'is-active' : ''}
+              onClick={() => updateCanvas({ infinite: true })}
+            >
+              {t('On')}
+            </button>
+            <button
+              type="button"
+              aria-pressed={!scenario.canvas.infinite}
+              className={!scenario.canvas.infinite ? 'is-active' : ''}
+              onClick={() => updateCanvas({ infinite: false })}
+            >
+              {t('Off')}
+            </button>
+          </div>
           <IconButton
             compact
             className="endless-plot-home-button"
@@ -358,7 +369,9 @@ function SceneSettings({
           />
         </div>
         <small className="endless-plot-help">
-          {t('Removes the fixed plot edges so you can keep drawing in every direction.')}
+          {t(
+            'Removes fixed plot edges. When enabled, the wind indicator and boat legend can be moved freely.',
+          )}
         </small>
       </div>
       <div className="field">

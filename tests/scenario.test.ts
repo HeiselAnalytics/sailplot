@@ -343,6 +343,22 @@ describe('plot format', () => {
     expect(parseScenarioJson(serializeScenario(scenario)).canvas.boatLegendVisible).toBe(true)
   })
 
+  it('defaults movable canvas overlays to their standard positions and preserves custom ones', () => {
+    const legacy = createEmptyScenario()
+    delete (legacy.canvas as Partial<typeof legacy.canvas>).windIndicatorPosition
+    delete (legacy.canvas as Partial<typeof legacy.canvas>).boatLegendPosition
+    const parsedLegacy = parseScenarioJson(serializeScenario(legacy))
+    expect(parsedLegacy.canvas.windIndicatorPosition).toBeNull()
+    expect(parsedLegacy.canvas.boatLegendPosition).toBeNull()
+
+    const scenario = createEmptyScenario()
+    scenario.canvas.windIndicatorPosition = { x: -240, y: 360 }
+    scenario.canvas.boatLegendPosition = { x: 2100, y: -180 }
+    const parsed = parseScenarioJson(serializeScenario(scenario))
+    expect(parsed.canvas.windIndicatorPosition).toEqual({ x: -240, y: 360 })
+    expect(parsed.canvas.boatLegendPosition).toEqual({ x: 2100, y: -180 })
+  })
+
   it('removes support boats from a legacy measurement basis selection', () => {
     const scenario = createEmptyScenario()
     scenario.environment.measurementBoatClass = 'Committee boat'

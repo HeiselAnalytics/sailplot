@@ -205,6 +205,8 @@ export interface Scenario {
     background: string
     boatNumbersVisible: boolean
     boatLegendVisible: boolean
+    windIndicatorPosition: { x: number; y: number } | null
+    boatLegendPosition: { x: number; y: number } | null
     grid: { visible: boolean; size: number; opacity: number }
     view: { x: number; y: number; scale: number }
   }

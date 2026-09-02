@@ -213,6 +213,18 @@ function encodeCanvas(scenario: Scenario): CompactArray {
     { changed: false },
     { changed: !canvas.boatLegendVisible },
     { changed: canvas.infinite },
+    {
+      changed: canvas.windIndicatorPosition !== null,
+      value: canvas.windIndicatorPosition
+        ? [canvas.windIndicatorPosition.x, canvas.windIndicatorPosition.y]
+        : undefined,
+    },
+    {
+      changed: canvas.boatLegendPosition !== null,
+      value: canvas.boatLegendPosition
+        ? [canvas.boatLegendPosition.x, canvas.boatLegendPosition.y]
+        : undefined,
+    },
   ])
 }
 
@@ -235,6 +247,20 @@ function decodeCanvas(value: CompactValue, scenario: Scenario) {
   if (hasBit(mask, 10)) asNumber(reader.take(), 'view scale')
   if (hasBit(mask, 11)) scenario.canvas.boatLegendVisible = false
   if (hasBit(mask, 12)) scenario.canvas.infinite = true
+  if (hasBit(mask, 13)) {
+    const [x, y] = asArray(reader.take(), 'wind indicator position')
+    scenario.canvas.windIndicatorPosition = {
+      x: asNumber(x, 'wind indicator x'),
+      y: asNumber(y, 'wind indicator y'),
+    }
+  }
+  if (hasBit(mask, 14)) {
+    const [x, y] = asArray(reader.take(), 'boat legend position')
+    scenario.canvas.boatLegendPosition = {
+      x: asNumber(x, 'boat legend x'),
+      y: asNumber(y, 'boat legend y'),
+    }
+  }
   reader.finish()
 }
 
