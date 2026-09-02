@@ -704,6 +704,38 @@ test('uses border-only selection for empty shapes and full-area selection for fi
   await expect(properties.getByRole('heading', { name: 'Rectangle', level: 2 })).toBeVisible()
 })
 
+test('finishes a click-created circle as soon as its radius is confirmed', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome', 'Desktop circle interaction regression')
+  await page.goto('/')
+
+  const canvas = page.locator('.editor-canvas canvas').first()
+  const bounds = await canvas.boundingBox()
+  expect(bounds).not.toBeNull()
+  const circleTool = page.locator('.tools-panel').getByRole('button', {
+    name: 'Circle',
+    exact: true,
+  })
+  const selectTool = page.locator('.tools-panel').getByRole('button', {
+    name: 'Select',
+    exact: true,
+  })
+
+  await circleTool.click()
+  await canvas.click({ position: { x: 300, y: 240 } })
+  await expect(circleTool).toHaveAttribute('aria-pressed', 'true')
+
+  await page.mouse.move(bounds!.x + 380, bounds!.y + 240)
+  await page.mouse.down()
+  await expect(circleTool).toHaveAttribute('aria-pressed', 'false')
+  await expect(selectTool).toHaveAttribute('aria-pressed', 'true')
+  await expect(
+    page.locator('.properties-panel').getByRole('heading', { name: 'Circle' }),
+  ).toBeVisible()
+  await page.mouse.up()
+})
+
 test('keeps desktop logo spacing in compact layout', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop-chrome', 'Compact desktop header check')
   await page.goto('/')

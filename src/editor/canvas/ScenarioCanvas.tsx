@@ -1485,7 +1485,6 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
   const draftRef = useRef<DrawingDraft | null>(null)
   const drawingGesture = useRef<{ start: Point } | null>(null)
   const awaitingSecondClick = useRef(false)
-  const twoClickCompletion = useRef<DrawingDraft | null>(null)
   const [spacePressed, setSpacePressed] = useState(false)
   const touchGesture = useRef<{ distance: number; center: Point } | null>(null)
   const scenario = useEditorStore((state) => state.scenario)
@@ -1927,7 +1926,6 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
       draftRef.current = null
       drawingGesture.current = null
       awaitingSecondClick.current = false
-      twoClickCompletion.current = null
       return null
     })
   }, [activeTool])
@@ -1955,9 +1953,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
         ...currentDraft,
         points: [currentDraft.start.x, currentDraft.start.y, point.x, point.y],
       }
-      twoClickCompletion.current = completedDraft
-      draftRef.current = completedDraft
-      setDraft(completedDraft)
+      completeDraft(completedDraft)
       return
     }
     if (!empty) return
@@ -2004,7 +2000,6 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
       draftRef.current = nextDraft
       drawingGesture.current = TWO_CLICK_DRAWING_TOOLS.has(activeTool) ? { start: point } : null
       awaitingSecondClick.current = false
-      twoClickCompletion.current = null
       setDraft(nextDraft)
     }
   }
@@ -2023,7 +2018,6 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
             : [current.start.x, current.start.y, point.x, point.y],
       }
       draftRef.current = next
-      if (twoClickCompletion.current) twoClickCompletion.current = next
       return next
     })
   }
@@ -2037,7 +2031,6 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
     draftRef.current = null
     drawingGesture.current = null
     awaitingSecondClick.current = false
-    twoClickCompletion.current = null
     setDraft(null)
     const rect = containerRef.current?.getBoundingClientRect()
     const [first, second] = Array.from(event.evt.touches)
@@ -2096,7 +2089,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
     handlePointerUp()
   }
 
-  const completeDraft = (draftToComplete: DrawingDraft) => {
+  function completeDraft(draftToComplete: DrawingDraft) {
     let [x1, y1, x2, y2] =
       draftToComplete.points.length > 4
         ? [
@@ -2186,7 +2179,6 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
     draftRef.current = null
     drawingGesture.current = null
     awaitingSecondClick.current = false
-    twoClickCompletion.current = null
     setDraft(null)
     setTool('select')
   }
@@ -2195,10 +2187,6 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
     const currentDraft = draftRef.current
     if (!currentDraft) return
     if (TWO_CLICK_DRAWING_TOOLS.has(currentDraft.tool)) {
-      if (twoClickCompletion.current) {
-        completeDraft(twoClickCompletion.current)
-        return
-      }
       const point = canvasPoint()
       const finishedDraft = point
         ? {
