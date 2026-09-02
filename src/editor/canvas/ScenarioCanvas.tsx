@@ -504,7 +504,7 @@ function SupportBoatFlags({
           key={flag.id}
           x={flag.side * 3.5}
           y={-18}
-          rotation={flag.side * 45}
+          rotation={flag.side * 20}
         >
           <Line points={[0, 0, 0, -poleLength]} stroke={inkColor} strokeWidth={2} />
           <Group x={flag.side < 0 ? -30 : 0} y={-poleLength}>
