@@ -1303,6 +1303,7 @@ h3 {
 
 .player-mode-toggle {
   flex: 0 0 auto;
+  margin-right: 8px;
 }
 
 .player-mode-toggle svg {
@@ -3372,8 +3373,8 @@ a.mobile-branding-partner:focus-visible {
     flex: 0 0 164px;
   }
 
-  .topbar > .topbar-actions:not(.topbar-actions--file) > .icon-button:nth-of-type(1),
-  .topbar > .topbar-actions:not(.topbar-actions--file) > .icon-button:nth-of-type(2),
+  .topbar > .topbar-actions:not(.topbar-actions--file) > .topbar-undo-button,
+  .topbar > .topbar-actions:not(.topbar-actions--file) > .topbar-redo-button,
   .layout-cycle-button {
     display: none;
   }
@@ -3384,6 +3385,7 @@ a.mobile-branding-partner:focus-visible {
 
   .topbar > .topbar-actions:not(.topbar-actions--file) > .player-mode-toggle {
     order: 10;
+    margin-right: 0;
   }
 
   .topbar > .topbar-actions:not(.topbar-actions--file) > .sailplot-navigation {

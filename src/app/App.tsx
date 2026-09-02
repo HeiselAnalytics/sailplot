@@ -2418,20 +2418,6 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
           )}
         </div>
         <div className="topbar-actions">
-          <IconButton
-            compact
-            icon={<Undo2 />}
-            label={t('Undo')}
-            disabled={playerMode || !history.length}
-            onClick={undo}
-          />
-          <IconButton
-            compact
-            icon={<Redo2 />}
-            label={t('Redo')}
-            disabled={playerMode || !future.length}
-            onClick={redo}
-          />
           <button
             type="button"
             className="player-mode-toggle"
@@ -2443,6 +2429,22 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
             {playerMode ? <span aria-hidden="true">←</span> : <Play aria-hidden="true" />}
             <span>{t(playerMode ? 'Back to editor' : 'Player')}</span>
           </button>
+          <IconButton
+            compact
+            className="topbar-undo-button"
+            icon={<Undo2 />}
+            label={t('Undo')}
+            disabled={playerMode || !history.length}
+            onClick={undo}
+          />
+          <IconButton
+            compact
+            className="topbar-redo-button"
+            icon={<Redo2 />}
+            label={t('Redo')}
+            disabled={playerMode || !future.length}
+            onClick={redo}
+          />
           <IconButton
             compact
             icon={<ZoomIn />}
