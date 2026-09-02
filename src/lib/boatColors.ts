@@ -2,12 +2,10 @@ import type { BoatClass, ScenarioObject } from '../types/scenario'
 import { isDarkPlotBackground } from './plotTheme'
 
 export const COACHBOAT_BLUE = '#168DDD'
-export const JURY_BOAT_GREY = '#4B5563'
 export const UMPIRE_BOAT_GREY = '#4B5563'
 
 export function boatColorForClass(boatClass: BoatClass, color: string): string {
   if (boatClass === 'Coachboat') return COACHBOAT_BLUE
-  if (boatClass === 'Jury boat') return JURY_BOAT_GREY
   if (boatClass === 'Umpire boat') return UMPIRE_BOAT_GREY
   return color
 }

@@ -59,8 +59,8 @@ const german: Record<string, string> = {
   'Boat-length basis': 'Bootslängen-Basis',
   'How BL is calculated': 'So wird BL berechnet',
   Default: 'Standard',
-  'Default uses the longest sailing boat class in the plot. Committee, jury, umpire and coach boats are excluded. Current basis: {boatClass}.':
-    'Standard verwendet die längste Segelbootklasse im Plot. Committee-, Jury-, Umpire- und Coachboote werden nicht berücksichtigt. Aktuelle Basis: {boatClass}.',
+  'Default uses the longest sailing boat class in the plot. Committee, umpire and coach boats are excluded. Current basis: {boatClass}.':
+    'Standard verwendet die längste Segelbootklasse im Plot. Committee-, Umpire- und Coachboote werden nicht berücksichtigt. Aktuelle Basis: {boatClass}.',
   'Largest boat class in plot': 'Grösste Bootsklasse im Plot',
   'Selected basis': 'Gewählte Basis',
   'Additional information': 'Zusätzliche Informationen',
@@ -417,7 +417,6 @@ const german: Record<string, string> = {
   Windsurf: 'Windsurf',
   'Manual primary sail angle': 'Manueller Winkel des Hauptsegels',
   'Fixed support boat hull color': 'Feste Rumpffarbe des Begleitboots',
-  'Jury boat': 'Juryboot',
   'Committee boat': 'Startschiff',
   'Umpire boat': 'Umpireboot',
   'Committee boat (reversed)': 'Startschiff (umgekehrt)',

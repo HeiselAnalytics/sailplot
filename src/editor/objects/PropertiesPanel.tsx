@@ -17,7 +17,6 @@ import { normalizeHeading } from '../../lib/scenario'
 import {
   boatColorPaletteForBackground,
   COACHBOAT_BLUE,
-  JURY_BOAT_GREY,
   UMPIRE_BOAT_GREY,
   type ColorPalette,
 } from '../../lib/boatColors'
@@ -385,9 +384,7 @@ function BoatFields({
         value={object.overlapIndicator}
         onChange={(overlapIndicator) => update({ overlapIndicator })}
       />
-      {object.boatClass === 'Coachboat' ||
-      object.boatClass === 'Jury boat' ||
-      object.boatClass === 'Umpire boat' ? (
+      {object.boatClass === 'Coachboat' || object.boatClass === 'Umpire boat' ? (
         <div className="field">
           <span>{t('Hull color')}</span>
           <div className="fixed-color-display" aria-label={t('Fixed support boat hull color')}>
@@ -399,11 +396,7 @@ function BoatFields({
               }}
             />
             <span className="color-picker-value">
-              {object.boatClass === 'Coachboat'
-                ? COACHBOAT_BLUE
-                : object.boatClass === 'Jury boat'
-                  ? JURY_BOAT_GREY
-                  : UMPIRE_BOAT_GREY}
+              {object.boatClass === 'Coachboat' ? COACHBOAT_BLUE : UMPIRE_BOAT_GREY}
             </span>
             <span className="fixed-color-note">{t('Fixed')}</span>
           </div>

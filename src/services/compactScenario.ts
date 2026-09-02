@@ -1,5 +1,4 @@
 import {
-  BOAT_CLASSES,
   UMPIRE_SIGNAL_FLAGS,
   type BoatClass,
   type BoatObject,
@@ -38,6 +37,25 @@ const OBJECT_TYPES = [
   'rectangle',
   'circle',
 ] as const satisfies readonly ScenarioObject['type'][]
+
+// Compact links use stable numeric IDs. Index 11 remains reserved for the retired
+// Jury boat, which is migrated to the Umpire boat when an old link is opened.
+const COMPACT_BOAT_CLASSES = [
+  'Optimist',
+  'ILCA',
+  'Generic keelboat',
+  'Lacustre',
+  'Tornado',
+  '420',
+  '470',
+  '29er',
+  '49er',
+  'Windsurf',
+  'Coachboat',
+  null,
+  'Committee boat',
+  'Umpire boat',
+] as const satisfies readonly (BoatClass | null)[]
 
 const COLORS = [
   '#FFAA00',
@@ -124,6 +142,19 @@ const asNumber = (value: CompactValue, label: string): number => {
 const asString = (value: CompactValue, label: string): string => {
   if (typeof value !== 'string') throw new Error(`The compact ${label} data is damaged.`)
   return value
+}
+
+const compactBoatClassIndex = (boatClass: BoatClass): number => {
+  const index = COMPACT_BOAT_CLASSES.indexOf(boatClass)
+  if (index < 0) throw new Error('The boat class cannot be encoded.')
+  return index
+}
+
+const decodeCompactBoatClass = (value: CompactValue, label: string): BoatClass => {
+  const index = asNumber(value, label)
+  const boatClass = COMPACT_BOAT_CLASSES[index]
+  if (boatClass === undefined) throw new Error(`The compact ${label} data is damaged.`)
+  return boatClass ?? 'Umpire boat'
 }
 
 const enumAt = <Value extends string>(
@@ -283,7 +314,7 @@ function encodeEnvironment(scenario: Scenario): CompactArray {
       value:
         environment.measurementBoatClass === null
           ? 0
-          : BOAT_CLASSES.indexOf(environment.measurementBoatClass),
+          : compactBoatClassIndex(environment.measurementBoatClass),
     },
   ])
 }
@@ -302,8 +333,7 @@ function decodeEnvironment(value: CompactValue, scenario: Scenario) {
   if (hasBit(mask, 6))
     scenario.environment.zoneRadiusBoatLengths = asNumber(reader.take(), 'zone radius')
   if (hasBit(mask, 7))
-    scenario.environment.measurementBoatClass = enumAt(
-      BOAT_CLASSES,
+    scenario.environment.measurementBoatClass = decodeCompactBoatClass(
       reader.take(),
       'measurement boat class',
     )
@@ -362,7 +392,7 @@ function encodeObject(
     return [
       ...prefix,
       ...pack([
-        { changed: object.boatClass !== 'ILCA', value: BOAT_CLASSES.indexOf(object.boatClass) },
+        { changed: object.boatClass !== 'ILCA', value: compactBoatClassIndex(object.boatClass) },
         { changed: object.name !== '', value: object.name },
         { changed: object.sailNumber !== '', value: object.sailNumber },
         { changed: object.label !== '', value: object.label },
@@ -527,7 +557,7 @@ function decodeObject(
   if (type === 'boat') {
     const mask = asNumber(reader.take(), 'boat mask')
     const boatClass: BoatClass = hasBit(mask, 0)
-      ? enumAt(BOAT_CLASSES, reader.take(), 'boat class')
+      ? decodeCompactBoatClass(reader.take(), 'boat class')
       : 'ILCA'
     const boat = { ...createBoat(x, y, index + 1, boatClass), ...base }
     if (hasBit(mask, 1)) boat.name = asString(reader.take(), 'boat name')

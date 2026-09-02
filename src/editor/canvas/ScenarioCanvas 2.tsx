@@ -58,7 +58,6 @@ import {
   spinnakerPath,
   tackForHeading,
 } from '../objects/boatShapes'
-import { JURY_BOAT_GREY } from '../../lib/boatColors'
 import {
   courseLineLaylineGeometry,
   laylineVector,
@@ -507,12 +506,7 @@ function BoatGraphic({
           </>
         )}
         {profile.kind === 'vsr' && (
-          <CoachboatHull
-            hullColor={hullColor}
-            hullStroke={
-              object.boatClass === 'Jury boat' ? darkenHexColor(JURY_BOAT_GREY) : undefined
-            }
-          />
+          <CoachboatHull hullColor={hullColor} />
         )}
         {profile.mast && object.mainsailVisible && profile.mainsailSize > 0 && (
           <Group x={profile.mast[0]} y={profile.mast[1]} rotation={-sailAngle}>

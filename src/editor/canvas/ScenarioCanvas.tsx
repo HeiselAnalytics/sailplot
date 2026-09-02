@@ -60,7 +60,7 @@ import {
   spinnakerPath,
   tackForHeading,
 } from '../objects/boatShapes'
-import { JURY_BOAT_GREY, UMPIRE_BOAT_GREY } from '../../lib/boatColors'
+import { UMPIRE_BOAT_GREY } from '../../lib/boatColors'
 import {
   courseLineLaylineGeometry,
   laylineVector,
@@ -469,7 +469,7 @@ function UmpireFlagFace({
                 key={offset}
                 points={[offset, 0, offset + height, height]}
                 stroke={UMPIRE_FLAG_COLORS.red}
-                strokeWidth={6}
+                strokeWidth={12 / (2 * Math.SQRT2)}
               />
             ))}
           </>
@@ -676,11 +676,7 @@ function BoatGraphic({
           <CoachboatHull
             hullColor={hullColor}
             hullStroke={
-              object.boatClass === 'Jury boat'
-                ? darkenHexColor(JURY_BOAT_GREY)
-                : object.boatClass === 'Umpire boat'
-                  ? darkenHexColor(UMPIRE_BOAT_GREY)
-                  : undefined
+              object.boatClass === 'Umpire boat' ? darkenHexColor(UMPIRE_BOAT_GREY) : undefined
             }
           />
         )}

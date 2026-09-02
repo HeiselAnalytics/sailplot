@@ -397,7 +397,6 @@ export const BOAT_SHAPES: Record<BoatClass, BoatShapeProfile> = {
   '49er': profiles.int49er,
   Windsurf: profiles.board,
   Coachboat: profiles.vsr,
-  'Jury boat': profiles.vsr,
   'Committee boat': profiles.committee,
   'Umpire boat': profiles.vsr,
 }

@@ -24,7 +24,7 @@ import {
   upwindSailVisibility,
   COACHBOAT_BLUE,
 } from '../src/editor/objects/boatShapes'
-import { JURY_BOAT_GREY, UMPIRE_BOAT_GREY } from '../src/lib/boatColors'
+import { UMPIRE_BOAT_GREY } from '../src/lib/boatColors'
 import { createBoat } from '../src/lib/scenario'
 import { BOAT_CLASSES, SAILING_BOAT_CLASSES } from '../src/types/scenario'
 
@@ -42,7 +42,6 @@ describe('historical boat shape profiles', () => {
       '49er',
       'Windsurf',
       'Coachboat',
-      'Jury boat',
       'Committee boat',
       'Umpire boat',
     ])
@@ -68,8 +67,6 @@ describe('historical boat shape profiles', () => {
     )
     expect(COACHBOAT_BLUE).toBe('#168DDD')
     expect(createBoat(0, 0, 1, 'Coachboat').color).toBe(COACHBOAT_BLUE)
-    expect(BOAT_SHAPES['Jury boat']).toBe(BOAT_SHAPES.Coachboat)
-    expect(createBoat(0, 0, 1, 'Jury boat').color).toBe(JURY_BOAT_GREY)
     expect(BOAT_SHAPES['Umpire boat']).toBe(BOAT_SHAPES.Coachboat)
     expect(createBoat(0, 0, 1, 'Umpire boat')).toMatchObject({
       color: UMPIRE_BOAT_GREY,
@@ -293,13 +290,6 @@ describe('wind-relative sails', () => {
     expect(upwindSailVisibility('470')).toEqual({
       mainsailVisible: true,
       jibVisible: true,
-      genoaVisible: false,
-      spinnakerVisible: false,
-      gennakerVisible: false,
-    })
-    expect(upwindSailVisibility('Jury boat')).toEqual({
-      mainsailVisible: false,
-      jibVisible: false,
       genoaVisible: false,
       spinnakerVisible: false,
       gennakerVisible: false,

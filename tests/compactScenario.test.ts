@@ -68,6 +68,32 @@ describe('minimal share payload', () => {
     expect(expandCompactScenario(compactScenario(visible)).canvas.boatLegendVisible).toBe(true)
   })
 
+  it('keeps compact boat IDs stable and migrates the retired Jury slot to Umpire', () => {
+    const scenario = createEmptyScenario()
+    scenario.objects = [
+      createBoat(100, 100, 1, 'Committee boat'),
+      createBoat(200, 100, 2, 'Umpire boat'),
+    ]
+
+    const compact = compactScenario(scenario)
+    const encodedBoats = compact[3] as unknown[][]
+    expect(encodedBoats.map((boat) => boat[5])).toEqual([12, 13])
+    expect(
+      expandCompactScenario(compact).objects.map((object) =>
+        object.type === 'boat' ? object.boatClass : null,
+      ),
+    ).toEqual(['Committee boat', 'Umpire boat'])
+
+    const legacy = structuredClone(compact)
+    const legacyBoats = legacy[3] as unknown[][]
+    legacyBoats[1][5] = 11
+    expect(expandCompactScenario(legacy).objects[1]).toMatchObject({
+      type: 'boat',
+      boatClass: 'Umpire boat',
+      color: '#4B5563',
+    })
+  })
+
   it('round-trips every object type and every non-default scene section', () => {
     const scenario = createEmptyScenario('Compact regatta')
     scenario.metadata.description = 'A detailed situation'

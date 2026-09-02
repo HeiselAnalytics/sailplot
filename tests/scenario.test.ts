@@ -434,6 +434,7 @@ describe('plot format', () => {
       ['kitefoil', 'Windsurf'],
       ['Coach boat', 'Coachboat'],
       ['Slim coachboat', 'Coachboat'],
+      ['Jury boat', 'Umpire boat'],
       ['Generic catamaran', 'Tornado'],
       ['Generic skiff', '49er'],
     ] as const
@@ -448,6 +449,7 @@ describe('plot format', () => {
     ).toEqual(legacyClasses.map(([, currentClass]) => currentClass))
     expect(migrated.objects[5]).toMatchObject({ color: COACHBOAT_BLUE })
     expect(migrated.objects[6]).toMatchObject({ color: COACHBOAT_BLUE })
+    expect(migrated.objects[7]).toMatchObject({ color: '#4B5563' })
   })
 
   it('migrates legacy slim Coachboat line endpoints', () => {

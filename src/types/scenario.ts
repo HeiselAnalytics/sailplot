@@ -10,7 +10,6 @@ export const BOAT_CLASSES = [
   '49er',
   'Windsurf',
   'Coachboat',
-  'Jury boat',
   'Committee boat',
   'Umpire boat',
 ] as const
@@ -18,7 +17,6 @@ export const BOAT_CLASSES = [
 export type BoatClass = (typeof BOAT_CLASSES)[number]
 export const SUPPORT_BOAT_CLASSES = [
   'Coachboat',
-  'Jury boat',
   'Committee boat',
   'Umpire boat',
 ] as const satisfies readonly BoatClass[]

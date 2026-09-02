@@ -1857,7 +1857,9 @@ test('adds a grey Umpire boat with two independent official flag controls', asyn
   await canvas.click({ position: { x: 500, y: 300 } })
 
   const properties = page.locator('.properties-panel')
-  await properties.getByRole('combobox', { name: 'Boat class' }).selectOption('Umpire boat')
+  const boatClass = properties.getByRole('combobox', { name: 'Boat class' })
+  await expect(boatClass).not.toContainText('Jury boat')
+  await boatClass.selectOption('Umpire boat')
   await expect(properties.getByLabel('Fixed support boat hull color')).toContainText('#4B5563')
 
   const boatFlag = properties.getByRole('combobox', { name: 'Boat identification flag' })
@@ -1882,16 +1884,49 @@ test('adds a grey Umpire boat with two independent official flag controls', asyn
   await expect
     .poll(() =>
       canvas.evaluate((element: HTMLCanvasElement) => {
-        const pixels = element.getContext('2d')!.getImageData(450, 240, 100, 70).data
-        let red = 0
-        for (let index = 0; index < pixels.length; index += 4) {
-          if (pixels[index] === 215 && pixels[index + 1] === 38 && pixels[index + 2] === 56)
-            red += 1
+        const { width, height } = element
+        const pixels = element.getContext('2d')!.getImageData(0, 0, width, height).data
+        let minX = width
+        let minY = height
+        let maxX = -1
+        let maxY = -1
+        for (let y = 0; y < height; y += 1) {
+          for (let x = 0; x < width; x += 1) {
+            const index = (y * width + x) * 4
+            const red = pixels[index]
+            const green = pixels[index + 1]
+            const blue = pixels[index + 2]
+            if (red > 140 && green < 120 && blue < 120 && red > green + 70) {
+              minX = Math.min(minX, x)
+              minY = Math.min(minY, y)
+              maxX = Math.max(maxX, x)
+              maxY = Math.max(maxY, y)
+            }
+          }
         }
-        return red > 8
+        if (maxX < minX || maxY < minY) return 1
+        let red = 0
+        let yellow = 0
+        for (let y = minY; y <= maxY; y += 1) {
+          for (let x = minX; x <= maxX; x += 1) {
+            const index = (y * width + x) * 4
+            const redChannel = pixels[index]
+            const greenChannel = pixels[index + 1]
+            const blueChannel = pixels[index + 2]
+            if (
+              redChannel > 140 &&
+              greenChannel < 120 &&
+              blueChannel < 120 &&
+              redChannel > greenChannel + 70
+            )
+              red += 1
+            if (redChannel > 180 && greenChannel > 120 && blueChannel < 100) yellow += 1
+          }
+        }
+        return red > 8 && yellow > 8 ? Math.abs(red / yellow - 1) : 1
       }),
     )
-    .toBe(true)
+    .toBeLessThan(0.15)
   await signal.selectOption('green-white')
   await expect(boatFlag).toHaveValue('#FFAA00')
   await expect(signal).toHaveValue('green-white')

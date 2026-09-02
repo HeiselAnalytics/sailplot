@@ -20,6 +20,7 @@ const LEGACY_BOAT_CLASSES: Record<string, BoatClass> = {
   'Coach boat': 'Coachboat',
   'Slim coachboat': 'Coachboat',
   'VSR Coachboat': 'Coachboat',
+  'Jury boat': 'Umpire boat',
 }
 
 const normalizeBoatClass = (value: unknown) =>
