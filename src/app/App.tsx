@@ -580,9 +580,15 @@ function PlaybackControls({
           </div>
         </div>
       </div>
-      <button type="button" className="secondary-button playback-exit-button" onClick={onExit}>
+      <button
+        type="button"
+        className={`secondary-button playback-exit-button ${compact ? 'tool-cancel-button playback-exit-button--compact' : ''}`}
+        aria-label={compact ? t('Back to editor') : undefined}
+        title={compact ? t('Back to editor') : undefined}
+        onClick={onExit}
+      >
         <X aria-hidden="true" />
-        {t('Back to editor')}
+        {!compact && t('Back to editor')}
       </button>
     </section>
   )

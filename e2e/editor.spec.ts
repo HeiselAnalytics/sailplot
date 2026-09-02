@@ -53,15 +53,18 @@ async function countDifferentPixels(page: Page, first: Buffer, second: Buffer) {
 
 test('switches the complete interface between German and English and remembers it', async ({
   page,
-}) => {
+}, testInfo) => {
   await page.goto('/')
 
+  const compact = testInfo.project.name !== 'desktop-chrome'
+  if (compact) await page.getByRole('button', { name: 'Menu', exact: true }).click()
   const language = page.getByRole('group', { name: 'Language' })
   await expect(language).toBeVisible()
-  await language.getByRole('button', { name: 'Deutsch' }).click()
+  await language.getByRole(compact ? 'menuitemradio' : 'button', { name: 'Deutsch' }).click()
 
   await expect(page.locator('html')).toHaveAttribute('lang', 'de')
   await expect(page).toHaveTitle('SailPlot.app')
+  if (compact) await page.getByRole('button', { name: 'Menü', exact: true }).click()
   await expect(page.getByRole('group', { name: 'Sprache' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Boot' }).first()).toBeVisible()
   await expect(page.locator('.statusbar')).toContainText('Bereit')
@@ -72,9 +75,10 @@ test('switches the complete interface between German and English and remembers i
   await page.reload()
   await expect(page.locator('html')).toHaveAttribute('lang', 'de')
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+  if (compact) await page.getByRole('button', { name: 'Menü', exact: true }).click()
   await page
     .getByRole('group', { name: 'Sprache' })
-    .getByRole('button', { name: 'English' })
+    .getByRole(compact ? 'menuitemradio' : 'button', { name: 'English' })
     .click()
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
   await expect(page).toHaveTitle('SailPlot.app')
@@ -1015,7 +1019,9 @@ test('shows the export branding on the plot canvas', async ({ page }, testInfo) 
     ...(testInfo.project.name === 'iphone' ? [] : [newPlot]),
     openProjects,
     download,
-    page.locator('.language-switch'),
+    testInfo.project.name === 'desktop-chrome'
+      ? page.locator('.language-switch')
+      : page.getByRole('button', { name: 'Menu', exact: true }),
   ]
   const verticalCenters = await Promise.all(
     verticallyAligned.map(async (element) => {
@@ -1943,6 +1949,60 @@ test('replays numbered boat positions with controls in place of the desktop tool
   await expect(page.locator('.app-shell')).toHaveAttribute('data-player-mode', 'false')
   await expect(page.locator('.properties-panel')).toBeVisible()
   await expect(page.locator('.tools-panel').getByRole('button', { name: 'Boat' })).toBeVisible()
+})
+
+test('keeps the mobile player beside the menu and its controls free of horizontal scrolling', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'iphone', 'Phone player layout check')
+  await page.goto('/')
+
+  await expect(page.locator('.topbar-actions > .language-switch')).toBeHidden()
+  const playerMode = page.getByRole('button', { name: 'Player mode' })
+  const menu = page.getByRole('button', { name: 'Menu', exact: true })
+  const playerBounds = await playerMode.boundingBox()
+  const menuBounds = await menu.boundingBox()
+  expect(playerBounds).not.toBeNull()
+  expect(menuBounds).not.toBeNull()
+  expect(playerBounds!.x + playerBounds!.width).toBeLessThanOrEqual(menuBounds!.x)
+  expect(menuBounds!.x - (playerBounds!.x + playerBounds!.width)).toBeLessThanOrEqual(8)
+
+  await menu.click()
+  await expect(page.getByRole('group', { name: 'Language' })).toBeVisible()
+  await page.keyboard.press('Escape')
+
+  await page.getByRole('button', { name: 'Boat', exact: true }).first().click()
+  const canvas = page.locator('canvas').first()
+  await canvas.click({ position: { x: 120, y: 220 } })
+  await canvas.click({ position: { x: 270, y: 150 } })
+  await playerMode.click()
+
+  const mobileToolbar = page.locator('.mobile-toolbar')
+  const controls = page.getByRole('region', { name: 'Player controls' })
+  await expect(controls).toBeVisible()
+  await expect
+    .poll(() =>
+      mobileToolbar.evaluate((element) => ({
+        clientWidth: element.clientWidth,
+        overflowX: getComputedStyle(element).overflowX,
+        scrollWidth: element.scrollWidth,
+      })),
+    )
+    .toMatchObject({ overflowX: 'hidden' })
+  const toolbarSize = await mobileToolbar.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }))
+  expect(toolbarSize.scrollWidth).toBeLessThanOrEqual(toolbarSize.clientWidth)
+
+  const exit = controls.getByRole('button', { name: 'Back to editor' })
+  await expect(exit.locator('svg')).toBeVisible()
+  await expect(exit).toHaveCSS('color', 'rgb(223, 63, 63)')
+  const exitBounds = await exit.boundingBox()
+  expect(exitBounds).not.toBeNull()
+  expect(exitBounds!.width).toBeLessThanOrEqual(44)
+  await exit.click()
+  await expect(page.locator('.app-shell')).toHaveAttribute('data-player-mode', 'false')
 })
 
 test('places a new boat close beside an existing hull', async ({ page }, testInfo) => {

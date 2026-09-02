@@ -10,9 +10,10 @@ export function SailPlotNavigation({
   items: SailPlotNavigationItem[]
   context: SailPlotExtensionContext
 }) {
-  const { t } = useI18n()
+  const { language, setLanguage, t } = useI18n()
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLElement>(null)
+  const languageSelectionAvailable = context.config.localization.languageMode === 'both'
 
   useEffect(() => setOpen(false), [context.currentPath])
 
@@ -32,9 +33,13 @@ export function SailPlotNavigation({
     }
   }, [open])
 
-  if (!items.length) return null
+  if (!items.length && !languageSelectionAvailable) return null
   return (
-    <nav ref={menuRef} className="sailplot-navigation sailplot-menu" aria-label={t('Navigation')}>
+    <nav
+      ref={menuRef}
+      className={`sailplot-navigation sailplot-menu ${items.length ? '' : 'sailplot-menu--language-only'}`}
+      aria-label={t('Navigation')}
+    >
       <button
         type="button"
         className="sailplot-menu-trigger"
@@ -84,6 +89,29 @@ export function SailPlotNavigation({
               </button>
             )
           })}
+          {languageSelectionAvailable && (
+            <div className="sailplot-menu-language" role="group" aria-label={t('Language')}>
+              <span>{t('Language')}</span>
+              <div className="sailplot-menu-language-options">
+                {(['de', 'en'] as const).map((code) => (
+                  <button
+                    key={code}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={language === code}
+                    className={language === code ? 'is-active' : ''}
+                    aria-label={code === 'de' ? 'Deutsch' : 'English'}
+                    onClick={() => {
+                      setLanguage(code)
+                      setOpen(false)
+                    }}
+                  >
+                    {code.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </nav>

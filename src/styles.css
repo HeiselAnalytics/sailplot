@@ -854,7 +854,18 @@ h3 {
 }
 
 .playback-controls--compact .playback-exit-button {
+  width: 44px;
   min-height: 44px;
+  flex: 0 0 44px;
+  padding: 0;
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger), transparent 92%);
+  color: var(--danger);
+}
+
+.playback-controls--compact .playback-exit-button:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger), transparent 84%);
 }
 
 .canvas-area {
@@ -1096,6 +1107,10 @@ h3 {
   margin-left: 4px;
 }
 
+.sailplot-menu--language-only {
+  display: none;
+}
+
 .sailplot-navigation .sailplot-menu-trigger {
   display: inline-flex;
   width: 68px;
@@ -1131,6 +1146,10 @@ h3 {
   border-radius: 7px;
   background: var(--panel);
   box-shadow: 0 8px 24px color-mix(in srgb, var(--foreground), transparent 84%);
+}
+
+.sailplot-menu-language {
+  display: none;
 }
 
 .sailplot-navigation .sailplot-menu-popover a,
@@ -3322,6 +3341,15 @@ a.mobile-branding-partner:focus-visible {
     margin-left: auto;
   }
 
+  .topbar > .topbar-actions:not(.topbar-actions--file) > .player-mode-toggle {
+    order: 10;
+  }
+
+  .topbar > .topbar-actions:not(.topbar-actions--file) > .sailplot-navigation {
+    order: 11;
+    margin-left: 0;
+  }
+
   .topbar .icon-button {
     width: 40px;
     min-height: 40px;
@@ -3332,14 +3360,51 @@ a.mobile-branding-partner:focus-visible {
     min-height: 40px;
   }
 
-  .language-switch {
-    width: 72px;
-    height: 40px;
+  .topbar-actions > .language-switch,
+  .extension-header-actions > .language-switch {
+    display: none;
   }
 
-  .language-switch button {
-    min-width: 32px;
-    height: 34px;
+  .sailplot-menu-language {
+    display: grid;
+    gap: 5px;
+    margin-top: 4px;
+    padding: 8px 6px 4px;
+    border-top: 1px solid var(--border);
+  }
+
+  .sailplot-menu--language-only {
+    display: flex;
+  }
+
+  .sailplot-menu-language > span {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .sailplot-menu-language-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .sailplot-navigation .sailplot-menu-popover .sailplot-menu-language-options button {
+    min-height: 34px;
+    justify-content: center;
+    padding: 5px 8px;
+    border: 1px solid transparent;
+    background: var(--secondary);
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+  }
+
+  .sailplot-navigation .sailplot-menu-popover .sailplot-menu-language-options button.is-active {
+    border-color: var(--highlight);
+    background: var(--panel);
   }
 
   .sailplot-navigation .sailplot-menu-trigger {
@@ -3405,6 +3470,60 @@ a.mobile-branding-partner:focus-visible {
   .app-shell:not([data-layout='desktop']) .mobile-toolbar,
   .app-shell[data-layout='compact'] .mobile-toolbar {
     grid-row: 4;
+  }
+
+  .app-shell[data-player-mode='true']:not([data-layout='desktop']),
+  .app-shell[data-player-mode='true'][data-layout='compact'] {
+    grid-template-rows: 60px minmax(0, 1fr) auto auto;
+  }
+
+  .app-shell[data-player-mode='true'][data-layout='desktop'] {
+    grid-template-rows: 52px minmax(0, 1fr) auto;
+  }
+
+  .app-shell[data-player-mode='true'] .mobile-toolbar {
+    overflow-x: hidden;
+  }
+
+  .playback-controls--compact {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    grid-template:
+      'transport timeline exit' 44px
+      'settings settings settings' 44px /
+      auto minmax(72px, 1fr) 44px;
+    align-items: center;
+    gap: 4px 8px;
+  }
+
+  .playback-controls--compact .playback-transport {
+    grid-area: transport;
+    gap: 4px;
+  }
+
+  .playback-controls--compact .playback-transport .icon-button {
+    width: 40px;
+    min-height: 40px;
+  }
+
+  .playback-controls--compact .playback-timeline {
+    width: auto;
+    min-width: 0;
+    grid-area: timeline;
+  }
+
+  .playback-controls--compact .playback-timeline span {
+    display: none;
+  }
+
+  .playback-controls--compact .playback-settings {
+    grid-area: settings;
+    justify-content: center;
+  }
+
+  .playback-controls--compact .playback-exit-button {
+    grid-area: exit;
   }
 
   .app-shell[data-layout='desktop'] .mobile-properties[data-selected='true'] {
