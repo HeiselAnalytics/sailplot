@@ -1,5 +1,8 @@
 import type Konva from 'konva'
 
+export const DEFAULT_ROTATE_ANCHOR_OFFSET = 50
+export const BOAT_ROTATE_ANCHOR_OFFSET = DEFAULT_ROTATE_ANCHOR_OFFSET / 2
+
 export function pinTransformBoundsToNamedNode(
   group: Konva.Group,
   selector = '.rotation-bounds',

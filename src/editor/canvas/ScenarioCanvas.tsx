@@ -74,7 +74,11 @@ import {
   boatLegendLayoutForCount,
   endlessExportBounds,
 } from './exportBounds'
-import { pinTransformBoundsToNamedNode } from './rotationBounds'
+import {
+  BOAT_ROTATE_ANCHOR_OFFSET,
+  DEFAULT_ROTATE_ANCHOR_OFFSET,
+  pinTransformBoundsToNamedNode,
+} from './rotationBounds'
 import {
   courseEndpointAccentColor,
   courseEndpointBoatAppearance,
@@ -1624,6 +1628,12 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
       ),
     [scenario.objects, selectedIds],
   )
+  const selectionIsBoat = useMemo(
+    () =>
+      selectedIds.length === 1 &&
+      scenario.objects.some((object) => object.id === selectedIds[0] && object.type === 'boat'),
+    [scenario.objects, selectedIds],
+  )
   const selectionIsRectangle = useMemo(
     () =>
       selectedIds.length === 1 &&
@@ -2612,7 +2622,13 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
             ref={transformerRef}
             rotateEnabled={selectionCanRotate}
             rotateLineVisible={selectionCanRotate}
-            rotateAnchorOffset={selectionCanRotate ? 50 : 0}
+            rotateAnchorOffset={
+              selectionCanRotate
+                ? selectionIsBoat
+                  ? BOAT_ROTATE_ANCHOR_OFFSET
+                  : DEFAULT_ROTATE_ANCHOR_OFFSET
+                : 0
+            }
             borderEnabled={selectionCanRotate}
             resizeEnabled={selectionCanScale}
             enabledAnchors={
