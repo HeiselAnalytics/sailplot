@@ -849,25 +849,23 @@ test('exports watermarked images, copies share URLs and downloads an A4 landscap
     'Plot JSON',
     'PNG image',
     'Transparent PNG',
+    'Animated GIF',
+    'MP4 video',
     'PDF document',
   ])
   const infoButtons = dialog.locator('.export-info-button')
-  await expect(infoButtons).toHaveCount(5)
+  await expect(infoButtons).toHaveCount(7)
   await infoButtons.nth(2).hover()
   await expect(dialog.getByRole('tooltip').nth(2)).toContainText(
-    'Choose 2× for screens and everyday use, or 4× for sharper print and detailed output.',
+    'Exports the complete plot in high quality',
   )
 
-  const pngActions = dialog.getByRole('group', { name: 'PNG resolution' })
-  const png2x = pngActions.getByRole('button', { name: 'Download PNG at 2×' })
-  const png4x = pngActions.getByRole('button', { name: 'Download PNG at 4×' })
-  const png2xBounds = await png2x.boundingBox()
-  const png4xBounds = await png4x.boundingBox()
-  expect(png2xBounds).not.toBeNull()
-  expect(png4xBounds).not.toBeNull()
-  expect(Math.abs(png2xBounds!.y - png4xBounds!.y)).toBeLessThan(1)
-  expect(png4xBounds!.x).toBeGreaterThan(png2xBounds!.x)
-  await expect(dialog.getByRole('button', { name: 'Download transparent PNG at 4×' })).toBeVisible()
+  const pngButton = dialog.getByRole('button', { name: 'Download PNG', exact: true })
+  await expect(pngButton).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Download transparent PNG' })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Download GIF' })).toBeDisabled()
+  await expect(dialog.getByRole('button', { name: 'Transparent GIF' })).toBeDisabled()
+  await expect(dialog.getByRole('button', { name: 'Download MP4' })).toBeDisabled()
 
   const copyButton = dialog.locator('.export-copy-button')
   await expect(copyButton).toHaveAccessibleName('Copy URL with project')
@@ -885,9 +883,9 @@ test('exports watermarked images, copies share URLs and downloads an A4 landscap
   const productLogoResponse = await page.request.get('/icons/sailplot-logo-on-light.svg')
   expect(productLogoResponse.ok()).toBe(true)
   const pngDownloadPromise = page.waitForEvent('download')
-  await png2x.click()
+  await pngButton.click()
   const pngDownload = await pngDownloadPromise
-  expect(pngDownload.suggestedFilename()).toBe('untitled-plot-2x.png')
+  expect(pngDownload.suggestedFilename()).toBe('untitled-plot.png')
   const pngPath = await pngDownload.path()
   expect(pngPath).not.toBeNull()
   if (await page.evaluate(() => 'BarcodeDetector' in window)) {
@@ -947,6 +945,79 @@ test('exports watermarked images, copies share URLs and downloads an A4 landscap
     .poll(() => reopenedPage.evaluate(() => sessionStorage.getItem('copied-export-url')))
     .toBe(copiedPlotUrl)
   await reopenedPage.close()
+})
+
+test('downloads the Player sequence as transparent GIF and MP4', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop-chrome', 'Encoding is covered once in Chromium')
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Boat', exact: true }).first().click()
+  const canvas = page.locator('.editor-canvas canvas').first()
+  await canvas.click({ position: { x: 260, y: 220 } })
+  await canvas.click({ position: { x: 430, y: 290 } })
+  await page.getByRole('button', { name: 'Export / Share' }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'Export & share' })
+  const pngDownloadPromise = page.waitForEvent('download')
+  await dialog.getByRole('button', { name: 'Download transparent PNG' }).click()
+  const pngDownload = await pngDownloadPromise
+  const pngPath = await pngDownload.path()
+  const pngContents = await readFile(pngPath!)
+  const firstPngPixelAlpha = await page.evaluate(async (base64) => {
+    const image = new Image()
+    image.src = `data:image/png;base64,${base64}`
+    await image.decode()
+    const output = document.createElement('canvas')
+    output.width = image.naturalWidth
+    output.height = image.naturalHeight
+    const context = output.getContext('2d')!
+    context.drawImage(image, 0, 0)
+    return context.getImageData(5, 5, 1, 1).data[3]
+  }, pngContents.toString('base64'))
+  expect(firstPngPixelAlpha).toBe(0)
+
+  const gifDownloadPromise = page.waitForEvent('download', { timeout: 60_000 })
+  await dialog.getByRole('button', { name: 'Transparent GIF' }).click()
+  const gifDownload = await gifDownloadPromise
+  expect(gifDownload.suggestedFilename()).toBe('untitled-plot-transparent.gif')
+  const gifPath = await gifDownload.path()
+  expect(gifPath).not.toBeNull()
+  const gifContents = await readFile(gifPath!)
+  expect(gifContents.subarray(0, 6).toString()).toMatch(/^GIF8[79]a$/)
+
+  const firstGifPixelAlpha = await page.evaluate(async (base64) => {
+    const image = new Image()
+    image.src = `data:image/gif;base64,${base64}`
+    await image.decode()
+    const output = document.createElement('canvas')
+    output.width = image.naturalWidth
+    output.height = image.naturalHeight
+    const context = output.getContext('2d')!
+    context.drawImage(image, 0, 0)
+    return context.getImageData(5, 5, 1, 1).data[3]
+  }, gifContents.toString('base64'))
+  expect(firstGifPixelAlpha).toBe(0)
+
+  const mp4DownloadPromise = page.waitForEvent('download', { timeout: 60_000 })
+  await dialog.getByRole('button', { name: 'Download MP4' }).click()
+  const mp4Download = await mp4DownloadPromise
+  expect(mp4Download.suggestedFilename()).toBe('untitled-plot.mp4')
+  const mp4Path = await mp4Download.path()
+  expect(mp4Path).not.toBeNull()
+  const mp4Contents = await readFile(mp4Path!)
+  expect(mp4Contents.subarray(4, 8).toString()).toBe('ftyp')
+
+  const mp4Metadata = await page.evaluate(async (base64) => {
+    const video = document.createElement('video')
+    video.src = `data:video/mp4;base64,${base64}`
+    await new Promise<void>((resolve, reject) => {
+      video.onloadedmetadata = () => resolve()
+      video.onerror = () => reject(new Error('Could not load exported MP4'))
+    })
+    return { duration: video.duration, width: video.videoWidth, height: video.videoHeight }
+  }, mp4Contents.toString('base64'))
+  expect(mp4Metadata.duration).toBeGreaterThanOrEqual(1.5)
+  expect(mp4Metadata.width % 2).toBe(0)
+  expect(mp4Metadata.height % 2).toBe(0)
 })
 
 test('shows the export branding on the plot canvas', async ({ page }, testInfo) => {

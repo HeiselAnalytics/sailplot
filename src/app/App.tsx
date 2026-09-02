@@ -68,6 +68,11 @@ import { boatColorForClass, mapBoatColorBetweenPalettes } from '../lib/boatColor
 import { gridOpacityForBackgroundChange } from '../lib/plotTheme'
 import { normalizeRuleReference } from '../lib/ruleReferences'
 import { addExportWatermark, createA4PlotPdf } from '../lib/exportImage'
+import {
+  createGifExport,
+  createMp4Export,
+  type AnimationExportFormat,
+} from '../lib/exportAnimation'
 import { createPlotQrCodeDataUrl } from '../lib/exportQrCode'
 import {
   deleteAllProjects,
@@ -109,6 +114,11 @@ const downloadBlob = (contents: BlobPart, filename: string, type: string) => {
   // Keep the object URL alive until Chromium has handed the file to its download manager.
   window.setTimeout(() => URL.revokeObjectURL(url), 30_000)
 }
+
+const waitForCanvasPaint = () =>
+  new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()))
+  })
 
 const downloadPdfBlob = async (pdf: Blob, filename: string) => {
   if (window.isSecureContext) {
@@ -1628,14 +1638,21 @@ function ExportDialog({
   onClose,
   onJson,
   onPng,
+  onAnimation,
   onShare,
   onPdf,
+  canAnimate,
 }: {
   onClose: () => void
   onJson: () => void
-  onPng: (ratio: number, transparent?: boolean) => Promise<void>
+  onPng: (transparent?: boolean) => Promise<void>
+  onAnimation: (
+    format: AnimationExportFormat,
+    onProgress: (progress: number) => void,
+  ) => Promise<void>
   onShare: () => Promise<boolean>
   onPdf: () => Promise<void>
+  canAnimate: boolean
 }) {
   const { t, locale } = useI18n()
   const config = useSailPlotConfig()
@@ -1643,12 +1660,27 @@ function ExportDialog({
   const shareLength = createShareUrl(scenario).length
   const [copied, setCopied] = useState(false)
   const [copying, setCopying] = useState(false)
+  const [animationExport, setAnimationExport] = useState<AnimationExportFormat | null>(null)
+  const [animationProgress, setAnimationProgress] = useState(0)
   const copyShareLink = async () => {
     setCopying(true)
     const success = await onShare()
     setCopying(false)
     setCopied(success)
   }
+  const exportAnimation = async (format: AnimationExportFormat) => {
+    setAnimationExport(format)
+    setAnimationProgress(0)
+    try {
+      await onAnimation(format, setAnimationProgress)
+    } finally {
+      setAnimationExport(null)
+      setAnimationProgress(0)
+    }
+  }
+  const progressLabel = t('Exporting {progress}%', {
+    progress: Math.round(animationProgress * 100),
+  })
   return (
     <Modal title={t('Export & share')} onClose={onClose}>
       <div className="export-list">
@@ -1710,22 +1742,9 @@ function ExportDialog({
             </div>
             <small>{t('Static image without editor handles')}</small>
           </div>
-          <div className="export-resolution-actions" role="group" aria-label={t('PNG resolution')}>
-            <button
-              type="button"
-              aria-label={t('Download PNG at 2×')}
-              onClick={() => void onPng(2)}
-            >
-              2×
-            </button>
-            <button
-              type="button"
-              aria-label={t('Download PNG at 4×')}
-              onClick={() => void onPng(4)}
-            >
-              4×
-            </button>
-          </div>
+          <button type="button" className="export-action-button" onClick={() => void onPng()}>
+            {t('Download PNG')}
+          </button>
         </section>
         <section className="export-option">
           <ImageDown className="export-option-icon" aria-hidden="true" />
@@ -1738,26 +1757,71 @@ function ExportDialog({
             </div>
             <small>{t('Canvas objects without a background')}</small>
           </div>
-          <div
-            className="export-resolution-actions"
-            role="group"
-            aria-label={t('Transparent PNG resolution')}
-          >
+          <button type="button" className="export-action-button" onClick={() => void onPng(true)}>
+            {t('Download transparent PNG')}
+          </button>
+        </section>
+        <section className="export-option">
+          <Play className="export-option-icon" aria-hidden="true" />
+          <div className="export-option-copy">
+            <div className="export-option-title">
+              <strong>{t('Animated GIF')}</strong>
+              <ExportInfo label={t('About animated GIF')}>
+                {t(
+                  'Exports the complete Player sequence as a looping GIF. The transparent variant omits the plot background.',
+                )}
+              </ExportInfo>
+            </div>
+            <small>
+              {t(
+                canAnimate
+                  ? 'Looping animation · standard or transparent'
+                  : 'Add at least two positions to a boat first',
+              )}
+            </small>
+          </div>
+          <div className="export-format-actions" role="group" aria-label={t('GIF format')}>
             <button
               type="button"
-              aria-label={t('Download transparent PNG at 2×')}
-              onClick={() => void onPng(2, true)}
+              disabled={!canAnimate || animationExport !== null}
+              onClick={() => void exportAnimation('gif')}
             >
-              2×
+              {animationExport === 'gif' ? progressLabel : t('Download GIF')}
             </button>
             <button
               type="button"
-              aria-label={t('Download transparent PNG at 4×')}
-              onClick={() => void onPng(4, true)}
+              disabled={!canAnimate || animationExport !== null}
+              onClick={() => void exportAnimation('gif-transparent')}
             >
-              4×
+              {animationExport === 'gif-transparent' ? progressLabel : t('Transparent GIF')}
             </button>
           </div>
+        </section>
+        <section className="export-option">
+          <FileDown className="export-option-icon" aria-hidden="true" />
+          <div className="export-option-copy">
+            <div className="export-option-title">
+              <strong>{t('MP4 video')}</strong>
+              <ExportInfo label={t('About MP4 video')}>
+                {t('Exports the complete Player sequence as a high-quality MP4 video.')}
+              </ExportInfo>
+            </div>
+            <small>
+              {t(
+                canAnimate
+                  ? 'Smooth video with plot background'
+                  : 'Add at least two positions to a boat first',
+              )}
+            </small>
+          </div>
+          <button
+            type="button"
+            className="export-action-button"
+            disabled={!canAnimate || animationExport !== null}
+            onClick={() => void exportAnimation('mp4')}
+          >
+            {animationExport === 'mp4' ? progressLabel : t('Download MP4')}
+          </button>
         </section>
         <section className="export-option">
           <FileDown className="export-option-icon" aria-hidden="true" />
@@ -1808,6 +1872,7 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
   const [playbackPosition, setPlaybackPosition] = useState(1)
   const [playbackSpeed, setPlaybackSpeed] = useState(1)
   const [playbackTailsVisible, setPlaybackTailsVisible] = useState(true)
+  const [exportPlaybackPosition, setExportPlaybackPosition] = useState<number>()
   const [isCompactViewport, setIsCompactViewport] = useState(
     () => window.matchMedia('(max-width: 980px)').matches,
   )
@@ -2045,8 +2110,8 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
     setDocumentStatus('downloaded')
     setStatus('Exported plot JSON')
   }
-  const exportPng = async (ratio: number, transparent = false) => {
-    const plotData = canvasRef.current?.exportPng(transparent, ratio)
+  const exportPng = async (transparent = false) => {
+    const plotData = canvasRef.current?.exportPng(transparent, 2)
     if (!plotData) return
     try {
       const data = await addExportWatermark(plotData, {
@@ -2058,12 +2123,50 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
       })
       const anchor = document.createElement('a')
       anchor.href = data
-      anchor.download = `${sanitizeFilename(scenario.metadata.title)}${transparent ? '-transparent' : ''}-${ratio}x.png`
+      anchor.download = `${sanitizeFilename(scenario.metadata.title)}${transparent ? '-transparent' : ''}.png`
       anchor.click()
       setDocumentStatus('downloaded')
       setStatus('Exported PNG image')
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Could not export PNG image')
+    }
+  }
+  const exportAnimation = async (
+    format: AnimationExportFormat,
+    onProgress: (progress: number) => void,
+  ) => {
+    const renderFrame = async (position: number, transparent: boolean) => {
+      setExportPlaybackPosition(position)
+      await waitForCanvasPaint()
+      const plotData = canvasRef.current?.exportPng(transparent, 1)
+      if (!plotData) throw new Error('Could not render an animation frame')
+      return addExportWatermark(plotData, {
+        plotUrl: config.links.qrCode ?? createShareUrl(scenario),
+        primaryColor: qrFinderColor,
+        analyticsLogoUrl: config.branding.exportWatermarkLogo,
+        productLogoUrl: config.branding.exportProductLogo,
+        partnerLabel: config.branding.partnerLabel,
+      })
+    }
+
+    try {
+      const blob =
+        format === 'mp4'
+          ? await createMp4Export({ lastPosition: lastPlaybackPosition, renderFrame, onProgress })
+          : await createGifExport({
+              lastPosition: lastPlaybackPosition,
+              renderFrame,
+              onProgress,
+              transparent: format === 'gif-transparent',
+            })
+      const suffix = format === 'gif-transparent' ? '-transparent.gif' : `.${format}`
+      downloadBlob(blob, `${sanitizeFilename(scenario.metadata.title)}${suffix}`, blob.type)
+      setDocumentStatus('downloaded')
+      setStatus(format === 'mp4' ? 'Exported MP4 video' : 'Exported animated GIF')
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Could not export animation')
+    } finally {
+      setExportPlaybackPosition(undefined)
     }
   }
   const share = async (): Promise<boolean> => {
@@ -2388,7 +2491,7 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
               <CanvasQrCode onOpen={() => setDialog('qr')} />
             ) : undefined
           }
-          playbackPosition={playerMode ? playbackPosition : undefined}
+          playbackPosition={exportPlaybackPosition ?? (playerMode ? playbackPosition : undefined)}
           playbackTailsVisible={playbackTailsVisible}
         />
       </main>
@@ -2513,8 +2616,10 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
           onClose={() => setDialog(null)}
           onJson={exportJson}
           onPng={exportPng}
+          onAnimation={exportAnimation}
           onShare={share}
           onPdf={exportPdf}
+          canAnimate={canPlay}
         />
       )}
       {dialog === 'qr' && <PlotQrDialog onClose={() => setDialog(null)} />}

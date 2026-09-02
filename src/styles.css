@@ -3056,7 +3056,7 @@ a.mobile-branding-partner:focus-visible {
 
 .export-action-button,
 .export-copy-button,
-.export-resolution-actions button {
+.export-format-actions button {
   display: inline-flex;
   min-height: 36px;
   align-items: center;
@@ -3074,7 +3074,7 @@ a.mobile-branding-partner:focus-visible {
 
 .export-action-button:hover,
 .export-copy-button:hover:not(:disabled):not(.is-copied),
-.export-resolution-actions button:hover {
+.export-format-actions button:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--foreground), transparent 65%);
   background: color-mix(in srgb, var(--highlight), transparent 84%);
 }
@@ -3090,17 +3090,22 @@ a.mobile-branding-partner:focus-visible {
   height: 16px;
 }
 
-.export-resolution-actions {
+.export-format-actions {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.export-resolution-actions button {
-  width: 50px;
-  padding: 0;
-  font-family: var(--font-heading);
-  font-size: 13px;
+.export-format-actions button {
+  min-height: 36px;
+  padding: 0 11px;
+  white-space: nowrap;
+}
+
+.export-action-button:disabled,
+.export-format-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .warning {
@@ -3154,7 +3159,7 @@ a.mobile-branding-partner:focus-visible {
 .export-info-button:focus-visible,
 .export-action-button:hover,
 .export-copy-button:hover:not(:disabled):not(.is-copied),
-.export-resolution-actions button:hover {
+.export-format-actions button:hover:not(:disabled) {
   background: var(--interactive-hover-strong);
 }
 
@@ -3738,7 +3743,7 @@ a.mobile-branding-partner:focus-visible {
 
   .export-action-button,
   .export-copy-button,
-  .export-resolution-actions {
+  .export-format-actions {
     grid-column: 2;
     justify-self: start;
   }

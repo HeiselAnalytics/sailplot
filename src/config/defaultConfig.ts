@@ -64,9 +64,9 @@ export const defaultSailPlotConfig: SailPlotConfig = {
       'A new web-based implementation for creating static sailing and racing-rule diagrams. It is inspired by the historical BOATS application but is implemented from scratch and does not use the old application as a runtime dependency.',
     poweredByText: 'Powered by SailPlot',
     exportPngDescription:
-      'Exports the complete plot with a QR code that reopens this editable plot. Choose 2× for screens and everyday use, or 4× for sharper print and detailed output.',
+      'Exports the complete plot in high quality with a QR code that reopens this editable plot.',
     exportTransparentPngDescription:
-      'Exports without the plot background while keeping the branding and plot QR code. Choose 2× for screens and everyday use, or 4× for sharper print and detailed output.',
+      'Exports in high quality without the plot background while keeping the branding and plot QR code.',
   },
   links: {
     app: 'https://sailplot.app/',
