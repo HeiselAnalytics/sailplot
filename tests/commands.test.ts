@@ -409,7 +409,11 @@ describe('command history', () => {
       .getState()
       .updateObject(
         first.id,
-        { boatFlagColor: '#FFAA00', umpireSignalFlag: 'green-white' },
+        {
+          protestFlagVisible: true,
+          boatFlagColor: '#FFAA00',
+          umpireSignalFlag: 'green-white',
+        },
         'Set umpire flags',
       )
 
@@ -419,12 +423,14 @@ describe('command history', () => {
     expect(boats.find(({ id }) => id === first.id)).toMatchObject({
       boatClass: 'Umpire boat',
       color: UMPIRE_BOAT_GREY,
+      protestFlagVisible: true,
       boatFlagColor: '#FFAA00',
       umpireSignalFlag: 'green-white',
     })
     expect(boats.find(({ id }) => id === second.id)).toMatchObject({
       boatClass: 'Umpire boat',
       color: UMPIRE_BOAT_GREY,
+      protestFlagVisible: false,
       boatFlagColor: null,
       umpireSignalFlag: 'none',
     })

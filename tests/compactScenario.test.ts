@@ -139,6 +139,7 @@ describe('minimal share payload', () => {
     firstBoat.sailMode = 'manual'
     firstBoat.sailAngle = 40
     firstBoat.overlapIndicator = 'starboard'
+    firstBoat.protestFlagVisible = true
     firstBoat.boatFlagColor = '#884454'
     firstBoat.umpireSignalFlag = 'green-white'
     firstBoat.stateMarker = 'tack'

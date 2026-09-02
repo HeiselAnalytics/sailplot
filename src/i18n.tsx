@@ -384,6 +384,7 @@ const german: Record<string, string> = {
   None: 'Keine',
   Starboard: 'Steuerbord',
   'Overlap line': 'Überlappungslinie',
+  'Red protest flag': 'Rote Protestflagge',
   'Font size': 'Schriftgröße',
   'Text color': 'Textfarbe',
   'Stroke width': 'Linienstärke',

@@ -520,6 +520,39 @@ function SupportBoatFlags({
   )
 }
 
+function BoatProtestFlag({
+  mount,
+  displayScale,
+  inkColor,
+  outlineColor,
+}: {
+  mount: [number, number]
+  displayScale: number
+  inkColor: string
+  outlineColor: string
+}) {
+  return (
+    <Group
+      name="boat-protest-flag"
+      x={mount[0]}
+      y={mount[1]}
+      scaleX={1 / displayScale}
+      scaleY={1 / displayScale}
+    >
+      <Line points={[0, 0, -7, 4]} stroke={inkColor} strokeWidth={2} lineCap="round" />
+      <Rect
+        x={-25}
+        y={-2}
+        width={18}
+        height={12}
+        fill={UMPIRE_FLAG_COLORS.red}
+        stroke={outlineColor}
+        strokeWidth={1.5}
+      />
+    </Group>
+  )
+}
+
 function BoatGraphic({
   object,
   selected,
@@ -827,6 +860,14 @@ function BoatGraphic({
               rotation={-gennAngle}
             />
           </Group>
+        )}
+        {object.protestFlagVisible && (
+          <BoatProtestFlag
+            mount={profile.sternPort}
+            displayScale={profile.displayScale}
+            inkColor={inkColor}
+            outlineColor={outlineColor}
+          />
         )}
       </Group>
       {object.overlapIndicator !== 'none' && (

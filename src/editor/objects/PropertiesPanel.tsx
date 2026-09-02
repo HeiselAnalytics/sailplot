@@ -384,6 +384,13 @@ function BoatFields({
         value={object.overlapIndicator}
         onChange={(overlapIndicator) => update({ overlapIndicator })}
       />
+      <BooleanSegmentField
+        label={t('Red protest flag')}
+        checked={object.protestFlagVisible}
+        checkedLabel={t('On')}
+        uncheckedLabel={t('Off')}
+        onChange={(protestFlagVisible) => update({ protestFlagVisible })}
+      />
       {object.boatClass === 'Coachboat' || object.boatClass === 'Umpire boat' ? (
         <div className="field">
           <span>{t('Hull color')}</span>

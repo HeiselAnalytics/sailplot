@@ -15,6 +15,8 @@ export interface BoatShapeProfile {
   length: number
   /** Fore-to-aft extent of the drawn hull before displayScale is applied. */
   drawingLength: number
+  /** Port-side stern corner used to anchor the protest flag. */
+  sternPort: [number, number]
   mast: [number, number] | null
   mainsailSize: number
   mainsailMaxAngle: number
@@ -45,6 +47,7 @@ const profiles = {
     displayScale: 0.88,
     length: 100,
     drawingLength: 100,
+    sternPort: [-10, 50],
     mast: [0, -8.7],
     mainsailSize: 41.5,
     mainsailMaxAngle: 90,
@@ -69,6 +72,7 @@ const profiles = {
     displayScale: 1.72,
     length: 42.3,
     drawingLength: 40,
+    sternPort: [-5, 20],
     mast: [0, -8.7],
     mainsailSize: 24.2,
     mainsailMaxAngle: 90,
@@ -93,6 +97,7 @@ const profiles = {
     displayScale: 2.5,
     length: 23,
     drawingLength: 23,
+    sternPort: [-4.6, 11.5],
     mast: [0, -6.9],
     mainsailSize: 16.5,
     mainsailMaxAngle: 90,
@@ -116,6 +121,7 @@ const profiles = {
     displayScale: 1.95,
     length: 34,
     drawingLength: 34,
+    sternPort: [-4.4, 17],
     mast: [0, -6.5],
     mainsailSize: 23.5,
     mainsailMaxAngle: 90,
@@ -138,6 +144,7 @@ const profiles = {
     displayScale: 1.8,
     length: 36.6,
     drawingLength: 36.6,
+    sternPort: [-4.9, 18.3],
     mast: [0, -6.5],
     mainsailSize: 21.8,
     mainsailMaxAngle: 90,
@@ -160,6 +167,7 @@ const profiles = {
     displayScale: 1.58,
     length: 42,
     drawingLength: 42,
+    sternPort: [-5.7, 20],
     mast: [0, -7.1],
     mainsailSize: 24,
     mainsailMaxAngle: 90,
@@ -185,6 +193,7 @@ const profiles = {
     displayScale: 1.48,
     length: 47,
     drawingLength: 47,
+    sternPort: [-5.8, 23.5],
     mast: [0, -7.5],
     mainsailSize: 26.5,
     mainsailMaxAngle: 90,
@@ -210,6 +219,7 @@ const profiles = {
     displayScale: 1.62,
     length: 44.5,
     drawingLength: 41,
+    sternPort: [-8.8, 18],
     mast: [0, -3.4],
     mainsailSize: 20.5,
     mainsailMaxAngle: 85,
@@ -235,6 +245,7 @@ const profiles = {
     displayScale: 1.48,
     length: 49.9,
     drawingLength: 48,
+    sternPort: [-14, 24],
     mast: [0, -2.5],
     mainsailSize: 26.5,
     mainsailMaxAngle: 85,
@@ -260,6 +271,7 @@ const profiles = {
     displayScale: 1.25,
     length: 61,
     drawingLength: 61,
+    sternPort: [-14.7, 30],
     mast: [0, 0],
     mainsailSize: 30,
     mainsailMaxAngle: 80,
@@ -295,6 +307,7 @@ const profiles = {
     displayScale: 0.9,
     length: 57.5,
     drawingLength: 86,
+    sternPort: [-13, 36],
 
     mast: null,
     mainsailSize: 0,
@@ -318,6 +331,7 @@ const profiles = {
     displayScale: 0.92,
     length: 100,
     drawingLength: 100,
+    sternPort: [-17, 50],
     mast: null,
     mainsailSize: 0,
     mainsailMaxAngle: 0,
@@ -340,6 +354,7 @@ const profiles = {
     displayScale: 1.6,
     length: 22,
     drawingLength: 22,
+    sternPort: [-4.28, 11],
     mast: [0, -4.5],
     mainsailSize: 15,
     mainsailMaxAngle: 85,
@@ -363,6 +378,7 @@ const profiles = {
     displayScale: 0.94,
     length: 95,
     drawingLength: 95,
+    sternPort: [-4.5, 47.5],
     mast: [0, -7],
     mainsailSize: 36,
     mainsailMaxAngle: 90,

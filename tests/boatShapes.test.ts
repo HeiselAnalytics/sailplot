@@ -50,6 +50,9 @@ describe('historical boat shape profiles', () => {
     )
     expect(Object.values(BOAT_SHAPES).every((profile) => profile.length > 0)).toBe(true)
     expect(Object.values(BOAT_SHAPES).every((profile) => profile.drawingLength > 0)).toBe(true)
+    expect(
+      Object.values(BOAT_SHAPES).every((profile) => profile.sternPort.every(Number.isFinite)),
+    ).toBe(true)
   })
 
   it('keeps class-specific sail plans', () => {
@@ -70,6 +73,7 @@ describe('historical boat shape profiles', () => {
     expect(BOAT_SHAPES['Umpire boat']).toBe(BOAT_SHAPES.Coachboat)
     expect(createBoat(0, 0, 1, 'Umpire boat')).toMatchObject({
       color: UMPIRE_BOAT_GREY,
+      protestFlagVisible: false,
       boatFlagColor: null,
       umpireSignalFlag: 'none',
     })

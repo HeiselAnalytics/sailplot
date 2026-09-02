@@ -377,6 +377,7 @@ describe('plot format', () => {
     delete legacyBoat.spinnakerTrim
     delete legacyBoat.mainsailTrim
     delete legacyBoat.overlapIndicator
+    delete legacyBoat.protestFlagVisible
     delete legacyBoat.boatFlagColor
     delete legacyBoat.umpireSignalFlag
     scenario.canvas.view.scale = 0.42
@@ -392,6 +393,7 @@ describe('plot format', () => {
       spinnakerTrim: 0,
       mainsailTrim: 0,
       overlapIndicator: 'none',
+      protestFlagVisible: false,
       boatFlagColor: null,
       umpireSignalFlag: 'none',
     })

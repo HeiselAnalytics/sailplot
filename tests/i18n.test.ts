@@ -25,6 +25,7 @@ describe('translations', () => {
     expect(translate('de', 'Withdraw from Contract')).toBe('Vertrag widerrufen')
     expect(translate('de', 'Umpire boat')).toBe('Umpireboot')
     expect(translate('de', 'Protest flag (Y)')).toBe('Protestflagge (Y)')
+    expect(translate('de', 'Red protest flag')).toBe('Rote Protestflagge')
     expect(translate('de', 'Green and white (no penalty)')).toBe('Grün-Weiß (keine Strafe)')
   })
 

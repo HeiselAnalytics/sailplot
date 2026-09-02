@@ -130,6 +130,7 @@ describe('scenario playback', () => {
       ...createBoat(0, 0, 1, 'Umpire boat'),
       sequenceId: 'umpire',
       positionNumber: 1,
+      protestFlagVisible: false,
       boatFlagColor: '#FFAA00',
       umpireSignalFlag: 'green-white' as const,
     }
@@ -137,15 +138,18 @@ describe('scenario playback', () => {
       ...createBoat(100, 0, 2, 'Umpire boat'),
       sequenceId: 'umpire',
       positionNumber: 2,
+      protestFlagVisible: true,
       boatFlagColor: '#18324A',
       umpireSignalFlag: 'red' as const,
     }
 
     expect(boatsAtPlaybackPosition([first, second], 1.5)[0]).toMatchObject({
+      protestFlagVisible: false,
       boatFlagColor: '#FFAA00',
       umpireSignalFlag: 'green-white',
     })
     expect(boatsAtPlaybackPosition([first, second], 2)[0]).toMatchObject({
+      protestFlagVisible: true,
       boatFlagColor: '#18324A',
       umpireSignalFlag: 'red',
     })

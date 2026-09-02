@@ -85,6 +85,7 @@ export interface BoatObject extends BaseObject {
   sequenceId: string
   positionNumber: number
   overlapIndicator: 'port' | 'none' | 'starboard'
+  protestFlagVisible: boolean
   boatFlagColor: string | null
   umpireSignalFlag: UmpireSignalFlag
   stateMarker?: 'none' | 'tack' | 'gybe' | 'head-to-wind' | 'reverse' | 'drift'

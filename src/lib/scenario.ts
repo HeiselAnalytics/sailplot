@@ -104,6 +104,7 @@ export function createBoat(
     sequenceId: createId(),
     positionNumber: 1,
     overlapIndicator: 'none',
+    protestFlagVisible: false,
     boatFlagColor: null,
     umpireSignalFlag: 'none',
     stateMarker: 'none',

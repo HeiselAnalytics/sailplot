@@ -1859,6 +1859,34 @@ test('adds a grey Umpire boat with two independent official flag controls', asyn
   const properties = page.locator('.properties-panel')
   const boatClass = properties.getByRole('combobox', { name: 'Boat class' })
   await expect(boatClass).not.toContainText('Jury boat')
+  const protestFlag = properties.getByRole('group', { name: 'Red protest flag' })
+  const protestFlagOn = protestFlag.getByRole('button', { name: 'On' })
+  const protestFlagOff = protestFlag.getByRole('button', { name: 'Off' })
+  await expect(protestFlagOff).toHaveAttribute('aria-pressed', 'true')
+  await protestFlagOn.click()
+  await expect(protestFlagOn).toHaveAttribute('aria-pressed', 'true')
+  await expect
+    .poll(() =>
+      canvas.evaluate((element: HTMLCanvasElement) => {
+        const pixels = element
+          .getContext('2d')!
+          .getImageData(0, 0, element.width, element.height).data
+        let red = 0
+        for (let index = 0; index < pixels.length; index += 4) {
+          if (
+            pixels[index] > 140 &&
+            pixels[index + 1] < 120 &&
+            pixels[index + 2] < 120 &&
+            pixels[index] > pixels[index + 1] + 70
+          )
+            red += 1
+        }
+        return red
+      }),
+    )
+    .toBeGreaterThan(20)
+  await protestFlagOff.click()
+  await expect(protestFlagOff).toHaveAttribute('aria-pressed', 'true')
   await boatClass.selectOption('Umpire boat')
   await expect(properties.getByLabel('Fixed support boat hull color')).toContainText('#4B5563')
 

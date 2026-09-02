@@ -428,6 +428,7 @@ function encodeObject(
           changed: object.umpireSignalFlag !== 'none',
           value: UMPIRE_SIGNAL_FLAGS.indexOf(object.umpireSignalFlag),
         },
+        { changed: object.protestFlagVisible },
       ]),
     ]
   }
@@ -589,6 +590,7 @@ function decodeObject(
     if (hasBit(mask, 22)) boat.boatFlagColor = decodeColor(reader.take())
     if (hasBit(mask, 23))
       boat.umpireSignalFlag = enumAt(UMPIRE_SIGNAL_FLAGS, reader.take(), 'umpire signal flag')
+    boat.protestFlagVisible = hasBit(mask, 24)
     if (!hasBit(baseMask, 0)) boat.rotation = boat.heading
     reader.finish()
     return boat
