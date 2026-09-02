@@ -109,24 +109,3 @@ export function sailingGridSegments(
 
   return segments
 }
-
-export function snapToSailingGrid(
-  point: GridPoint,
-  size: number,
-  laylineAngle: number,
-  windDirection: number,
-): GridPoint {
-  const safeSize = Math.max(8, size)
-  const starboard = rotate(laylineVector(laylineAngle, safeSize), windDirection)
-  const portBase = laylineVector(laylineAngle, safeSize)
-  const port = rotate({ x: -portBase.x, y: portBase.y }, windDirection)
-  const determinant = starboard.x * port.y - starboard.y * port.x
-  if (Math.abs(determinant) < 0.01) return point
-
-  const starboardSteps = Math.round((point.x * port.y - point.y * port.x) / determinant)
-  const portSteps = Math.round((starboard.x * point.y - starboard.y * point.x) / determinant)
-  return {
-    x: starboardSteps * starboard.x + portSteps * port.x,
-    y: starboardSteps * starboard.y + portSteps * port.y,
-  }
-}

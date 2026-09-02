@@ -43,6 +43,15 @@ describe('plot format', () => {
     expect(parseScenarioJson(JSON.stringify(legacy)).format).toBe('sailplot')
   })
 
+  it('ignores the retired snap-to-grid value in existing plot files', () => {
+    const legacy = createEmptyScenario() as ReturnType<typeof createEmptyScenario> & {
+      canvas: { grid: { snap?: boolean } }
+    }
+    legacy.canvas.grid.snap = true
+
+    expect(parseScenarioJson(JSON.stringify(legacy)).canvas.grid).not.toHaveProperty('snap')
+  })
+
   it('migrates legacy wind strength into removable additional information', () => {
     const legacy = createEmptyScenario()
     delete (legacy.metadata as Partial<typeof legacy.metadata>).additionalInformation

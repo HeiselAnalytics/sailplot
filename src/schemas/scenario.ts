@@ -218,7 +218,6 @@ export const scenarioSchema = z
       grid: z.object({
         visible: z.boolean(),
         size: z.number().positive(),
-        snap: z.boolean(),
         opacity: z.number().min(0).max(1).default(1),
       }),
       view: z.object({ x: z.number(), y: z.number(), scale: z.number().positive() }),

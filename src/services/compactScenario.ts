@@ -203,7 +203,8 @@ function encodeCanvas(scenario: Scenario): CompactArray {
     { changed: !canvas.boatNumbersVisible },
     { changed: !canvas.grid.visible },
     { changed: canvas.grid.size !== 40, value: canvas.grid.size },
-    { changed: canvas.grid.snap },
+    // Bit 6 was the retired snap-to-grid setting.
+    { changed: false },
     { changed: canvas.grid.opacity !== 1, value: canvas.grid.opacity },
     // Bits 8–10 stay reserved so the following fields keep their positions.
     // Pan and zoom are editor state, not plot content, and never belong in a share link.
@@ -224,7 +225,7 @@ function decodeCanvas(value: CompactValue, scenario: Scenario) {
   if (hasBit(mask, 3)) scenario.canvas.boatNumbersVisible = false
   if (hasBit(mask, 4)) scenario.canvas.grid.visible = false
   if (hasBit(mask, 5)) scenario.canvas.grid.size = asNumber(reader.take(), 'grid size')
-  if (hasBit(mask, 6)) scenario.canvas.grid.snap = true
+  // Bit 6 was the retired snap-to-grid setting and carried no payload.
   if (hasBit(mask, 7)) scenario.canvas.grid.opacity = asNumber(reader.take(), 'grid opacity')
   // Consume view values from links created during development, but deliberately
   // ignore them so every shared plot opens fitted at 100%.

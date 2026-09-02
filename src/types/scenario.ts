@@ -204,7 +204,7 @@ export interface Scenario {
     background: string
     boatNumbersVisible: boolean
     boatLegendVisible: boolean
-    grid: { visible: boolean; size: number; snap: boolean; opacity: number }
+    grid: { visible: boolean; size: number; opacity: number }
     view: { x: number; y: number; scale: number }
   }
   environment: {

@@ -32,7 +32,6 @@ const german: Record<string, string> = {
   German: 'Deutsch',
   Scene: 'Szene',
   'Show grid': 'Raster anzeigen',
-  'Snap to grid': 'Am Raster einrasten',
   'Show laylines': 'Laylines anzeigen',
   Laylines: 'Laylines',
   'Layline area': 'Layline-Fläche',

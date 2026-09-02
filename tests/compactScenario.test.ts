@@ -72,7 +72,7 @@ describe('minimal share payload', () => {
       background: '#262626',
       boatNumbersVisible: false,
       boatLegendVisible: false,
-      grid: { visible: false, size: 32, snap: true, opacity: 0.4 },
+      grid: { visible: false, size: 32, opacity: 0.4 },
       view: { x: 25, y: -10, scale: 1.5 },
     }
     scenario.environment = {

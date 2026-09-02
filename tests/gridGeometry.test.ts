@@ -4,7 +4,6 @@ import {
   laylineVector,
   markLaylineRotation,
   sailingGridSegments,
-  snapToSailingGrid,
 } from '../src/editor/canvas/gridGeometry'
 
 describe('sailing grid geometry', () => {
@@ -45,17 +44,5 @@ describe('sailing grid geometry', () => {
     expect(markLaylineRotation(0, false)).toBe(0)
     expect(markLaylineRotation(0, true)).toBe(180)
     expect(markLaylineRotation(270, true)).toBe(90)
-  })
-
-  it('snaps to intersections of the rotated layline grid', () => {
-    const starboard = laylineVector(40, 40)
-    const port = { x: -starboard.x, y: starboard.y }
-    const intersection = {
-      x: starboard.x * 2 + port.x * -1,
-      y: starboard.y * 2 + port.y * -1,
-    }
-    const snapped = snapToSailingGrid({ x: intersection.x + 2, y: intersection.y - 2 }, 40, 40, 0)
-    expect(snapped.x).toBeCloseTo(intersection.x)
-    expect(snapped.y).toBeCloseTo(intersection.y)
   })
 })

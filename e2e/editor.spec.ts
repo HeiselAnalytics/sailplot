@@ -144,6 +144,7 @@ test('makes the desktop tool and scene controls visibly interactive', async ({
   const darkBackground = plotBackground.getByRole('button', { name: 'Dark' })
   await expect(lightBackground).toHaveAttribute('aria-pressed', 'true')
   await expect(darkBackground).toHaveAttribute('aria-pressed', 'false')
+  await expect(toolsPanel.getByRole('checkbox', { name: 'Snap to grid' })).toHaveCount(0)
   await toolsPanel.getByRole('checkbox', { name: 'Show grid' }).uncheck()
   await darkBackground.click()
   await expect(darkBackground).toHaveAttribute('aria-pressed', 'true')

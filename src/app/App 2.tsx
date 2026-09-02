@@ -277,16 +277,6 @@ function SceneSettings({ embedded = false }: { embedded?: boolean }) {
         <label className="check-row">
           <input
             type="checkbox"
-            checked={scenario.canvas.grid.snap}
-            onChange={(event) =>
-              updateCanvas({ grid: { ...scenario.canvas.grid, snap: event.target.checked } })
-            }
-          />{' '}
-          {t('Snap to grid')}
-        </label>
-        <label className="check-row">
-          <input
-            type="checkbox"
             checked={scenario.environment.laylinesVisible}
             onChange={(event) => updateEnvironment({ laylinesVisible: event.target.checked })}
           />{' '}

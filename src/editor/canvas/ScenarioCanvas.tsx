@@ -65,7 +65,6 @@ import {
   laylineVector,
   markLaylineRotation,
   sailingGridSegments,
-  snapToSailingGrid,
 } from './gridGeometry'
 import { pinTransformBoundsToNamedNode } from './rotationBounds'
 import {
@@ -2182,25 +2181,7 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
                     )
                   }}
                   onChange={(patch, label) => {
-                    const next = { ...patch }
-                    if (scenario.canvas.grid.snap) {
-                      const hasX = typeof next.x === 'number'
-                      const hasY = typeof next.y === 'number'
-                      if (hasX || hasY) {
-                        const snapped = snapToSailingGrid(
-                          {
-                            x: hasX ? next.x! : object.x,
-                            y: hasY ? next.y! : object.y,
-                          },
-                          gridSize,
-                          scenario.environment.laylineAngle,
-                          scenario.environment.windDirection,
-                        )
-                        if (hasX) next.x = snapped.x
-                        if (hasY) next.y = snapped.y
-                      }
-                    }
-                    updateObject(object.id, next, label)
+                    updateObject(object.id, patch, label)
                     if (dragPreview?.id === object.id) setDragPreview(null)
                   }}
                   onPreviewChange={(patch) => setDragPreview({ id: object.id, patch })}
