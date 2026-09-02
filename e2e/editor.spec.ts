@@ -2017,8 +2017,40 @@ test('replays numbered boat positions with controls in place of the desktop tool
   const controls = page.getByRole('region', { name: 'Player controls' })
   await expect(controls).toBeVisible()
   await expect(controls.getByRole('button', { name: 'Export animation' })).toBeVisible()
-  await expect(page.locator('.tools-panel').getByRole('heading', { name: 'Player' })).toBeVisible()
-  await expect(page.locator('.tools-panel').getByRole('button', { name: 'Boat' })).toHaveCount(0)
+  const toolsPanel = page.locator('.tools-panel')
+  await expect(toolsPanel.getByRole('heading', { name: 'Player' })).toBeVisible()
+  await expect(toolsPanel.getByRole('button', { name: 'Boat' })).toHaveCount(0)
+
+  const closePlayer = controls.locator('.playback-close-button')
+  const backToEditor = controls.locator('.playback-exit-button')
+  const play = controls.getByRole('button', { name: 'Play' })
+  await expect(closePlayer).toHaveAccessibleName('Back to editor')
+  await expect(closePlayer).toHaveCSS('color', 'rgb(223, 63, 63)')
+  await expect(backToEditor).toHaveCSS('border-top-color', 'rgb(255, 170, 0)')
+  const playColors = await play.evaluate((button) => {
+    const probe = document.createElement('span')
+    probe.style.color = 'var(--button)'
+    button.append(probe)
+    const primary = getComputedStyle(probe).color
+    const background = getComputedStyle(button).backgroundColor
+    probe.remove()
+    return { background, primary }
+  })
+  expect(playColors.background).toBe(playColors.primary)
+
+  const toolsBounds = await toolsPanel.boundingBox()
+  const closeBounds = await closePlayer.boundingBox()
+  const exitBounds = await backToEditor.boundingBox()
+  expect(toolsBounds).not.toBeNull()
+  expect(closeBounds).not.toBeNull()
+  expect(exitBounds).not.toBeNull()
+  expect(closeBounds!.y - toolsBounds!.y).toBeLessThanOrEqual(24)
+  expect(
+    toolsBounds!.x + toolsBounds!.width - (closeBounds!.x + closeBounds!.width),
+  ).toBeLessThanOrEqual(24)
+  expect(
+    toolsBounds!.y + toolsBounds!.height - (exitBounds!.y + exitBounds!.height),
+  ).toBeLessThanOrEqual(24)
 
   const timeline = controls.getByRole('slider', { name: 'Playback timeline' })
   await expect(timeline).toHaveValue('1')
@@ -2035,12 +2067,12 @@ test('replays numbered boat positions with controls in place of the desktop tool
   await expect(controls).toContainText('Position 1 → 2 of 2')
   await controls.getByRole('button', { name: 'Previous position' }).click()
   await expect(timeline).toHaveValue('1')
-  await controls.getByRole('button', { name: 'Play' }).click()
+  await play.click()
   await expect(controls.getByRole('button', { name: 'Pause' })).toBeVisible()
   await expect.poll(async () => Number(await timeline.inputValue())).toBeGreaterThan(1)
   await controls.getByRole('button', { name: 'Pause' }).click()
 
-  await controls.getByRole('button', { name: 'Back to editor' }).click()
+  await backToEditor.click()
   await expect(page.locator('.app-shell')).toHaveAttribute('data-player-mode', 'false')
   await expect(page.locator('.properties-panel')).toBeVisible()
   await expect(page.locator('.tools-panel').getByRole('button', { name: 'Boat' })).toBeVisible()

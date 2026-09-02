@@ -503,11 +503,18 @@ function PlaybackControls({
       aria-label={t('Player controls')}
     >
       {!compact && (
-        <div className="panel-header playback-panel-header">
+        <div className="panel-header panel-header--tools playback-panel-header">
           <div>
             <span className="eyebrow">{t('View')}</span>
             <h2>{t('Player')}</h2>
           </div>
+          <IconButton
+            compact
+            className="tool-cancel-button playback-close-button"
+            icon={<X aria-hidden="true" />}
+            label={t('Back to editor')}
+            onClick={onExit}
+          />
         </div>
       )}
       <div className="playback-transport" role="group" aria-label={t('Playback controls')}>
