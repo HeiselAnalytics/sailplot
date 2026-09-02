@@ -293,6 +293,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
           ...createMark(x, y, zIndex, state.markColor),
           markNumber: String(nextMarkSequenceNumber(state.scenario.objects)),
           downwind: type === 'downwind-mark',
+          laylinesVisible: type === 'downwind-mark',
           zoneRadius: state.scenario.environment.zoneRadiusBoatLengths,
         }
       }

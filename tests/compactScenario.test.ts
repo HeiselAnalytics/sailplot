@@ -9,6 +9,7 @@ import {
   createStartLine,
 } from '../src/lib/scenario'
 import { decodeScenario, encodeScenario } from '../src/services/scenarioCodec'
+import { compactScenario, expandCompactScenario } from '../src/services/compactScenario'
 import type { Scenario, ScenarioObject } from '../src/types/scenario'
 
 const base = (type: ScenarioObject['type'], zIndex: number) => ({
@@ -43,6 +44,20 @@ const normalized = (input: Scenario) => {
 }
 
 describe('minimal share payload', () => {
+  it('preserves neutral marks and legacy mark laylines in compact links', () => {
+    const scenario = createEmptyScenario()
+    const neutral = createMark(300, 220, 1)
+    const windward = createMark(500, 220, 2)
+    windward.laylinesVisible = true
+    scenario.objects = [neutral, windward]
+
+    const decoded = expandCompactScenario(compactScenario(scenario))
+    expect(decoded.objects).toMatchObject([
+      { type: 'mark', laylinesVisible: false, downwind: false },
+      { type: 'mark', laylinesVisible: true, downwind: false },
+    ])
+  })
+
   it('round-trips every object type and every non-default scene section', () => {
     const scenario = createEmptyScenario('Compact regatta')
     scenario.metadata.description = 'A detailed situation'

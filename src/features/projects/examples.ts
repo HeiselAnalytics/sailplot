@@ -8,6 +8,7 @@ export function createWindwardExample(): Scenario {
   scenario.metadata.ruleReferences = ['RRS 18']
   const mark = createMark(960, 380, 1)
   mark.markNumber = '1'
+  mark.laylinesVisible = true
   const first = createBoat(790, 650, 2)
   first.label = 'Alpine blue'
   first.color = '#2F5D78'

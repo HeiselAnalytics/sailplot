@@ -1504,10 +1504,12 @@ test('uses boat lengths for mark zones and supports Lacustre', async ({ page }, 
   }
   await expect(page.getByText('Mark type', { exact: true })).toHaveCount(0)
   const orientation = page.getByRole('group', { name: 'Mark orientation' })
-  const leewardMark = orientation.getByRole('button', { name: 'Leeward mark' })
-  const windwardMark = orientation.getByRole('button', { name: 'Windward mark' })
+  const leewardMark = orientation.getByRole('button', { name: 'Leeward' })
+  const neutralMark = orientation.getByRole('button', { name: 'Neutral without laylines' })
+  const windwardMark = orientation.getByRole('button', { name: 'Windward' })
   await expect(leewardMark).toHaveAttribute('aria-pressed', 'false')
-  await expect(windwardMark).toHaveAttribute('aria-pressed', 'true')
+  await expect(neutralMark).toHaveAttribute('aria-pressed', 'true')
+  await expect(windwardMark).toHaveAttribute('aria-pressed', 'false')
   const orientationBounds = await orientation.boundingBox()
   const zone = page.getByRole('group', { name: 'Zone' })
   const showZone = zone.getByRole('button', { name: 'Show zone' })
@@ -1526,6 +1528,10 @@ test('uses boat lengths for mark zones and supports Lacustre', async ({ page }, 
   expect(zoneControlBounds!.y).toBeLessThan(markNumberBounds!.y)
   await leewardMark.click()
   await expect(leewardMark).toHaveAttribute('aria-pressed', 'true')
+  await windwardMark.click()
+  await expect(windwardMark).toHaveAttribute('aria-pressed', 'true')
+  await neutralMark.click()
+  await expect(neutralMark).toHaveAttribute('aria-pressed', 'true')
   const zoneRadius = page.locator('input[aria-label="Zone radius in boat lengths"]:visible')
   await expect(zoneRadius).toHaveValue('3')
   const zoneBounds = await zoneRadius.locator('..').boundingBox()
@@ -1576,9 +1582,7 @@ test('creates a numbered downwind mark from its own tool', async ({ page }, test
 
   await expect(page.getByRole('textbox', { name: 'Mark number' })).toHaveValue('2')
   await expect(
-    page
-      .getByRole('group', { name: 'Mark orientation' })
-      .getByRole('button', { name: 'Leeward mark' }),
+    page.getByRole('group', { name: 'Mark orientation' }).getByRole('button', { name: 'Leeward' }),
   ).toHaveAttribute('aria-pressed', 'true')
   await expect(page.locator('.statusbar')).toContainText('Added downwind mark')
 })

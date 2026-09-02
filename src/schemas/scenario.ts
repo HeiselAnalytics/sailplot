@@ -74,6 +74,7 @@ const markSchema = baseObjectSchema.extend({
       .optional(),
   ),
   downwind: z.boolean().default(false),
+  laylinesVisible: z.boolean().default(true),
   zoneVisible: z.boolean(),
   zoneRadius: z.number().positive(),
   zoneRadiusUnit: z.enum(['pixels', 'boat-lengths']).default('pixels'),

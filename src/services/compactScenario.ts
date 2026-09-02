@@ -376,6 +376,7 @@ function encodeObject(
         { changed: object.downwind },
         { changed: !object.zoneVisible },
         { changed: object.zoneRadius !== 3, value: object.zoneRadius },
+        { changed: !object.laylinesVisible },
       ]),
     ]
   }
@@ -539,6 +540,7 @@ function decodeObject(
     mark.downwind = hasBit(mask, 5)
     mark.zoneVisible = !hasBit(mask, 6)
     if (hasBit(mask, 7)) mark.zoneRadius = asNumber(reader.take(), 'mark zone radius')
+    mark.laylinesVisible = !hasBit(mask, 8)
     reader.finish()
     return mark
   }

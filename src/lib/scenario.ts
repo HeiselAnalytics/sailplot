@@ -123,6 +123,7 @@ export function createMark(
     label: '',
     markNumber: '1',
     downwind: false,
+    laylinesVisible: false,
     zoneVisible: true,
     zoneRadius: 3,
     zoneRadiusUnit: 'boat-lengths',

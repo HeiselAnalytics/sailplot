@@ -549,16 +549,45 @@ function MarkFields({
     scenario.objects,
     scenario.environment.measurementBoatClass,
   )
+  const orientation = !object.laylinesVisible ? 'neutral' : object.downwind ? 'leeward' : 'windward'
+  const orientations = [
+    { value: 'windward', label: t('Windward') },
+    { value: 'neutral', label: t('Neutral') },
+    { value: 'leeward', label: t('Leeward') },
+  ] as const
 
   return (
     <>
-      <BooleanSegmentField
-        label={t('Mark orientation')}
-        checked={object.downwind}
-        checkedLabel={t('Leeward mark')}
-        uncheckedLabel={t('Windward mark')}
-        onChange={(downwind) => update({ downwind })}
-      />
+      <div className="field">
+        <span>{t('Mark orientation')}</span>
+        <div
+          className="property-segmented-control property-segmented-control--three"
+          role="group"
+          aria-label={t('Mark orientation')}
+        >
+          {orientations.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={orientation === option.value ? 'is-active' : ''}
+              aria-pressed={orientation === option.value}
+              aria-label={option.value === 'neutral' ? t('Neutral without laylines') : option.label}
+              onClick={() =>
+                update(
+                  option.value === 'neutral'
+                    ? { downwind: false, laylinesVisible: false }
+                    : {
+                        downwind: option.value === 'leeward',
+                        laylinesVisible: true,
+                      },
+                )
+              }
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
       <BooleanSegmentField
         label={t('Zone')}
         checked={object.zoneVisible}

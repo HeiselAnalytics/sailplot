@@ -86,6 +86,7 @@ export interface MarkObject extends BaseObject {
   label: string
   markNumber: string
   downwind: boolean
+  laylinesVisible: boolean
   zoneVisible: boolean
   zoneRadius: number
   zoneRadiusUnit: 'boat-lengths'

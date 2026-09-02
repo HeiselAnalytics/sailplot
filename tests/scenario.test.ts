@@ -120,9 +120,23 @@ describe('plot format', () => {
     expect(createMark(100, 200)).toMatchObject({
       markNumber: '1',
       downwind: false,
+      laylinesVisible: false,
       label: '',
       zoneRadius: 3,
       zoneRadiusUnit: 'boat-lengths',
+    })
+  })
+
+  it('keeps laylines enabled for marks saved before neutral orientation existed', () => {
+    const scenario = createEmptyScenario()
+    const legacyMark = createMark(100, 200) as Partial<ReturnType<typeof createMark>>
+    delete legacyMark.laylinesVisible
+    scenario.objects = [legacyMark as ReturnType<typeof createMark>]
+
+    expect(parseScenarioJson(serializeScenario(scenario)).objects[0]).toMatchObject({
+      type: 'mark',
+      downwind: false,
+      laylinesVisible: true,
     })
   })
 

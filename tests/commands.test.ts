@@ -259,7 +259,12 @@ describe('command history', () => {
         .scenario.objects.filter((object) => object.type === 'mark')
         .map((mark) => mark.markNumber),
     ).toEqual(['1', '2', '3'])
-    expect(createMark(0, 0)).toMatchObject({ markNumber: '1', downwind: false, label: '' })
+    expect(createMark(0, 0)).toMatchObject({
+      markNumber: '1',
+      downwind: false,
+      laylinesVisible: false,
+      label: '',
+    })
   })
 
   it('continues automatic numbering after an alphanumeric mark number', () => {
@@ -281,6 +286,7 @@ describe('command history', () => {
       type: 'mark',
       markNumber: '2',
       downwind: true,
+      laylinesVisible: true,
     })
     expect(useEditorStore.getState().status).toBe('Added downwind mark')
   })

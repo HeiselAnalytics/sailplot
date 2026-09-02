@@ -36,6 +36,7 @@ import type {
   CourseEndpointType,
   EditorTool,
   LineObject,
+  MarkObject,
   ScenarioObject,
 } from '../../types/scenario'
 import {
@@ -2098,7 +2099,9 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
           ))}
           {scenario.environment.laylinesVisible &&
             displayObjects
-              .filter((object) => object.type === 'mark')
+              .filter(
+                (object): object is MarkObject => object.type === 'mark' && object.laylinesVisible,
+              )
               .map((mark) => (
                 <Group
                   key={`laylines-${mark.id}`}
