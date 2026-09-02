@@ -2024,6 +2024,7 @@ test('replays numbered boat positions with controls in place of the desktop tool
 
   const closePlayer = controls.locator('.playback-close-button')
   const backToEditor = controls.locator('.playback-exit-button')
+  const exportAnimation = controls.locator('.playback-export-button')
   const play = controls.getByRole('button', { name: 'Play' })
   await expect(closePlayer).toHaveAccessibleName('Back to editor')
   await expect(closePlayer).toHaveCSS('color', 'rgb(223, 63, 63)')
@@ -2041,9 +2042,11 @@ test('replays numbered boat positions with controls in place of the desktop tool
 
   const toolsBounds = await toolsPanel.boundingBox()
   const closeBounds = await closePlayer.boundingBox()
+  const exportBounds = await exportAnimation.boundingBox()
   const exitBounds = await backToEditor.boundingBox()
   expect(toolsBounds).not.toBeNull()
   expect(closeBounds).not.toBeNull()
+  expect(exportBounds).not.toBeNull()
   expect(exitBounds).not.toBeNull()
   expect(closeBounds!.y - toolsBounds!.y).toBeLessThanOrEqual(24)
   expect(
@@ -2052,6 +2055,8 @@ test('replays numbered boat positions with controls in place of the desktop tool
   expect(
     toolsBounds!.y + toolsBounds!.height - (exitBounds!.y + exitBounds!.height),
   ).toBeLessThanOrEqual(24)
+  expect(exportBounds!.y + exportBounds!.height).toBeLessThan(exitBounds!.y)
+  expect(exitBounds!.y - (exportBounds!.y + exportBounds!.height)).toBeLessThanOrEqual(20)
 
   const timeline = controls.getByRole('slider', { name: 'Playback timeline' })
   await expect(timeline).toHaveValue('1')

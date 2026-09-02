@@ -747,7 +747,7 @@ h3 {
 
 .playback-controls:not(.playback-controls--compact) {
   min-height: 100%;
-  grid-template-rows: auto auto auto auto auto minmax(40px, 1fr);
+  grid-template-rows: auto auto auto auto minmax(40px, 1fr) auto;
 }
 
 .playback-panel-header {
@@ -837,6 +837,10 @@ h3 {
   gap: 8px;
   border-color: color-mix(in srgb, var(--highlight), var(--border) 45%);
   background: color-mix(in srgb, var(--highlight), transparent 90%);
+}
+
+.playback-controls:not(.playback-controls--compact) .playback-export-button {
+  align-self: end;
 }
 
 .playback-export-button svg {
