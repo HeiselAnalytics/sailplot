@@ -2228,6 +2228,31 @@ test('replays numbered boat positions with controls in place of the desktop tool
   await canvas.click({ position: { x: 300, y: 280 } })
   await canvas.click({ position: { x: 520, y: 190 } })
   await expect(playerMode).toBeEnabled()
+  await playerMode.hover()
+  const playerModeHoverColors = await playerMode.evaluate((button) => {
+    const probe = document.createElement('span')
+    probe.style.background = 'var(--highlight)'
+    probe.style.color = 'var(--highlight-text)'
+    button.append(probe)
+    const expected = getComputedStyle(probe)
+    const colors = {
+      expectedBackground: expected.backgroundColor,
+      expectedColor: expected.color,
+    }
+    probe.remove()
+    return colors
+  })
+  await expect
+    .poll(() =>
+      playerMode.evaluate((button) => {
+        const style = getComputedStyle(button)
+        return { background: style.backgroundColor, color: style.color }
+      }),
+    )
+    .toEqual({
+      background: playerModeHoverColors.expectedBackground,
+      color: playerModeHoverColors.expectedColor,
+    })
   await playerMode.click()
 
   await expect(page.locator('.app-shell')).toHaveAttribute('data-player-mode', 'true')
@@ -2257,6 +2282,32 @@ test('replays numbered boat positions with controls in place of the desktop tool
     return { background, primary }
   })
   expect(playColors.background).toBe(playColors.primary)
+  await play.hover()
+  const playHoverColors = await play.evaluate((button) => {
+    const probe = document.createElement('span')
+    probe.style.background = 'var(--button)'
+    probe.style.color = 'var(--button-text)'
+    button.append(probe)
+    const expected = getComputedStyle(probe)
+    const colors = {
+      expectedBackground: expected.backgroundColor,
+      expectedColor: expected.color,
+    }
+    probe.remove()
+    return colors
+  })
+  await expect
+    .poll(() =>
+      play.evaluate((button) => {
+        const style = getComputedStyle(button)
+        return { background: style.backgroundColor, color: style.color }
+      }),
+    )
+    .toEqual({
+      background: playHoverColors.expectedBackground,
+      color: playHoverColors.expectedColor,
+    })
+  await expect(play).not.toHaveCSS('box-shadow', 'none')
 
   const toolsBounds = await toolsPanel.boundingBox()
   const closeBounds = await closePlayer.boundingBox()

@@ -810,9 +810,11 @@ h3 {
   fill: currentcolor;
 }
 
-.playback-primary-button:hover:not(:disabled) {
-  border-color: var(--button-hover);
-  background: var(--button-hover);
+.playback-transport .playback-primary-button:hover:not(:disabled) {
+  border-color: var(--button);
+  background: var(--button);
+  color: var(--button-text);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--button), transparent 76%);
 }
 
 .playback-timeline {
@@ -1367,10 +1369,15 @@ h3 {
   fill: currentcolor;
 }
 
-.extension-editor-back:hover,
-.player-mode-toggle:hover:not(:disabled) {
+.extension-editor-back:hover {
   border-color: var(--highlight-hover);
   background: var(--interactive-hover-strong);
+}
+
+.player-mode-toggle:hover:not(:disabled) {
+  border-color: var(--highlight-hover);
+  background: var(--highlight);
+  color: var(--highlight-text);
 }
 
 .player-mode-toggle:disabled {
