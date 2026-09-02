@@ -7,6 +7,12 @@ import {
   objectsAtPlaybackPosition,
   playbackLastPosition,
 } from '../src/features/playback/playback'
+import {
+  boatSequenceSegment,
+  constantSpeedCurveProgress,
+  partialBoatSequenceSegment,
+  pointOnBoatSequenceSegment,
+} from '../src/editor/objects/boatSequenceGeometry'
 import { createBoat, createMark } from '../src/lib/scenario'
 
 describe('scenario playback', () => {
@@ -128,5 +134,46 @@ describe('scenario playback', () => {
     expect(boats).toHaveLength(2)
     expect(boats[0].x).toBe(0)
     expect(boats[1].x).toBe(50)
+  })
+
+  it('keeps the travelled part of the active tail fixed as the boat advances', () => {
+    const first = {
+      ...createBoat(0, 0),
+      sequenceId: 'fixed-tail',
+      positionNumber: 1,
+      heading: 20,
+    }
+    const second = {
+      ...createBoat(240, -120),
+      sequenceId: 'fixed-tail',
+      positionNumber: 2,
+      heading: 100,
+    }
+    const fullSegment = boatSequenceSegment(first, second)
+    const earlierProgress = constantSpeedCurveProgress(fullSegment, 0.3)
+    const laterProgress = constantSpeedCurveProgress(fullSegment, 0.8)
+    const earlierTail = partialBoatSequenceSegment(fullSegment, earlierProgress)
+    const laterTail = partialBoatSequenceSegment(fullSegment, laterProgress)
+    const earlierPointOnLaterTail = pointOnBoatSequenceSegment(
+      laterTail,
+      earlierProgress / laterProgress,
+    )
+
+    expect(earlierPointOnLaterTail.x).toBeCloseTo(earlierTail.end.x, 8)
+    expect(earlierPointOnLaterTail.y).toBeCloseTo(earlierTail.end.y, 8)
+
+    const [{ path, boats }] = boatTailsAtPlaybackPosition([first, second], 1.8)
+    expect(path).toContain(`${laterTail.end.x} ${laterTail.end.y}`)
+    expect(boats.at(-1)).toMatchObject({ x: laterTail.end.x, y: laterTail.end.y })
+  })
+
+  it('does not append a moving duplicate after a sequence reaches its final position', () => {
+    const first = { ...createBoat(0, 0), sequenceId: 'finished-tail', positionNumber: 1 }
+    const second = { ...createBoat(100, 0), sequenceId: 'finished-tail', positionNumber: 2 }
+    const third = { ...createBoat(200, 0), sequenceId: 'other-boat', positionNumber: 3 }
+
+    const [{ boats, path }] = boatTailsAtPlaybackPosition([first, second, third], 2.5)
+    expect(boats).toEqual([first, second])
+    expect(path).toBe(boatTailsAtPlaybackPosition([first, second], 2)[0].path)
   })
 })

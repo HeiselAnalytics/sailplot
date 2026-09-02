@@ -3,8 +3,10 @@ import {
   boatSequenceSegment,
   constantSpeedCurveProgress,
   headingForBoatSequenceTangent,
+  partialBoatSequenceSegment,
   pointOnBoatSequenceSegment,
   tangentOnBoatSequenceSegment,
+  type BoatSequenceSegment,
 } from '../../editor/objects/boatSequenceGeometry'
 
 export const PLAYBACK_SEGMENT_DURATION_MS = 1500
@@ -102,12 +104,46 @@ export const boatTailsAtPlaybackPosition = (
   )
   const sequences = new Map<string, BoatObject[]>()
   for (const object of objects) {
-    if (object.type !== 'boat' || !object.visible || object.positionNumber >= playbackPosition)
-      continue
+    if (object.type !== 'boat' || !object.visible) continue
     sequences.set(object.sequenceId, [...(sequences.get(object.sequenceId) ?? []), object])
   }
-  for (const [sequenceId, boat] of currentBoats) {
-    sequences.set(sequenceId, [...(sequences.get(sequenceId) ?? []), boat])
-  }
-  return [...sequences.entries()].map(([id, boats]) => ({ id, boats }))
+
+  const pathCommand = (segment: BoatSequenceSegment) =>
+    ` C ${segment.firstControl.x} ${segment.firstControl.y} ${segment.secondControl.x} ${segment.secondControl.y} ${segment.end.x} ${segment.end.y}`
+
+  return [...sequences.entries()].map(([id, sequence]) => {
+    const ordered = [...sequence].sort(
+      (first, second) => first.positionNumber - second.positionNumber,
+    )
+    const firstPosition = ordered[0]?.positionNumber ?? 1
+    const lastPosition = ordered.at(-1)?.positionNumber ?? firstPosition
+    const position = clamp(playbackPosition, firstPosition, lastPosition)
+    const current = currentBoats.get(id)
+    const passed = ordered.filter((boat) => boat.positionNumber <= position)
+    const atWaypoint = passed.at(-1)?.positionNumber === position
+    const boats = current && !atWaypoint ? [...passed, current] : passed
+    let path = ordered.length ? `M ${ordered[0].x} ${ordered[0].y}` : ''
+    let hasSegment = false
+
+    for (let index = 1; index < ordered.length; index += 1) {
+      const from = ordered[index - 1]
+      const to = ordered[index]
+      const segment = boatSequenceSegment(from, to)
+      if (to.positionNumber <= position) {
+        path += pathCommand(segment)
+        hasSegment = true
+        continue
+      }
+      if (from.positionNumber < position) {
+        const timelineProgress =
+          (position - from.positionNumber) / (to.positionNumber - from.positionNumber)
+        const curveProgress = constantSpeedCurveProgress(segment, timelineProgress)
+        path += pathCommand(partialBoatSequenceSegment(segment, curveProgress))
+        hasSegment = true
+      }
+      break
+    }
+
+    return { id, boats, path: hasSegment ? path : '' }
+  })
 }

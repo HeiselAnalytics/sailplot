@@ -1503,9 +1503,9 @@ export const ScenarioCanvas = forwardRef<CanvasHandle, ScenarioCanvasProps>(func
   const boatTracks = useMemo(() => {
     if (isPlaybackMode) {
       if (!playbackTailsVisible) return []
-      return boatTailsAtPlaybackPosition(orderedObjects, playbackPosition)
-        .map(({ id, boats }) => ({ id, boats, path: boatSequencePath(boats) }))
-        .filter(({ path }) => path)
+      return boatTailsAtPlaybackPosition(orderedObjects, playbackPosition).filter(
+        ({ path }) => path,
+      )
     }
 
     const sequences = new Map<string, BoatObject[]>()

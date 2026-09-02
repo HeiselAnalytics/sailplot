@@ -67,6 +67,39 @@ export function pointOnBoatSequenceSegment(
   }
 }
 
+const interpolatePoint = (
+  from: BoatSequencePoint,
+  to: BoatSequencePoint,
+  progress: number,
+): BoatSequencePoint => ({
+  x: from.x + (to.x - from.x) * progress,
+  y: from.y + (to.y - from.y) * progress,
+})
+
+/** Returns the unchanged prefix of a cubic Bézier segment using de Casteljau subdivision. */
+export function partialBoatSequenceSegment(
+  segment: BoatSequenceSegment,
+  progress: number,
+): BoatSequenceSegment {
+  const boundedProgress = Math.min(1, Math.max(0, progress))
+  const startToFirst = interpolatePoint(segment.start, segment.firstControl, boundedProgress)
+  const firstToSecond = interpolatePoint(
+    segment.firstControl,
+    segment.secondControl,
+    boundedProgress,
+  )
+  const secondToEnd = interpolatePoint(segment.secondControl, segment.end, boundedProgress)
+  const firstSubdivision = interpolatePoint(startToFirst, firstToSecond, boundedProgress)
+  const secondSubdivision = interpolatePoint(firstToSecond, secondToEnd, boundedProgress)
+
+  return {
+    start: segment.start,
+    firstControl: startToFirst,
+    secondControl: firstSubdivision,
+    end: interpolatePoint(firstSubdivision, secondSubdivision, boundedProgress),
+  }
+}
+
 export function tangentOnBoatSequenceSegment(
   segment: BoatSequenceSegment,
   progress: number,
