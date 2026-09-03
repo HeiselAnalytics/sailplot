@@ -9,25 +9,30 @@ interface AnimationExportOptions {
   onProgress?: (progress: number) => void
 }
 
-const GIF_FRAMES_PER_SECOND = 10
-const MP4_FRAMES_PER_SECOND = 24
+const GIF_FRAMES_PER_SECOND = 20
+const MP4_FRAMES_PER_SECOND = 30
 const GIF_MAX_WIDTH = 1200
 const MP4_MAX_WIDTH = 1600
 
-export const animationPlaybackPositions = (lastPosition: number, framesPerSecond: number) => {
+export const animationPlaybackPositions = (
+  lastPosition: number,
+  framesPerSecond: number,
+  speed = 1,
+) => {
   if (lastPosition <= 1) return [1]
   const segmentDurationSeconds = PLAYBACK_SEGMENT_DURATION_MS / 1000
+  const safeSpeed = Math.max(Number.EPSILON, speed)
   const frameSteps = Math.max(
     1,
-    Math.round((lastPosition - 1) * segmentDurationSeconds * framesPerSecond),
+    Math.round(((lastPosition - 1) * segmentDurationSeconds * framesPerSecond) / safeSpeed),
   )
-  return Array.from({ length: frameSteps + 1 }, (_, index) =>
-    Math.min(lastPosition, 1 + index / (segmentDurationSeconds * framesPerSecond)),
+  return Array.from(
+    { length: frameSteps + 1 },
+    (_, index) => 1 + ((lastPosition - 1) * index) / frameSteps,
   )
 }
 
-export const animationFrameDurationSeconds = (framesPerSecond: number, speed: number) =>
-  1 / (framesPerSecond * speed)
+export const animationFrameDurationSeconds = (framesPerSecond: number) => 1 / framesPerSecond
 
 const loadImage = (source: string) =>
   new Promise<HTMLImageElement>((resolve, reject) => {
@@ -96,12 +101,16 @@ const renderNextFrame = async (
 export async function createGifExport(
   options: AnimationExportOptions & { transparent: boolean },
 ): Promise<Blob> {
-  const positions = animationPlaybackPositions(options.lastPosition, GIF_FRAMES_PER_SECOND)
+  const positions = animationPlaybackPositions(
+    options.lastPosition,
+    GIF_FRAMES_PER_SECOND,
+    options.speed,
+  )
   const firstFrame = await options.renderFrame(positions[0], options.transparent)
   const { canvas, context, firstImage } = await prepareFrameCanvas(firstFrame, GIF_MAX_WIDTH)
   const { GIFEncoder, applyPalette, quantize } = await import('gifenc')
   const gif = GIFEncoder()
-  const delay = animationFrameDurationSeconds(GIF_FRAMES_PER_SECOND, options.speed) * 1000
+  const delay = animationFrameDurationSeconds(GIF_FRAMES_PER_SECOND) * 1000
 
   for (let index = 0; index < positions.length; index += 1) {
     if (index === 0) drawFrame(context, canvas, firstImage)
@@ -140,7 +149,11 @@ export async function createGifExport(
 }
 
 export async function createMp4Export(options: AnimationExportOptions): Promise<Blob> {
-  const positions = animationPlaybackPositions(options.lastPosition, MP4_FRAMES_PER_SECOND)
+  const positions = animationPlaybackPositions(
+    options.lastPosition,
+    MP4_FRAMES_PER_SECOND,
+    options.speed,
+  )
   const firstFrame = await options.renderFrame(positions[0], false)
   const { canvas, context, firstImage } = await prepareFrameCanvas(firstFrame, MP4_MAX_WIDTH, true)
   const { BufferTarget, CanvasSource, Mp4OutputFormat, Output, Quality, canEncodeVideo } =
@@ -165,7 +178,7 @@ export async function createMp4Export(options: AnimationExportOptions): Promise<
   })
   output.addVideoTrack(source)
   await output.start()
-  const frameDuration = animationFrameDurationSeconds(MP4_FRAMES_PER_SECOND, options.speed)
+  const frameDuration = animationFrameDurationSeconds(MP4_FRAMES_PER_SECOND)
 
   try {
     for (let index = 0; index < positions.length; index += 1) {
