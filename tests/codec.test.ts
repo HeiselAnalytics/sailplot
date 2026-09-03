@@ -3,6 +3,7 @@ import QRCode from 'qrcode'
 import { deflate } from 'pako'
 import { createBoat, createEmptyScenario } from '../src/lib/scenario'
 import {
+  createQrShareUrl,
   createShareUrl,
   decodeScenario,
   encodeScenario,
@@ -32,7 +33,7 @@ describe('compressed share links', () => {
     scenario.objects.push(createBoat(100, 200))
     const encoded = encodeScenario(scenario)
 
-    expect(encoded).toMatch(/^[0-9A-Z*./:-]+$/)
+    expect(encoded).toMatch(/^[A-Za-z0-9_-]+$/)
     expect(withoutTechnicalIdentity(decodeScenario(encoded))).toEqual(
       withoutTechnicalIdentity(scenario),
     )
@@ -45,7 +46,7 @@ describe('compressed share links', () => {
       pathname: '/boats/',
     } as Location)
 
-    expect(url).toMatch(/^https:\/\/example\.test\/boats\/#1[0-9A-Z*./:-]+$/)
+    expect(url).toMatch(/^https:\/\/example\.test\/boats\/#2[A-Za-z0-9_-]+$/)
     expect(withoutTechnicalIdentity(scenarioFromHash(new URL(url).hash)!)).toEqual(
       withoutTechnicalIdentity(scenario),
     )
@@ -66,7 +67,7 @@ describe('compressed share links', () => {
   it('produces a substantially smaller QR matrix than compressed full JSON', () => {
     const scenario = createEmptyScenario('Shared situation')
     scenario.objects.push(createBoat(100, 200))
-    const compactUrl = createShareUrl(scenario, {
+    const compactUrl = createQrShareUrl(scenario, {
       origin: 'https://sailplot.app',
       pathname: '/',
     } as Location)
@@ -80,8 +81,22 @@ describe('compressed share links', () => {
     expect(compactQr.modules.size).toBeLessThan(oldQr.modules.size * 0.7)
   })
 
+  it('keeps version 1 QR and legacy message links readable', () => {
+    const scenario = createEmptyScenario('Legacy-compatible plot')
+    scenario.objects.push(createBoat(100, 200))
+    const legacyUrl = createQrShareUrl(scenario, {
+      origin: 'https://sailplot.app',
+      pathname: '/',
+    } as Location)
+
+    expect(legacyUrl).toMatch(/^https:\/\/sailplot\.app\/#1[0-9A-Z*./:-]+$/)
+    expect(withoutTechnicalIdentity(scenarioFromHash(new URL(legacyUrl).hash)!)).toEqual(
+      withoutTechnicalIdentity(scenario),
+    )
+  })
+
   it('rejects unsupported future share formats', () => {
-    expect(() => scenarioFromHash('#2ABC')).toThrow(/future share format version 2/i)
+    expect(() => scenarioFromHash('#3ABC')).toThrow(/future share format version 3/i)
   })
 
   it('fails defensively for damaged links', () => {

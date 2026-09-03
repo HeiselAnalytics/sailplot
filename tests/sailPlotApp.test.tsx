@@ -119,7 +119,7 @@ describe('SailPlotApp', () => {
     )
 
     expect(window.location.pathname).toBe('/improvement')
-    expect(window.location.hash).toMatch(/^#1/u)
+    expect(window.location.hash).toMatch(/^#2/u)
     expect(container.querySelector('h1')?.textContent).toBe('Improvement page')
   })
 })

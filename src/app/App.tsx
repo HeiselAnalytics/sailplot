@@ -82,7 +82,7 @@ import {
   saveProject,
   type StoredProject,
 } from '../services/database'
-import { createShareUrl, scenarioFromHash } from '../services/scenarioCodec'
+import { createQrShareUrl, createShareUrl, scenarioFromHash } from '../services/scenarioCodec'
 import { parseScenarioJson, serializeScenario } from '../services/scenarioFiles'
 import { useEditorStore } from '../stores/editorStore'
 import { SAILING_BOAT_CLASSES, type BoatClass, type BoatObject } from '../types/scenario'
@@ -870,7 +870,7 @@ function CanvasQrCode({ onOpen }: { onOpen: () => void }) {
   const qrFinderColor = sailPlotQrFinderColor(config)
   const scenario = useEditorStore((state) => state.scenario)
   const plotUrl = useMemo(
-    () => config.links.qrCode ?? createShareUrl(scenario),
+    () => config.links.qrCode ?? createQrShareUrl(scenario),
     [config.links.qrCode, scenario],
   )
   const qrCodeUrl = useMemo(() => {
@@ -1093,7 +1093,7 @@ function PlotQrDialog({ onClose }: { onClose: () => void }) {
   const qrFinderColor = sailPlotQrFinderColor(config)
   const scenario = useEditorStore((state) => state.scenario)
   const plotUrl = useMemo(
-    () => config.links.qrCode ?? createShareUrl(scenario),
+    () => config.links.qrCode ?? createQrShareUrl(scenario),
     [config.links.qrCode, scenario],
   )
   const qrCodeUrl = useMemo(
@@ -2240,7 +2240,7 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
     if (!plotData) return
     try {
       const data = await addExportWatermark(plotData, {
-        plotUrl: config.links.qrCode ?? createShareUrl(scenario),
+        plotUrl: config.links.qrCode ?? createQrShareUrl(scenario),
         primaryColor: qrFinderColor,
         analyticsLogoUrl: config.branding.exportWatermarkLogo,
         productLogoUrl: config.branding.exportProductLogo,
@@ -2266,7 +2266,7 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
       const plotData = canvasRef.current?.exportPng(transparent, 1)
       if (!plotData) throw new Error('Could not render an animation frame')
       return addExportWatermark(plotData, {
-        plotUrl: config.links.qrCode ?? createShareUrl(scenario),
+        plotUrl: config.links.qrCode ?? createQrShareUrl(scenario),
         primaryColor: qrFinderColor,
         analyticsLogoUrl: config.branding.exportWatermarkLogo,
         productLogoUrl: config.branding.exportProductLogo,
@@ -2320,7 +2320,7 @@ export default function App({ extensions, extensionContext }: EditorAppProps) {
     if (!data) return
     try {
       const pdf = await createA4PlotPdf(data, {
-        plotUrl: config.links.qrCode ?? createShareUrl(scenario),
+        plotUrl: config.links.qrCode ?? createQrShareUrl(scenario),
         primaryColor: qrFinderColor,
         analyticsLogoUrl: config.branding.exportWatermarkLogo,
         productLogoUrl: config.branding.exportProductLogo,

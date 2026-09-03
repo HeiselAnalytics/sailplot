@@ -1017,7 +1017,7 @@ test('exports watermarked images, copies share URLs and downloads an A4 landscap
   await expect(copyButton).toHaveCSS('background-color', 'rgb(34, 197, 94)')
   await expect
     .poll(() => page.evaluate(() => sessionStorage.getItem('copied-export-url')))
-    .toContain('#1')
+    .toContain('#2')
   const copiedPlotUrl = await page.evaluate(() => sessionStorage.getItem('copied-export-url'))
   expect(copiedPlotUrl).not.toBeNull()
 
@@ -1047,7 +1047,9 @@ test('exports watermarked images, copies share URLs and downloads an A4 landscap
       const detector = new BarcodeDetectorClass({ formats: ['qr_code'] })
       return (await detector.detect(image)).map((result) => result.rawValue)
     }, pngDataUrl)
-    expect(decodedQrValues).toContain(copiedPlotUrl)
+    expect(decodedQrValues).toHaveLength(1)
+    expect(decodedQrValues[0]).toMatch(/#1[0-9A-Z*./:-]+$/)
+    expect(copiedPlotUrl).toMatch(/#2[A-Za-z0-9_-]+$/)
   }
 
   await page.evaluate(() => {

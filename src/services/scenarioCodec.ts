@@ -2,11 +2,29 @@ import { deflateRaw, inflateRaw } from 'pako'
 import type { Scenario } from '../types/scenario'
 import { compactScenario, expandCompactScenario } from './compactScenario'
 
-const SHARE_FORMAT_VERSION = 1
+const SHARE_FORMAT_VERSION = 2
+const QR_SHARE_FORMAT_VERSION = 1
 
 // Every character is URL-fragment-safe and belongs to the QR alphanumeric alphabet.
 // 41³ is large enough to store each pair of bytes in exactly three characters.
 const BASE41_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ*-./:'
+
+const bytesToBase64Url = (bytes: Uint8Array): string => {
+  let binary = ''
+  const chunkSize = 0x8000
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize))
+  }
+  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/u, '')
+}
+
+const base64UrlToBytes = (encoded: string): Uint8Array => {
+  if (!encoded || !/^[A-Za-z0-9_-]+$/u.test(encoded) || encoded.length % 4 === 1)
+    throw new Error('The share link contains invalid characters.')
+  const padding = '='.repeat((4 - (encoded.length % 4)) % 4)
+  const binary = atob(encoded.replaceAll('-', '+').replaceAll('_', '/') + padding)
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0))
+}
 
 const bytesToBase41 = (bytes: Uint8Array): string => {
   let encoded = ''
@@ -43,13 +61,22 @@ const base41ToBytes = (encoded: string): Uint8Array => {
 }
 
 export function encodeScenario(scenario: Scenario): string {
-  return bytesToBase41(deflateRaw(JSON.stringify(compactScenario(scenario)), { level: 9 }))
+  return bytesToBase64Url(deflateRaw(JSON.stringify(compactScenario(scenario)), { level: 9 }))
+}
+
+const decodeBytes = (bytes: Uint8Array): Scenario => {
+  try {
+    const parsed: unknown = JSON.parse(inflateRaw(bytes, { to: 'string' }))
+    return expandCompactScenario(parsed)
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('This plot')) throw error
+    throw new Error('The share link is invalid or damaged.')
+  }
 }
 
 export function decodeScenario(encoded: string): Scenario {
   try {
-    const parsed: unknown = JSON.parse(inflateRaw(base41ToBytes(encoded), { to: 'string' }))
-    return expandCompactScenario(parsed)
+    return decodeBytes(base64UrlToBytes(encoded))
   } catch (error) {
     if (error instanceof Error && error.message.startsWith('This plot')) throw error
     throw new Error('The share link is invalid or damaged.')
@@ -63,10 +90,23 @@ export function scenarioFromHash(hash: string): Scenario | null {
   if (!Number.isInteger(version)) return null
   if (version > SHARE_FORMAT_VERSION)
     throw new Error(`This plot uses unsupported future share format version ${version}.`)
-  if (version !== SHARE_FORMAT_VERSION) return null
-  return decodeScenario(encoded.slice(1))
+  if (version === QR_SHARE_FORMAT_VERSION) {
+    try {
+      return decodeBytes(base41ToBytes(encoded.slice(1)))
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('This plot')) throw error
+      throw new Error('The share link is invalid or damaged.')
+    }
+  }
+  if (version === SHARE_FORMAT_VERSION) return decodeScenario(encoded.slice(1))
+  return null
 }
 
 export function createShareUrl(scenario: Scenario, location = window.location): string {
   return `${location.origin}${location.pathname}#${SHARE_FORMAT_VERSION}${encodeScenario(scenario)}`
+}
+
+export function createQrShareUrl(scenario: Scenario, location = window.location): string {
+  const encoded = bytesToBase41(deflateRaw(JSON.stringify(compactScenario(scenario)), { level: 9 }))
+  return `${location.origin}${location.pathname}#${QR_SHARE_FORMAT_VERSION}${encoded}`
 }
