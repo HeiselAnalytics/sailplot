@@ -500,12 +500,7 @@ function SupportBoatFlags({
   return (
     <Group name="support-boat-flags">
       {flags.map((flag) => (
-        <Group
-          key={flag.id}
-          x={flag.side * 3.5}
-          y={-18}
-          rotation={flag.side * 20}
-        >
+        <Group key={flag.id} x={flag.side * 3.5} y={-18} rotation={flag.side * 20}>
           <Line points={[0, 0, 0, -poleLength]} stroke={inkColor} strokeWidth={2} />
           <Group x={flag.side < 0 ? -30 : 0} y={-poleLength}>
             <UmpireFlagFace
@@ -531,6 +526,15 @@ function BoatProtestFlag({
   inkColor: string
   outlineColor: string
 }) {
+  // The pole points outboard and slightly aft from the port stern corner. The
+  // flag's hoist edge sits on the outer part of the pole so the complete shape
+  // reads as one physical flag inserted into the boat, rather than a rectangle
+  // floating beside a short line.
+  const poleTip: [number, number] = [-15.2, 11.4]
+  const flagInner: [number, number] = [-5.6, 4.2]
+  const flagOuterInner: [number, number] = [-16.4, -10.2]
+  const flagOuterTip: [number, number] = [-26, -3]
+
   return (
     <Group
       name="boat-protest-flag"
@@ -539,16 +543,16 @@ function BoatProtestFlag({
       scaleX={1 / displayScale}
       scaleY={1 / displayScale}
     >
-      <Rect
-        x={-23}
-        y={-2}
-        width={18}
-        height={12}
+      <Line points={[0, 0, ...poleTip]} stroke={inkColor} strokeWidth={2} lineCap="round" />
+      <Line
+        points={[...flagInner, ...flagOuterInner, ...flagOuterTip, ...poleTip]}
+        closed
         fill={UMPIRE_FLAG_COLORS.red}
         stroke={outlineColor}
         strokeWidth={1.5}
+        lineJoin="round"
       />
-      <Line points={[0, 0, -7, 4]} stroke={inkColor} strokeWidth={2} lineCap="round" />
+      <Circle radius={1.8} fill={inkColor} />
     </Group>
   )
 }
