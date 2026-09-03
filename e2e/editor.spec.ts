@@ -193,8 +193,7 @@ test('makes the desktop tool and scene controls visibly interactive', async ({
   await expect(toolsPanel.getByLabel('Wind direction value')).toHaveValue('90')
   await expect(toolsPanel.getByText('−180°', { exact: true })).toBeVisible()
   await expect(toolsPanel.getByText('+180°', { exact: true })).toBeVisible()
-  await toolsPanel.getByLabel('Layline angle value').fill('35')
-  await expect(toolsPanel.getByLabel('Layline angle slider')).toHaveValue('35')
+  await expect(toolsPanel.getByText('Layline angle', { exact: true })).toHaveCount(0)
   const boatLengthBasis = toolsPanel.getByLabel('Boat-length basis')
   await expect(boatLengthBasis).toHaveValue('')
   await expect(boatLengthBasis.locator('option').first()).toHaveText('Default - ILCA')
@@ -208,7 +207,7 @@ test('makes the desktop tool and scene controls visibly interactive', async ({
   await boatLengthBasis.selectOption('Optimist')
   await expect(boatLengthBasis).toHaveValue('Optimist')
   await expect(toolsPanel.getByText('1 BL · Optimist', { exact: true })).toBeVisible()
-  for (const label of ['Grid visibility', 'Wind direction', 'Layline angle']) {
+  for (const label of ['Grid visibility', 'Wind direction']) {
     const valueBox = await toolsPanel.getByLabel(`${label} value`).boundingBox()
     const sliderBox = await toolsPanel.getByLabel(`${label} slider`).boundingBox()
     expect(valueBox).not.toBeNull()

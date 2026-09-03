@@ -499,14 +499,6 @@ function SceneSettings({
           updateCanvas({ grid: { ...scenario.canvas.grid, opacity: opacity / 100 } })
         }
       />
-      <SceneRangeField
-        label={t('Layline angle')}
-        min={0}
-        max={90}
-        value={scenario.environment.laylineAngle}
-        unit="°"
-        onChange={(laylineAngle) => updateEnvironment({ laylineAngle })}
-      />
     </section>
   )
 }
