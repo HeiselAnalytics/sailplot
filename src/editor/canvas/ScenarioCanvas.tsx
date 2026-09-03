@@ -539,9 +539,8 @@ function BoatProtestFlag({
       scaleX={1 / displayScale}
       scaleY={1 / displayScale}
     >
-      <Line points={[0, 0, -7, 4]} stroke={inkColor} strokeWidth={2} lineCap="round" />
       <Rect
-        x={-25}
+        x={-23}
         y={-2}
         width={18}
         height={12}
@@ -549,6 +548,7 @@ function BoatProtestFlag({
         stroke={outlineColor}
         strokeWidth={1.5}
       />
+      <Line points={[0, 0, -7, 4]} stroke={inkColor} strokeWidth={2} lineCap="round" />
     </Group>
   )
 }
