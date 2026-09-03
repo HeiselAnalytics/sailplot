@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   animationFrameDurationSeconds,
   animationPlaybackPositions,
+  gifFrameDelayMilliseconds,
 } from '../src/lib/exportAnimation'
 
 describe('animationPlaybackPositions', () => {
@@ -34,7 +35,17 @@ describe('animationPlaybackPositions', () => {
 
 describe('animationFrameDurationSeconds', () => {
   it('keeps a stable output frame rate', () => {
-    expect(animationFrameDurationSeconds(20)).toBeCloseTo(1 / 20)
     expect(animationFrameDurationSeconds(30)).toBeCloseTo(1 / 30)
+  })
+})
+
+describe('gifFrameDelayMilliseconds', () => {
+  it('distributes GIF centisecond delays without changing the average frame rate', () => {
+    const delays = Array.from({ length: 3 }, (_, index) =>
+      gifFrameDelayMilliseconds(30, index),
+    )
+
+    expect(delays).toEqual([30, 40, 30])
+    expect(delays.reduce((total, delay) => total + delay, 0)).toBe(100)
   })
 })

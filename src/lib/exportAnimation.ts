@@ -9,7 +9,7 @@ interface AnimationExportOptions {
   onProgress?: (progress: number) => void
 }
 
-const GIF_FRAMES_PER_SECOND = 20
+const GIF_FRAMES_PER_SECOND = 30
 const MP4_FRAMES_PER_SECOND = 30
 const GIF_MAX_WIDTH = 1200
 const MP4_MAX_WIDTH = 1600
@@ -33,6 +33,12 @@ export const animationPlaybackPositions = (
 }
 
 export const animationFrameDurationSeconds = (framesPerSecond: number) => 1 / framesPerSecond
+
+export const gifFrameDelayMilliseconds = (framesPerSecond: number, frameIndex: number) => {
+  const currentBoundary = Math.round((frameIndex * 100) / framesPerSecond)
+  const nextBoundary = Math.round(((frameIndex + 1) * 100) / framesPerSecond)
+  return Math.max(1, nextBoundary - currentBoundary) * 10
+}
 
 const loadImage = (source: string) =>
   new Promise<HTMLImageElement>((resolve, reject) => {
@@ -110,7 +116,6 @@ export async function createGifExport(
   const { canvas, context, firstImage } = await prepareFrameCanvas(firstFrame, GIF_MAX_WIDTH)
   const { GIFEncoder, applyPalette, quantize } = await import('gifenc')
   const gif = GIFEncoder()
-  const delay = animationFrameDurationSeconds(GIF_FRAMES_PER_SECOND) * 1000
 
   for (let index = 0; index < positions.length; index += 1) {
     if (index === 0) drawFrame(context, canvas, firstImage)
@@ -134,7 +139,7 @@ export async function createGifExport(
     }
     gif.writeFrame(indexedPixels, canvas.width, canvas.height, {
       palette,
-      delay,
+      delay: gifFrameDelayMilliseconds(GIF_FRAMES_PER_SECOND, index),
       repeat: 0,
       transparent: transparentIndex >= 0,
       transparentIndex: Math.max(0, transparentIndex),
