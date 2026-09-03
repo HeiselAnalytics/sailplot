@@ -125,12 +125,11 @@ describe('scenario playback', () => {
     expect(boatsAtPlaybackPosition([first, second], 2)[0].overlapIndicator).toBe('none')
   })
 
-  it('changes Umpire flags at the configured boat position', () => {
+  it('changes support-boat flags at the configured boat position', () => {
     const first = {
       ...createBoat(0, 0, 1, 'Umpire boat'),
       sequenceId: 'umpire',
       positionNumber: 1,
-      protestFlagVisible: false,
       boatFlagColor: '#FFAA00',
       umpireSignalFlag: 'green-white' as const,
     }
@@ -138,21 +137,36 @@ describe('scenario playback', () => {
       ...createBoat(100, 0, 2, 'Umpire boat'),
       sequenceId: 'umpire',
       positionNumber: 2,
-      protestFlagVisible: true,
       boatFlagColor: '#18324A',
       umpireSignalFlag: 'red' as const,
     }
 
     expect(boatsAtPlaybackPosition([first, second], 1.5)[0]).toMatchObject({
-      protestFlagVisible: false,
       boatFlagColor: '#FFAA00',
       umpireSignalFlag: 'green-white',
     })
     expect(boatsAtPlaybackPosition([first, second], 2)[0]).toMatchObject({
-      protestFlagVisible: true,
       boatFlagColor: '#18324A',
       umpireSignalFlag: 'red',
     })
+  })
+
+  it('changes the sailing-boat protest flag side at the configured position', () => {
+    const first = {
+      ...createBoat(0, 0, 1, 'ILCA'),
+      sequenceId: 'sailing-boat',
+      positionNumber: 1,
+      protestFlagSide: 'port' as const,
+    }
+    const second = {
+      ...createBoat(100, 0, 2, 'ILCA'),
+      sequenceId: 'sailing-boat',
+      positionNumber: 2,
+      protestFlagSide: 'starboard' as const,
+    }
+
+    expect(boatsAtPlaybackPosition([first, second], 1.5)[0].protestFlagSide).toBe('port')
+    expect(boatsAtPlaybackPosition([first, second], 2)[0].protestFlagSide).toBe('starboard')
   })
 
   it('builds a tail only through the current playback position', () => {

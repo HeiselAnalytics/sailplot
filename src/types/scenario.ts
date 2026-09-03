@@ -26,6 +26,8 @@ export const SAILING_BOAT_CLASSES: readonly BoatClass[] = BOAT_CLASSES.filter(
   (boatClass) => !isSupportBoatClass(boatClass),
 )
 export type Tack = 'port' | 'starboard'
+export const PROTEST_FLAG_SIDES = ['port', 'none', 'starboard'] as const
+export type ProtestFlagSide = (typeof PROTEST_FLAG_SIDES)[number]
 export const UMPIRE_SIGNAL_FLAGS = [
   'none',
   'protest',
@@ -85,7 +87,7 @@ export interface BoatObject extends BaseObject {
   sequenceId: string
   positionNumber: number
   overlapIndicator: 'port' | 'none' | 'starboard'
-  protestFlagVisible: boolean
+  protestFlagSide: ProtestFlagSide
   boatFlagColor: string | null
   umpireSignalFlag: UmpireSignalFlag
   stateMarker?: 'none' | 'tack' | 'gybe' | 'head-to-wind' | 'reverse' | 'drift'

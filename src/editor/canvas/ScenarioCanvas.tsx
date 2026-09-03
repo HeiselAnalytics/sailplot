@@ -40,6 +40,7 @@ import type {
   MarkObject,
   ScenarioObject,
 } from '../../types/scenario'
+import { isSupportBoatClass } from '../../types/scenario'
 import {
   automaticGennakerAngle,
   automaticBoatHeadsailAngle,
@@ -517,11 +518,13 @@ function SupportBoatFlags({
 
 function BoatProtestFlag({
   mount,
+  side,
   displayScale,
   inkColor,
   outlineColor,
 }: {
   mount: [number, number]
+  side: Exclude<BoatObject['protestFlagSide'], 'none'>
   displayScale: number
   inkColor: string
   outlineColor: string
@@ -540,7 +543,7 @@ function BoatProtestFlag({
       name="boat-protest-flag"
       x={mount[0]}
       y={mount[1]}
-      scaleX={1 / displayScale}
+      scaleX={(side === 'port' ? 1 : -1) / displayScale}
       scaleY={1 / displayScale}
     >
       <Line points={[0, 0, ...poleTip]} stroke={inkColor} strokeWidth={2} lineCap="round" />
@@ -865,9 +868,14 @@ function BoatGraphic({
             />
           </Group>
         )}
-        {object.protestFlagVisible && (
+        {!isSupportBoatClass(object.boatClass) && object.protestFlagSide !== 'none' && (
           <BoatProtestFlag
-            mount={profile.sternPort}
+            mount={
+              object.protestFlagSide === 'port'
+                ? profile.sternPort
+                : [-profile.sternPort[0], profile.sternPort[1]]
+            }
+            side={object.protestFlagSide}
             displayScale={profile.displayScale}
             inkColor={inkColor}
             outlineColor={outlineColor}

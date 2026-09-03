@@ -2,6 +2,7 @@ import { z } from 'zod'
 import {
   BOAT_CLASSES,
   isSupportBoatClass,
+  PROTEST_FLAG_SIDES,
   UMPIRE_SIGNAL_FLAGS,
   type BoatClass,
 } from '../types/scenario'
@@ -62,7 +63,8 @@ const boatSchema = baseObjectSchema.extend({
   sequenceId: z.string().optional(),
   positionNumber: z.number().int().positive().optional(),
   overlapIndicator: z.enum(['port', 'none', 'starboard']).default('none'),
-  protestFlagVisible: z.boolean().default(false),
+  protestFlagSide: z.enum(PROTEST_FLAG_SIDES).optional(),
+  protestFlagVisible: z.boolean().optional(),
   boatFlagColor: z.string().nullable().default(null),
   umpireSignalFlag: z.enum(UMPIRE_SIGNAL_FLAGS).default('none'),
   stateMarker: z.enum(['none', 'tack', 'gybe', 'head-to-wind', 'reverse', 'drift']).optional(),

@@ -377,7 +377,7 @@ describe('plot format', () => {
     delete legacyBoat.spinnakerTrim
     delete legacyBoat.mainsailTrim
     delete legacyBoat.overlapIndicator
-    delete legacyBoat.protestFlagVisible
+    delete legacyBoat.protestFlagSide
     delete legacyBoat.boatFlagColor
     delete legacyBoat.umpireSignalFlag
     scenario.canvas.view.scale = 0.42
@@ -393,11 +393,32 @@ describe('plot format', () => {
       spinnakerTrim: 0,
       mainsailTrim: 0,
       overlapIndicator: 'none',
-      protestFlagVisible: false,
+      protestFlagSide: 'none',
       boatFlagColor: null,
       umpireSignalFlag: 'none',
     })
     expect(parsed.objects[0].type === 'boat' && parsed.objects[0].sequenceId).toBeTruthy()
+  })
+
+  it('migrates the legacy protest flag to the port stern on sailing boats only', () => {
+    const sailingBoat = createBoat(120, 240) as Partial<ReturnType<typeof createBoat>> & {
+      protestFlagVisible?: boolean
+    }
+    delete sailingBoat.protestFlagSide
+    sailingBoat.protestFlagVisible = true
+    const supportBoat = createBoat(240, 240, 2, 'Coachboat') as Partial<
+      ReturnType<typeof createBoat>
+    > & { protestFlagVisible?: boolean }
+    delete supportBoat.protestFlagSide
+    supportBoat.protestFlagVisible = true
+    const scenario = createEmptyScenario()
+    scenario.objects = [sailingBoat, supportBoat] as typeof scenario.objects
+
+    const parsed = parseScenarioJson(serializeScenario(scenario))
+    expect(parsed.objects[0]).toMatchObject({ protestFlagSide: 'port' })
+    expect(parsed.objects[1]).toMatchObject({ protestFlagSide: 'none' })
+    expect(parsed.objects[0]).not.toHaveProperty('protestFlagVisible')
+    expect(parsed.objects[1]).not.toHaveProperty('protestFlagVisible')
   })
 
   it('migrates legacy coachboats to Coachboat and preserves its fixed blue', () => {

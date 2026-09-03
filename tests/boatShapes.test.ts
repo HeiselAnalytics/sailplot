@@ -73,7 +73,7 @@ describe('historical boat shape profiles', () => {
     expect(BOAT_SHAPES['Umpire boat']).toBe(BOAT_SHAPES.Coachboat)
     expect(createBoat(0, 0, 1, 'Umpire boat')).toMatchObject({
       color: UMPIRE_BOAT_GREY,
-      protestFlagVisible: false,
+      protestFlagSide: 'none',
       boatFlagColor: null,
       umpireSignalFlag: 'none',
     })

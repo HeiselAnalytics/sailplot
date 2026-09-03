@@ -26,6 +26,9 @@ describe('translations', () => {
     expect(translate('de', 'Umpire boat')).toBe('Umpireboot')
     expect(translate('de', 'Protest flag (Y)')).toBe('Protestflagge (Y)')
     expect(translate('de', 'Red protest flag')).toBe('Rote Protestflagge')
+    expect(translate('de', 'Yes left')).toBe('Ja links')
+    expect(translate('de', 'No')).toBe('Nein')
+    expect(translate('de', 'Yes right')).toBe('Ja rechts')
     expect(translate('de', 'Green and white (no penalty)')).toBe('Grün-Weiß (keine Strafe)')
   })
 

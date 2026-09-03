@@ -6,7 +6,7 @@ import {
   START_FLAG_COLOR,
 } from '../lib/scenario'
 import { scenarioSchema } from '../schemas/scenario'
-import type { Scenario } from '../types/scenario'
+import { isSupportBoatClass, type Scenario } from '../types/scenario'
 import { normalizePlotBackground } from '../lib/plotTheme'
 
 export const CURRENT_FORMAT_VERSION = 1
@@ -52,12 +52,16 @@ export function migrateScenario(input: unknown): Scenario {
     },
     objects: scenario.objects.map((object) => {
       if (object.type === 'boat') {
+        const { protestFlagVisible, ...boat } = object
         return {
-          ...object,
+          ...boat,
           color: boatColorForClass(object.boatClass, object.color),
           sequenceId: object.sequenceId ?? createId(),
           positionNumber: object.positionNumber ?? 1,
           overlapIndicator: object.overlapIndicator ?? 'none',
+          protestFlagSide: isSupportBoatClass(object.boatClass)
+            ? 'none'
+            : (object.protestFlagSide ?? (protestFlagVisible ? 'port' : 'none')),
         }
       }
       if (object.type === 'mark') {

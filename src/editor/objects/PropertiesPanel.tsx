@@ -172,6 +172,43 @@ function BoatOverlapField({
   )
 }
 
+function BoatProtestFlagField({
+  value,
+  onChange,
+}: {
+  value: BoatObject['protestFlagSide']
+  onChange: (value: BoatObject['protestFlagSide']) => void
+}) {
+  const { t } = useI18n()
+  const options: Array<{ value: BoatObject['protestFlagSide']; label: string }> = [
+    { value: 'port', label: 'Yes left' },
+    { value: 'none', label: 'No' },
+    { value: 'starboard', label: 'Yes right' },
+  ]
+  return (
+    <div className="field">
+      <span>{t('Red protest flag')}</span>
+      <div
+        className="property-segmented-control property-segmented-control--three"
+        role="group"
+        aria-label={t('Red protest flag')}
+      >
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            className={value === option.value ? 'is-active' : ''}
+            aria-pressed={value === option.value}
+            onClick={() => onChange(option.value)}
+          >
+            {t(option.label)}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function LayerOrderActions({
   onForward,
   onBackward,
@@ -384,13 +421,12 @@ function BoatFields({
         value={object.overlapIndicator}
         onChange={(overlapIndicator) => update({ overlapIndicator })}
       />
-      <BooleanSegmentField
-        label={t('Red protest flag')}
-        checked={object.protestFlagVisible}
-        checkedLabel={t('On')}
-        uncheckedLabel={t('Off')}
-        onChange={(protestFlagVisible) => update({ protestFlagVisible })}
-      />
+      {!isSupportBoatClass(object.boatClass) && (
+        <BoatProtestFlagField
+          value={object.protestFlagSide}
+          onChange={(protestFlagSide) => update({ protestFlagSide })}
+        />
+      )}
       {object.boatClass === 'Coachboat' || object.boatClass === 'Umpire boat' ? (
         <div className="field">
           <span>{t('Hull color')}</span>

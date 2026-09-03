@@ -397,25 +397,27 @@ describe('command history', () => {
   })
 
   it('uses a fixed grey Umpire boat and keeps its two flags position-specific', () => {
-    const first = createBoat(100, 200)
-    const second = { ...createBoat(180, 120), sequenceId: first.sequenceId, positionNumber: 2 }
+    const first = { ...createBoat(100, 200), protestFlagSide: 'port' as const }
+    const second = {
+      ...createBoat(180, 120),
+      sequenceId: first.sequenceId,
+      positionNumber: 2,
+      protestFlagSide: 'starboard' as const,
+    }
     useEditorStore.getState().addObject(first)
     useEditorStore.getState().addObject(second)
 
     useEditorStore
       .getState()
       .updateObject(first.id, { boatClass: 'Umpire boat' }, 'Changed boat class')
-    useEditorStore
-      .getState()
-      .updateObject(
-        first.id,
-        {
-          protestFlagVisible: true,
-          boatFlagColor: '#FFAA00',
-          umpireSignalFlag: 'green-white',
-        },
-        'Set umpire flags',
-      )
+    useEditorStore.getState().updateObject(
+      first.id,
+      {
+        boatFlagColor: '#FFAA00',
+        umpireSignalFlag: 'green-white',
+      },
+      'Set umpire flags',
+    )
 
     const boats = useEditorStore
       .getState()
@@ -423,14 +425,14 @@ describe('command history', () => {
     expect(boats.find(({ id }) => id === first.id)).toMatchObject({
       boatClass: 'Umpire boat',
       color: UMPIRE_BOAT_GREY,
-      protestFlagVisible: true,
+      protestFlagSide: 'none',
       boatFlagColor: '#FFAA00',
       umpireSignalFlag: 'green-white',
     })
     expect(boats.find(({ id }) => id === second.id)).toMatchObject({
       boatClass: 'Umpire boat',
       color: UMPIRE_BOAT_GREY,
-      protestFlagVisible: false,
+      protestFlagSide: 'none',
       boatFlagColor: null,
       umpireSignalFlag: 'none',
     })

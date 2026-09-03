@@ -27,6 +27,7 @@ import type {
   Scenario,
   ScenarioObject,
 } from '../types/scenario'
+import { isSupportBoatClass } from '../types/scenario'
 
 const BOAT_CHAIN_FIELDS: Array<keyof BoatObject> = ['boatClass', 'color', 'name', 'sailNumber']
 const CREATION_TOOLS = new Set<EditorTool>([
@@ -325,6 +326,9 @@ export const useEditorStore = create<EditorState>((set, get) => {
         ) as Partial<BoatObject>
         if (boatPatch.boatClass && !boatPatch.color) {
           sharedPatch.color = boatColorForClass(boatPatch.boatClass, before.color)
+        }
+        if (boatPatch.boatClass && isSupportBoatClass(boatPatch.boatClass)) {
+          sharedPatch.protestFlagSide = 'none'
         }
         if (Object.keys(sharedPatch).length) {
           const classSails = boatPatch.boatClass ? upwindSailVisibility(boatPatch.boatClass) : {}

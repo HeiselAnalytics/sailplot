@@ -1862,34 +1862,51 @@ test('adds a grey Umpire boat with two independent official flag controls', asyn
   const boatClass = properties.getByRole('combobox', { name: 'Boat class' })
   await expect(boatClass).not.toContainText('Jury boat')
   const protestFlag = properties.getByRole('group', { name: 'Red protest flag' })
-  const protestFlagOn = protestFlag.getByRole('button', { name: 'On' })
-  const protestFlagOff = protestFlag.getByRole('button', { name: 'Off' })
-  await expect(protestFlagOff).toHaveAttribute('aria-pressed', 'true')
-  await protestFlagOn.click()
-  await expect(protestFlagOn).toHaveAttribute('aria-pressed', 'true')
-  await expect
-    .poll(() =>
-      canvas.evaluate((element: HTMLCanvasElement) => {
-        const pixels = element
-          .getContext('2d')!
-          .getImageData(0, 0, element.width, element.height).data
-        let red = 0
-        for (let index = 0; index < pixels.length; index += 4) {
-          if (
-            pixels[index] > 140 &&
-            pixels[index + 1] < 120 &&
-            pixels[index + 2] < 120 &&
-            pixels[index] > pixels[index + 1] + 70
-          )
-            red += 1
+  const protestFlagLeft = protestFlag.getByRole('button', { name: 'Yes left' })
+  const protestFlagNone = protestFlag.getByRole('button', { name: 'No', exact: true })
+  const protestFlagRight = protestFlag.getByRole('button', { name: 'Yes right' })
+  await expect(protestFlagNone).toHaveAttribute('aria-pressed', 'true')
+  await protestFlagLeft.click()
+  await expect(protestFlagLeft).toHaveAttribute('aria-pressed', 'true')
+  const redFlagCentroid = () =>
+    canvas.evaluate((element: HTMLCanvasElement) => {
+      const { data, width, height } = element
+        .getContext('2d')!
+        .getImageData(0, 0, element.width, element.height)
+      let count = 0
+      let totalX = 0
+      let totalY = 0
+      for (let index = 0; index < data.length; index += 4) {
+        if (
+          data[index] > 140 &&
+          data[index + 1] < 120 &&
+          data[index + 2] < 120 &&
+          data[index] > data[index + 1] + 70
+        ) {
+          const pixel = index / 4
+          count += 1
+          totalX += pixel % width
+          totalY += Math.floor(pixel / width)
         }
-        return red
-      }),
-    )
-    .toBeGreaterThan(20)
-  await protestFlagOff.click()
-  await expect(protestFlagOff).toHaveAttribute('aria-pressed', 'true')
+      }
+      return count ? { count, x: totalX / count, y: totalY / count, height } : null
+    })
+  await expect.poll(async () => (await redFlagCentroid())?.count ?? 0).toBeGreaterThan(20)
+  const leftCentroid = await redFlagCentroid()
+  expect(leftCentroid).not.toBeNull()
+  await protestFlagRight.click()
+  await expect(protestFlagRight).toHaveAttribute('aria-pressed', 'true')
+  await expect
+    .poll(async () => {
+      const rightCentroid = await redFlagCentroid()
+      if (!leftCentroid || !rightCentroid) return 0
+      return Math.hypot(rightCentroid.x - leftCentroid.x, rightCentroid.y - leftCentroid.y)
+    })
+    .toBeGreaterThan(8)
+  await protestFlagNone.click()
+  await expect(protestFlagNone).toHaveAttribute('aria-pressed', 'true')
   await boatClass.selectOption('Umpire boat')
+  await expect(protestFlag).toHaveCount(0)
   await expect(properties.getByLabel('Fixed support boat hull color')).toContainText('#4B5563')
 
   const boatFlag = properties.getByRole('combobox', { name: 'Boat identification flag' })
@@ -1998,6 +2015,7 @@ test('offers the Umpire boat flag controls in compact properties', async ({ page
   const properties = page.locator('.mobile-properties:visible')
   await properties.getByRole('combobox', { name: 'Boat class' }).selectOption('Umpire boat')
   await expect(properties.getByLabel('Fixed support boat hull color')).toContainText('#4B5563')
+  await expect(properties.getByRole('group', { name: 'Red protest flag' })).toHaveCount(0)
   await properties
     .getByRole('combobox', { name: 'Boat identification flag' })
     .selectOption('#FFAA00')
